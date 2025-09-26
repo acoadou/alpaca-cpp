@@ -1,0 +1,27 @@
+---
+AccessModifierOffset: -2
+AlignAfterOpenBracket: Align
+AlignArrayOfStructures: Right
+AlignConsecutiveAssignments: Enabled: false
+AlignConsecutiveDeclarations: Enabled: false
+AlignEscapedNewlines: LeftWithLastLine
+AlignTrailingComments: Kind: Always
+AllowShortEnumsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: None
+AllowShortCompoundRequirementOnASingleLine: false
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortCaseExpressionOnASingleLine: false
+AllowShortBlocksOnASingleLine: Never
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLambdasOnASingleLine: None
+AllowShortLoopsOnASingleLine: false
+BraceWrapping: {}
+BracedInitializerIndentWidth: 4
+ConstructorInitializerIndentWidth: 2
+ContinuationIndentWidth: 0
+IndentAccessModifiers: false
+IndentWidth: 4
+InsertBraces: true
+InsertNewlineAtEOF: false
+Language: Cpp
+LineEnding: LF
