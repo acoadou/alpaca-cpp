@@ -225,6 +225,46 @@ class AlpacaClient {
     /// Returns the latest NBBO quote for the supplied stock symbol.
     [[nodiscard]] LatestStockQuote get_latest_stock_quote(std::string const& symbol);
 
+    /// Returns the latest trades for multiple stock symbols.
+    [[nodiscard]] LatestStockTrades get_latest_stock_trades(LatestStocksRequest const& request);
+
+    /// Returns the latest quotes for multiple stock symbols.
+    [[nodiscard]] LatestStockQuotes get_latest_stock_quotes(LatestStocksRequest const& request);
+
+    /// Returns the latest bars for multiple stock symbols.
+    [[nodiscard]] LatestStockBars get_latest_stock_bars(LatestStocksRequest const& request);
+
+    /// Returns the latest trades for the supplied option contracts.
+    [[nodiscard]] LatestOptionTrades get_latest_option_trades(LatestOptionsRequest const& request);
+
+    /// Returns the latest quotes for the supplied option contracts.
+    [[nodiscard]] LatestOptionQuotes get_latest_option_quotes(LatestOptionsRequest const& request);
+
+    /// Returns the latest bars for the supplied option contracts.
+    [[nodiscard]] LatestOptionBars get_latest_option_bars(LatestOptionsRequest const& request);
+
+    /// Returns the latest trades for the supplied crypto symbols and feed.
+    [[nodiscard]] LatestCryptoTrades get_latest_crypto_trades(std::string const& feed,
+                                                             LatestCryptoRequest const& request);
+
+    /// Returns the latest quotes for the supplied crypto symbols and feed.
+    [[nodiscard]] LatestCryptoQuotes get_latest_crypto_quotes(std::string const& feed,
+                                                             LatestCryptoRequest const& request);
+
+    /// Returns the latest bars for the supplied crypto symbols and feed.
+    [[nodiscard]] LatestCryptoBars get_latest_crypto_bars(std::string const& feed,
+                                                         LatestCryptoRequest const& request);
+
+    /// Returns orderbook snapshots for the supplied stock symbols.
+    [[nodiscard]] MultiStockOrderbooks get_stock_orderbooks(LatestStockOrderbooksRequest const& request);
+
+    /// Returns orderbook snapshots for the supplied option contracts.
+    [[nodiscard]] MultiOptionOrderbooks get_option_orderbooks(LatestOptionOrderbooksRequest const& request);
+
+    /// Returns orderbook snapshots for the supplied crypto symbols and feed.
+    [[nodiscard]] MultiCryptoOrderbooks get_crypto_orderbooks(std::string const& feed,
+                                                             LatestCryptoOrderbooksRequest const& request);
+
     /// Returns historical bars for the supplied stock symbol using optional
     /// filters.
     [[nodiscard]] StockBars get_stock_bars(std::string const& symbol, StockBarsRequest const& request = {});
@@ -282,6 +322,18 @@ class AlpacaClient {
 
     /// Retrieves crypto trades across one or more symbols.
     [[nodiscard]] MultiCryptoTrades get_crypto_trades(MultiCryptoTradesRequest const& request);
+
+    /// Lists exchanges metadata for the supplied asset class.
+    [[nodiscard]] ListExchangesResponse list_exchanges(ListExchangesRequest const& request);
+
+    /// Lists trade or quote conditions metadata for the supplied asset class.
+    [[nodiscard]] ListTradeConditionsResponse list_trade_conditions(ListTradeConditionsRequest const& request);
+
+    /// Returns the top market movers for the supplied market type.
+    [[nodiscard]] MarketMoversResponse get_top_market_movers(MarketMoversRequest const& request);
+
+    /// Returns the most active stocks ranked by the specified metric.
+    [[nodiscard]] MostActiveStocksResponse get_most_active_stocks(MostActiveStocksRequest const& request);
 
     /// Lists broker accounts using the optional filters.
     [[nodiscard]] BrokerAccountsPage list_broker_accounts(ListBrokerAccountsRequest const& request = {});

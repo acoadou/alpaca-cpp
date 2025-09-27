@@ -280,6 +280,55 @@ LatestStockQuote AlpacaClient::get_latest_stock_quote(std::string const& symbol)
     return market_data().get_latest_stock_quote(symbol);
 }
 
+LatestStockTrades AlpacaClient::get_latest_stock_trades(LatestStocksRequest const& request) {
+    return market_data().get_latest_stock_trades(request);
+}
+
+LatestStockQuotes AlpacaClient::get_latest_stock_quotes(LatestStocksRequest const& request) {
+    return market_data().get_latest_stock_quotes(request);
+}
+
+LatestStockBars AlpacaClient::get_latest_stock_bars(LatestStocksRequest const& request) {
+    return market_data().get_latest_stock_bars(request);
+}
+
+LatestOptionTrades AlpacaClient::get_latest_option_trades(LatestOptionsRequest const& request) {
+    return market_data().get_latest_option_trades(request);
+}
+
+LatestOptionQuotes AlpacaClient::get_latest_option_quotes(LatestOptionsRequest const& request) {
+    return market_data().get_latest_option_quotes(request);
+}
+
+LatestOptionBars AlpacaClient::get_latest_option_bars(LatestOptionsRequest const& request) {
+    return market_data().get_latest_option_bars(request);
+}
+
+LatestCryptoTrades AlpacaClient::get_latest_crypto_trades(std::string const& feed, LatestCryptoRequest const& request) {
+    return market_data().get_latest_crypto_trades(feed, request);
+}
+
+LatestCryptoQuotes AlpacaClient::get_latest_crypto_quotes(std::string const& feed, LatestCryptoRequest const& request) {
+    return market_data().get_latest_crypto_quotes(feed, request);
+}
+
+LatestCryptoBars AlpacaClient::get_latest_crypto_bars(std::string const& feed, LatestCryptoRequest const& request) {
+    return market_data().get_latest_crypto_bars(feed, request);
+}
+
+MultiStockOrderbooks AlpacaClient::get_stock_orderbooks(LatestStockOrderbooksRequest const& request) {
+    return market_data().get_stock_orderbooks(request);
+}
+
+MultiOptionOrderbooks AlpacaClient::get_option_orderbooks(LatestOptionOrderbooksRequest const& request) {
+    return market_data().get_option_orderbooks(request);
+}
+
+MultiCryptoOrderbooks AlpacaClient::get_crypto_orderbooks(std::string const& feed,
+                                                          LatestCryptoOrderbooksRequest const& request) {
+    return market_data().get_crypto_orderbooks(feed, request);
+}
+
 StockBars AlpacaClient::get_stock_bars(std::string const& symbol, StockBarsRequest const& request) {
     return market_data().get_stock_bars(symbol, request);
 }
@@ -348,6 +397,22 @@ MultiCryptoQuotes AlpacaClient::get_crypto_quotes(MultiCryptoQuotesRequest const
 
 MultiCryptoTrades AlpacaClient::get_crypto_trades(MultiCryptoTradesRequest const& request) {
     return market_data().get_crypto_trades(request);
+}
+
+ListExchangesResponse AlpacaClient::list_exchanges(ListExchangesRequest const& request) {
+    return market_data().list_exchanges(request);
+}
+
+ListTradeConditionsResponse AlpacaClient::list_trade_conditions(ListTradeConditionsRequest const& request) {
+    return market_data().list_trade_conditions(request);
+}
+
+MarketMoversResponse AlpacaClient::get_top_market_movers(MarketMoversRequest const& request) {
+    return market_data().get_top_market_movers(request);
+}
+
+MostActiveStocksResponse AlpacaClient::get_most_active_stocks(MostActiveStocksRequest const& request) {
+    return market_data().get_most_active_stocks(request);
 }
 
 BrokerAccountsPage AlpacaClient::list_broker_accounts(ListBrokerAccountsRequest const& request) {

@@ -272,6 +272,110 @@ struct MultiCryptoTrades {
 
 void from_json(Json const& j, MultiCryptoTrades& response);
 
+/// Single bid or ask level within an orderbook snapshot.
+struct OrderbookQuote {
+    double price{0.0};
+    double size{0.0};
+    std::optional<std::string> exchange{};
+};
+
+void from_json(Json const& j, OrderbookQuote& quote);
+
+/// Common orderbook snapshot representation shared across asset classes.
+struct OrderbookSnapshot {
+    std::string symbol;
+    Timestamp timestamp{};
+    std::vector<OrderbookQuote> bids;
+    std::vector<OrderbookQuote> asks;
+    bool reset{false};
+};
+
+void from_json(Json const& j, OrderbookSnapshot& snapshot);
+
+/// Response wrapper containing latest stock trades by symbol.
+struct LatestStockTrades {
+    std::map<std::string, StockTrade> trades;
+};
+
+void from_json(Json const& j, LatestStockTrades& response);
+
+/// Response wrapper containing latest stock quotes by symbol.
+struct LatestStockQuotes {
+    std::map<std::string, StockQuote> quotes;
+};
+
+void from_json(Json const& j, LatestStockQuotes& response);
+
+/// Response wrapper containing latest stock bars by symbol.
+struct LatestStockBars {
+    std::map<std::string, StockBar> bars;
+};
+
+void from_json(Json const& j, LatestStockBars& response);
+
+/// Response wrapper containing latest option trades by contract symbol.
+struct LatestOptionTrades {
+    std::map<std::string, OptionTrade> trades;
+};
+
+void from_json(Json const& j, LatestOptionTrades& response);
+
+/// Response wrapper containing latest option quotes by contract symbol.
+struct LatestOptionQuotes {
+    std::map<std::string, OptionQuote> quotes;
+};
+
+void from_json(Json const& j, LatestOptionQuotes& response);
+
+/// Response wrapper containing latest option bars by contract symbol.
+struct LatestOptionBars {
+    std::map<std::string, OptionBar> bars;
+};
+
+void from_json(Json const& j, LatestOptionBars& response);
+
+/// Response wrapper containing latest crypto trades keyed by symbol.
+struct LatestCryptoTrades {
+    std::map<std::string, CryptoTrade> trades;
+};
+
+void from_json(Json const& j, LatestCryptoTrades& response);
+
+/// Response wrapper containing latest crypto quotes keyed by symbol.
+struct LatestCryptoQuotes {
+    std::map<std::string, CryptoQuote> quotes;
+};
+
+void from_json(Json const& j, LatestCryptoQuotes& response);
+
+/// Response wrapper containing latest crypto bars keyed by symbol.
+struct LatestCryptoBars {
+    std::map<std::string, CryptoBar> bars;
+};
+
+void from_json(Json const& j, LatestCryptoBars& response);
+
+/// Response wrapper containing stock orderbook snapshots keyed by symbol.
+struct MultiStockOrderbooks {
+    std::map<std::string, OrderbookSnapshot> orderbooks;
+};
+
+void from_json(Json const& j, MultiStockOrderbooks& response);
+
+/// Response wrapper containing option orderbook snapshots keyed by contract.
+struct MultiOptionOrderbooks {
+    std::map<std::string, OrderbookSnapshot> orderbooks;
+};
+
+void from_json(Json const& j, MultiOptionOrderbooks& response);
+
+/// Response wrapper containing crypto orderbook snapshots keyed by symbol.
+struct MultiCryptoOrderbooks {
+    std::map<std::string, OrderbookSnapshot> orderbooks;
+};
+
+void from_json(Json const& j, MultiCryptoOrderbooks& response);
+
 /// Request payload for the news endpoint with typed filters.
 struct NewsRequest {
     std::vector<std::string> symbols{};
@@ -412,6 +516,164 @@ struct LatestOptionTradeRequest {
 /// Optional feed override supported by latest option quote lookups.
 struct LatestOptionQuoteRequest {
     std::optional<std::string> feed{};
+
+    [[nodiscard]] QueryParams to_query_params() const;
+};
+
+/// Request payload for multi-symbol latest stock data endpoints.
+struct LatestStocksRequest {
+    std::vector<std::string> symbols{};
+    std::optional<std::string> feed{};
+    std::optional<std::string> currency{};
+
+    [[nodiscard]] QueryParams to_query_params() const;
+};
+
+/// Request payload for multi-symbol latest option data endpoints.
+struct LatestOptionsRequest {
+    std::vector<std::string> symbols{};
+    std::optional<std::string> feed{};
+
+    [[nodiscard]] QueryParams to_query_params() const;
+};
+
+/// Request payload for multi-symbol latest crypto data endpoints.
+struct LatestCryptoRequest {
+    std::vector<std::string> symbols{};
+
+    [[nodiscard]] QueryParams to_query_params() const;
+};
+
+/// Request payload for stock orderbook snapshot lookups.
+struct LatestStockOrderbooksRequest {
+    std::vector<std::string> symbols{};
+    std::optional<std::string> feed{};
+    std::optional<std::string> currency{};
+
+    [[nodiscard]] QueryParams to_query_params() const;
+};
+
+/// Request payload for option orderbook snapshot lookups.
+struct LatestOptionOrderbooksRequest {
+    std::vector<std::string> symbols{};
+    std::optional<std::string> feed{};
+
+    [[nodiscard]] QueryParams to_query_params() const;
+};
+
+/// Request payload for crypto orderbook snapshot lookups.
+struct LatestCryptoOrderbooksRequest {
+    std::vector<std::string> symbols{};
+
+    [[nodiscard]] QueryParams to_query_params() const;
+};
+
+/// Represents an exchange returned by metadata endpoints.
+struct Exchange {
+    std::string id;
+    std::string name;
+    std::optional<std::string> code{};
+    std::optional<std::string> country{};
+    std::optional<std::string> currency{};
+    std::optional<std::string> timezone{};
+    std::optional<std::string> mic{};
+    std::optional<std::string> operating_mic{};
+};
+
+void from_json(Json const& j, Exchange& exchange);
+
+/// Represents a trade or quote condition metadata entry.
+struct TradeCondition {
+    std::string id;
+    std::string name;
+    std::optional<std::string> description{};
+    std::optional<std::string> type{};
+};
+
+void from_json(Json const& j, TradeCondition& condition);
+
+/// Request parameters for listing exchanges.
+struct ListExchangesRequest {
+    std::string asset_class{"stocks"};
+    std::optional<std::string> locale{};
+    std::optional<std::string> region{};
+    std::optional<std::string> mic{};
+
+    [[nodiscard]] QueryParams to_query_params() const;
+};
+
+/// Request parameters for listing trade conditions.
+struct ListTradeConditionsRequest {
+    std::string asset_class{"stocks"};
+    std::string condition_type{"trades"};
+    std::optional<std::string> sip{};
+
+    [[nodiscard]] QueryParams to_query_params() const;
+};
+
+/// Metadata response containing exchanges.
+struct ListExchangesResponse {
+    std::vector<Exchange> exchanges;
+};
+
+void from_json(Json const& j, ListExchangesResponse& response);
+
+/// Metadata response containing trade or quote conditions.
+struct ListTradeConditionsResponse {
+    std::vector<TradeCondition> conditions;
+};
+
+void from_json(Json const& j, ListTradeConditionsResponse& response);
+
+/// Represents a market mover entry.
+struct MarketMover {
+    std::string symbol;
+    double percent_change{0.0};
+    double change{0.0};
+    double price{0.0};
+};
+
+void from_json(Json const& j, MarketMover& mover);
+
+/// Response payload for the market movers endpoint.
+struct MarketMoversResponse {
+    std::vector<MarketMover> gainers;
+    std::vector<MarketMover> losers;
+    std::string market_type;
+    Timestamp last_updated{};
+};
+
+void from_json(Json const& j, MarketMoversResponse& response);
+
+/// Request payload for top market movers.
+struct MarketMoversRequest {
+    std::string market_type{"stocks"};
+    std::optional<int> top{};
+
+    [[nodiscard]] QueryParams to_query_params() const;
+};
+
+/// Represents a most active stock entry.
+struct MostActiveStock {
+    std::string symbol;
+    double volume{0.0};
+    double trade_count{0.0};
+};
+
+void from_json(Json const& j, MostActiveStock& stock);
+
+/// Response payload for the most active stocks endpoint.
+struct MostActiveStocksResponse {
+    std::vector<MostActiveStock> most_actives;
+    Timestamp last_updated{};
+};
+
+void from_json(Json const& j, MostActiveStocksResponse& response);
+
+/// Request payload for the most active stocks endpoint.
+struct MostActiveStocksRequest {
+    std::string by{"volume"};
+    std::optional<int> top{};
 
     [[nodiscard]] QueryParams to_query_params() const;
 };

@@ -26,6 +26,22 @@ class MarketDataClient {
                                                             LatestOptionTradeRequest const& request = {}) const;
     [[nodiscard]] LatestOptionQuote get_latest_option_quote(std::string const& symbol,
                                                             LatestOptionQuoteRequest const& request = {}) const;
+    [[nodiscard]] LatestStockTrades get_latest_stock_trades(LatestStocksRequest const& request) const;
+    [[nodiscard]] LatestStockQuotes get_latest_stock_quotes(LatestStocksRequest const& request) const;
+    [[nodiscard]] LatestStockBars get_latest_stock_bars(LatestStocksRequest const& request) const;
+    [[nodiscard]] LatestOptionTrades get_latest_option_trades(LatestOptionsRequest const& request) const;
+    [[nodiscard]] LatestOptionQuotes get_latest_option_quotes(LatestOptionsRequest const& request) const;
+    [[nodiscard]] LatestOptionBars get_latest_option_bars(LatestOptionsRequest const& request) const;
+    [[nodiscard]] LatestCryptoTrades get_latest_crypto_trades(std::string const& feed,
+                                                             LatestCryptoRequest const& request) const;
+    [[nodiscard]] LatestCryptoQuotes get_latest_crypto_quotes(std::string const& feed,
+                                                             LatestCryptoRequest const& request) const;
+    [[nodiscard]] LatestCryptoBars get_latest_crypto_bars(std::string const& feed,
+                                                         LatestCryptoRequest const& request) const;
+    [[nodiscard]] MultiStockOrderbooks get_stock_orderbooks(LatestStockOrderbooksRequest const& request) const;
+    [[nodiscard]] MultiOptionOrderbooks get_option_orderbooks(LatestOptionOrderbooksRequest const& request) const;
+    [[nodiscard]] MultiCryptoOrderbooks get_crypto_orderbooks(std::string const& feed,
+                                                             LatestCryptoOrderbooksRequest const& request) const;
 
     [[nodiscard]] StockBars get_stock_bars(std::string const& symbol, StockBarsRequest const& request = {}) const;
     [[nodiscard]] std::vector<StockBar> get_all_stock_bars(std::string const& symbol,
@@ -60,6 +76,11 @@ class MarketDataClient {
     [[nodiscard]] MultiCryptoBars get_crypto_aggregates(MultiCryptoBarsRequest const& request) const;
     [[nodiscard]] MultiCryptoQuotes get_crypto_quotes(MultiCryptoQuotesRequest const& request) const;
     [[nodiscard]] MultiCryptoTrades get_crypto_trades(MultiCryptoTradesRequest const& request) const;
+
+    [[nodiscard]] ListExchangesResponse list_exchanges(ListExchangesRequest const& request) const;
+    [[nodiscard]] ListTradeConditionsResponse list_trade_conditions(ListTradeConditionsRequest const& request) const;
+    [[nodiscard]] MarketMoversResponse get_top_market_movers(MarketMoversRequest const& request) const;
+    [[nodiscard]] MostActiveStocksResponse get_most_active_stocks(MostActiveStocksRequest const& request) const;
 
   private:
     RestClient v2_client_;

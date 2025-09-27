@@ -265,6 +265,274 @@ void from_json(Json const& j, MultiCryptoTrades& response) {
     response.next_page_token = optional_field<std::string>(j, "next_page_token");
 }
 
+void from_json(Json const& j, OrderbookQuote& quote) {
+    if (j.contains("p")) {
+        j.at("p").get_to(quote.price);
+    } else if (j.contains("price")) {
+        j.at("price").get_to(quote.price);
+    } else {
+        quote.price = 0.0;
+    }
+    if (j.contains("s")) {
+        j.at("s").get_to(quote.size);
+    } else if (j.contains("size")) {
+        j.at("size").get_to(quote.size);
+    } else {
+        quote.size = 0.0;
+    }
+    if (j.contains("x") && !j.at("x").is_null()) {
+        quote.exchange = j.at("x").get<std::string>();
+    } else if (j.contains("exchange") && !j.at("exchange").is_null()) {
+        quote.exchange = j.at("exchange").get<std::string>();
+    } else {
+        quote.exchange = std::nullopt;
+    }
+}
+
+void from_json(Json const& j, OrderbookSnapshot& snapshot) {
+    if (j.contains("symbol")) {
+        snapshot.symbol = j.at("symbol").get<std::string>();
+    } else {
+        snapshot.symbol.clear();
+    }
+    if (j.contains("t")) {
+        snapshot.timestamp = parse_timestamp(j.at("t").get<std::string>());
+    } else if (j.contains("timestamp")) {
+        snapshot.timestamp = parse_timestamp(j.at("timestamp").get<std::string>());
+    } else {
+        snapshot.timestamp = {};
+    }
+    if (j.contains("b")) {
+        snapshot.bids = j.at("b").get<std::vector<OrderbookQuote>>();
+    } else if (j.contains("bids")) {
+        snapshot.bids = j.at("bids").get<std::vector<OrderbookQuote>>();
+    } else {
+        snapshot.bids.clear();
+    }
+    if (j.contains("a")) {
+        snapshot.asks = j.at("a").get<std::vector<OrderbookQuote>>();
+    } else if (j.contains("asks")) {
+        snapshot.asks = j.at("asks").get<std::vector<OrderbookQuote>>();
+    } else {
+        snapshot.asks.clear();
+    }
+    if (j.contains("r")) {
+        snapshot.reset = j.at("r").get<bool>();
+    } else if (j.contains("reset")) {
+        snapshot.reset = j.at("reset").get<bool>();
+    } else {
+        snapshot.reset = false;
+    }
+}
+
+void from_json(Json const& j, LatestStockTrades& response) {
+    parse_symbol_objects(j, "trades", response.trades);
+}
+
+void from_json(Json const& j, LatestStockQuotes& response) {
+    parse_symbol_objects(j, "quotes", response.quotes);
+}
+
+void from_json(Json const& j, LatestStockBars& response) {
+    parse_symbol_objects(j, "bars", response.bars);
+}
+
+void from_json(Json const& j, LatestOptionTrades& response) {
+    parse_symbol_objects(j, "trades", response.trades);
+}
+
+void from_json(Json const& j, LatestOptionQuotes& response) {
+    parse_symbol_objects(j, "quotes", response.quotes);
+}
+
+void from_json(Json const& j, LatestOptionBars& response) {
+    parse_symbol_objects(j, "bars", response.bars);
+}
+
+void from_json(Json const& j, LatestCryptoTrades& response) {
+    parse_symbol_objects(j, "trades", response.trades);
+}
+
+void from_json(Json const& j, LatestCryptoQuotes& response) {
+    parse_symbol_objects(j, "quotes", response.quotes);
+}
+
+void from_json(Json const& j, LatestCryptoBars& response) {
+    parse_symbol_objects(j, "bars", response.bars);
+}
+
+namespace {
+template <typename Orderbooks>
+void parse_orderbooks(Json const& j, Orderbooks& response) {
+    response.orderbooks.clear();
+    if (!j.contains("orderbooks") || !j.at("orderbooks").is_object()) {
+        return;
+    }
+    for (auto const& [symbol, value] : j.at("orderbooks").items()) {
+        OrderbookSnapshot snapshot = value.get<OrderbookSnapshot>();
+        snapshot.symbol = symbol;
+        response.orderbooks.emplace(symbol, std::move(snapshot));
+    }
+}
+} // namespace
+
+void from_json(Json const& j, MultiStockOrderbooks& response) {
+    parse_orderbooks(j, response);
+}
+
+void from_json(Json const& j, MultiOptionOrderbooks& response) {
+    parse_orderbooks(j, response);
+}
+
+void from_json(Json const& j, MultiCryptoOrderbooks& response) {
+    parse_orderbooks(j, response);
+}
+
+void from_json(Json const& j, Exchange& exchange) {
+    if (j.contains("id")) {
+        j.at("id").get_to(exchange.id);
+    } else if (j.contains("exchange")) {
+        j.at("exchange").get_to(exchange.id);
+    } else if (j.contains("code")) {
+        j.at("code").get_to(exchange.id);
+    } else {
+        exchange.id.clear();
+    }
+    if (j.contains("name")) {
+        j.at("name").get_to(exchange.name);
+    } else {
+        exchange.name.clear();
+    }
+    exchange.code = optional_field<std::string>(j, "code");
+    exchange.country = optional_field<std::string>(j, "country");
+    exchange.currency = optional_field<std::string>(j, "currency");
+    exchange.timezone = optional_field<std::string>(j, "timezone");
+    exchange.mic = optional_field<std::string>(j, "mic");
+    exchange.operating_mic = optional_field<std::string>(j, "operating_mic");
+}
+
+void from_json(Json const& j, TradeCondition& condition) {
+    if (j.contains("id")) {
+        j.at("id").get_to(condition.id);
+    } else if (j.contains("code")) {
+        j.at("code").get_to(condition.id);
+    } else {
+        condition.id.clear();
+    }
+    if (j.contains("name")) {
+        j.at("name").get_to(condition.name);
+    } else if (j.contains("description")) {
+        condition.name = j.at("description").get<std::string>();
+    } else {
+        condition.name.clear();
+    }
+    condition.description = optional_field<std::string>(j, "description");
+    condition.type = optional_field<std::string>(j, "type");
+}
+
+void from_json(Json const& j, ListExchangesResponse& response) {
+    if (j.contains("exchanges")) {
+        j.at("exchanges").get_to(response.exchanges);
+    } else {
+        response.exchanges.clear();
+    }
+}
+
+void from_json(Json const& j, ListTradeConditionsResponse& response) {
+    if (j.contains("conditions")) {
+        j.at("conditions").get_to(response.conditions);
+    } else {
+        response.conditions.clear();
+    }
+}
+
+void from_json(Json const& j, MarketMover& mover) {
+    j.at("symbol").get_to(mover.symbol);
+    if (j.contains("percent_change")) {
+        j.at("percent_change").get_to(mover.percent_change);
+    } else if (j.contains("percentage_change")) {
+        j.at("percentage_change").get_to(mover.percent_change);
+    } else if (j.contains("percentChange")) {
+        j.at("percentChange").get_to(mover.percent_change);
+    }
+    if (j.contains("change")) {
+        j.at("change").get_to(mover.change);
+    } else if (j.contains("price_change")) {
+        j.at("price_change").get_to(mover.change);
+    }
+    if (j.contains("price")) {
+        mover.price = j.at("price").get<double>();
+    } else if (j.contains("last_price")) {
+        mover.price = j.at("last_price").get<double>();
+    } else if (j.contains("current_price")) {
+        mover.price = j.at("current_price").get<double>();
+    } else {
+        mover.price = 0.0;
+    }
+}
+
+void from_json(Json const& j, MarketMoversResponse& response) {
+    if (j.contains("gainers")) {
+        j.at("gainers").get_to(response.gainers);
+    } else {
+        response.gainers.clear();
+    }
+    if (j.contains("losers")) {
+        j.at("losers").get_to(response.losers);
+    } else {
+        response.losers.clear();
+    }
+    if (j.contains("market_type")) {
+        j.at("market_type").get_to(response.market_type);
+    } else if (j.contains("marketType")) {
+        j.at("marketType").get_to(response.market_type);
+    } else {
+        response.market_type.clear();
+    }
+    if (j.contains("last_updated")) {
+        response.last_updated = parse_timestamp(j.at("last_updated").get<std::string>());
+    } else if (j.contains("lastUpdated")) {
+        response.last_updated = parse_timestamp(j.at("lastUpdated").get<std::string>());
+    } else {
+        response.last_updated = {};
+    }
+}
+
+void from_json(Json const& j, MostActiveStock& stock) {
+    j.at("symbol").get_to(stock.symbol);
+    if (j.contains("volume")) {
+        j.at("volume").get_to(stock.volume);
+    } else {
+        stock.volume = 0.0;
+    }
+    if (j.contains("trade_count")) {
+        j.at("trade_count").get_to(stock.trade_count);
+    } else if (j.contains("tradeCount")) {
+        j.at("tradeCount").get_to(stock.trade_count);
+    } else {
+        stock.trade_count = 0.0;
+    }
+}
+
+void from_json(Json const& j, MostActiveStocksResponse& response) {
+    if (j.contains("most_actives")) {
+        j.at("most_actives").get_to(response.most_actives);
+    } else if (j.contains("mostActives")) {
+        j.at("mostActives").get_to(response.most_actives);
+    } else if (j.contains("most_active")) {
+        j.at("most_active").get_to(response.most_actives);
+    } else {
+        response.most_actives.clear();
+    }
+    if (j.contains("last_updated")) {
+        response.last_updated = parse_timestamp(j.at("last_updated").get<std::string>());
+    } else if (j.contains("lastUpdated")) {
+        response.last_updated = parse_timestamp(j.at("lastUpdated").get<std::string>());
+    } else {
+        response.last_updated = {};
+    }
+}
+
 namespace {
 void append_timestamp(QueryParams& params, std::string const& key, std::optional<Timestamp> const& value) {
     if (value.has_value()) {
@@ -522,6 +790,114 @@ QueryParams LatestOptionQuoteRequest::to_query_params() const {
     QueryParams params;
     if (feed.has_value()) {
         params.emplace_back("feed", *feed);
+    }
+    return params;
+}
+
+QueryParams LatestStocksRequest::to_query_params() const {
+    validate_symbols(symbols);
+    QueryParams params;
+    append_csv(params, "symbols", symbols);
+    if (feed.has_value()) {
+        params.emplace_back("feed", *feed);
+    }
+    if (currency.has_value()) {
+        params.emplace_back("currency", *currency);
+    }
+    return params;
+}
+
+QueryParams LatestOptionsRequest::to_query_params() const {
+    validate_symbols(symbols);
+    QueryParams params;
+    append_csv(params, "symbols", symbols);
+    if (feed.has_value()) {
+        params.emplace_back("feed", *feed);
+    }
+    return params;
+}
+
+QueryParams LatestCryptoRequest::to_query_params() const {
+    validate_symbols(symbols);
+    QueryParams params;
+    append_csv(params, "symbols", symbols);
+    return params;
+}
+
+QueryParams LatestStockOrderbooksRequest::to_query_params() const {
+    validate_symbols(symbols);
+    QueryParams params;
+    append_csv(params, "symbols", symbols);
+    if (feed.has_value()) {
+        params.emplace_back("feed", *feed);
+    }
+    if (currency.has_value()) {
+        params.emplace_back("currency", *currency);
+    }
+    return params;
+}
+
+QueryParams LatestOptionOrderbooksRequest::to_query_params() const {
+    validate_symbols(symbols);
+    QueryParams params;
+    append_csv(params, "symbols", symbols);
+    if (feed.has_value()) {
+        params.emplace_back("feed", *feed);
+    }
+    return params;
+}
+
+QueryParams LatestCryptoOrderbooksRequest::to_query_params() const {
+    validate_symbols(symbols);
+    QueryParams params;
+    append_csv(params, "symbols", symbols);
+    return params;
+}
+
+QueryParams ListExchangesRequest::to_query_params() const {
+    QueryParams params;
+    if (locale.has_value()) {
+        params.emplace_back("locale", *locale);
+    }
+    if (region.has_value()) {
+        params.emplace_back("region", *region);
+    }
+    if (mic.has_value()) {
+        params.emplace_back("mic", *mic);
+    }
+    return params;
+}
+
+QueryParams ListTradeConditionsRequest::to_query_params() const {
+    QueryParams params;
+    if (sip.has_value()) {
+        params.emplace_back("sip", *sip);
+    }
+    return params;
+}
+
+QueryParams MarketMoversRequest::to_query_params() const {
+    QueryParams params;
+    if (top.has_value()) {
+        if (*top <= 0) {
+            throw std::invalid_argument("top must be positive");
+        }
+        params.emplace_back("top", std::to_string(*top));
+    }
+    return params;
+}
+
+QueryParams MostActiveStocksRequest::to_query_params() const {
+    QueryParams params;
+    if (by.empty()) {
+        throw std::invalid_argument("by must not be empty");
+    }
+    params.emplace_back("by", by);
+    if (top.has_value()) {
+        if (*top <= 0) {
+            throw std::invalid_argument("top must be positive");
+        }
+        params.emplace_back("top", std::to_string(*top));
     }
     return params;
 }
