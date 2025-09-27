@@ -35,6 +35,9 @@ struct NewOrderBase {
     std::optional<std::string> notional;
     std::optional<std::string> limit_price;
     std::optional<std::string> stop_price;
+    std::optional<std::string> trail_price;
+    std::optional<std::string> trail_percent;
+    std::optional<std::string> high_water_mark;
     std::optional<std::string> client_order_id;
     std::optional<OrderClass> order_class;
     std::optional<TakeProfitParams> take_profit;
@@ -98,6 +101,9 @@ struct Order {
     std::optional<std::string> filled_avg_price;
     std::optional<std::string> limit_price;
     std::optional<std::string> stop_price;
+    std::optional<std::string> trail_price;
+    std::optional<std::string> trail_percent;
+    std::optional<std::string> high_water_mark;
     bool extended_hours{false};
     std::optional<std::string> base_symbol{};
     std::optional<std::string> quote_symbol{};

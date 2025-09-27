@@ -65,6 +65,25 @@ TEST(ModelSerializationTest, NewOrderRequestSupportsAdvancedOptions) {
     EXPECT_EQ(json["legs"][1]["position_intent"], "closing");
 }
 
+TEST(ModelSerializationTest, NewOrderRequestSerializesTrailingFields) {
+    alpaca::NewOrderRequest request;
+    request.symbol = "AAPL";
+    request.side = alpaca::OrderSide::SELL;
+    request.type = alpaca::OrderType::TRAILING_STOP;
+    request.time_in_force = alpaca::TimeInForce::GTC;
+    request.trail_price = "1.50";
+    request.trail_percent = "0.5";
+    request.high_water_mark = "175.00";
+
+    alpaca::Json json;
+    to_json(json, request);
+
+    EXPECT_EQ(json["type"], "trailing_stop");
+    EXPECT_EQ(json["trail_price"], "1.50");
+    EXPECT_EQ(json["trail_percent"], "0.5");
+    EXPECT_EQ(json["high_water_mark"], "175.00");
+}
+
 TEST(ModelSerializationTest, ReplaceOrderRequestSerializesOptionals) {
     alpaca::ReplaceOrderRequest request;
     request.quantity = "5";
@@ -79,6 +98,33 @@ TEST(ModelSerializationTest, ReplaceOrderRequestSerializesOptionals) {
     EXPECT_EQ(json["limit_price"], "100");
     EXPECT_EQ(json["stop_price"], "95");
     EXPECT_TRUE(json["extended_hours"].get<bool>());
+}
+
+TEST(ModelSerializationTest, OrderDeserializesTrailingFields) {
+    alpaca::Json json = {
+        {"id",               "order-id"                      },
+        {"asset_id",         "asset-id"                      },
+        {"client_order_id",  "client-id"                     },
+        {"account_id",       "account-id"                    },
+        {"created_at",       "2023-01-01T00:00:00Z"          },
+        {"symbol",           "AAPL"                          },
+        {"asset_class",      "us_equity"                     },
+        {"side",             "sell"                          },
+        {"type",             "trailing_stop"                 },
+        {"time_in_force",    "gtc"                           },
+        {"status",           "accepted"                      },
+        {"trail_price",      "1.50"                          },
+        {"trail_percent",    "0.5"                           },
+        {"high_water_mark",  "175.00"                        }
+    };
+
+    auto const order = json.get<alpaca::Order>();
+    ASSERT_TRUE(order.trail_price.has_value());
+    EXPECT_EQ(*order.trail_price, "1.50");
+    ASSERT_TRUE(order.trail_percent.has_value());
+    EXPECT_EQ(*order.trail_percent, "0.5");
+    ASSERT_TRUE(order.high_water_mark.has_value());
+    EXPECT_EQ(*order.high_water_mark, "175.00");
 }
 
 TEST(ModelSerializationTest, AccountDeserializesExtendedFields) {

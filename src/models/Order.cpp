@@ -28,6 +28,15 @@ template <typename Request> Json build_new_order_payload(Request const& request)
     if (request.stop_price.has_value()) {
         j["stop_price"] = *request.stop_price;
     }
+    if (request.trail_price.has_value()) {
+        j["trail_price"] = *request.trail_price;
+    }
+    if (request.trail_percent.has_value()) {
+        j["trail_percent"] = *request.trail_percent;
+    }
+    if (request.high_water_mark.has_value()) {
+        j["high_water_mark"] = *request.high_water_mark;
+    }
     if (request.client_order_id.has_value()) {
         j["client_order_id"] = *request.client_order_id;
     }
@@ -278,6 +287,23 @@ void from_json(Json const& j, Order& order) {
         order.stop_price = j.at("stop_price").get<std::string>();
     } else {
         order.stop_price.reset();
+    }
+    if (j.contains("trail_price") && !j.at("trail_price").is_null()) {
+        order.trail_price = j.at("trail_price").get<std::string>();
+    } else {
+        order.trail_price.reset();
+    }
+    if (j.contains("trail_percent") && !j.at("trail_percent").is_null()) {
+        order.trail_percent = j.at("trail_percent").get<std::string>();
+    } else {
+        order.trail_percent.reset();
+    }
+    if (j.contains("high_water_mark") && !j.at("high_water_mark").is_null()) {
+        order.high_water_mark = j.at("high_water_mark").get<std::string>();
+    } else if (j.contains("hwm") && !j.at("hwm").is_null()) {
+        order.high_water_mark = j.at("hwm").get<std::string>();
+    } else {
+        order.high_water_mark.reset();
     }
     order.extended_hours = j.value("extended_hours", false);
     if (j.contains("base_symbol") && !j.at("base_symbol").is_null()) {
