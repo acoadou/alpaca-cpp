@@ -6,16 +6,15 @@ namespace alpaca {
 
 /// HTTP client implementation that delegates to libcurl.
 class CurlHttpClient : public HttpClient {
- public:
-  CurlHttpClient();
-  ~CurlHttpClient() override;
+  public:
+    CurlHttpClient();
+    ~CurlHttpClient() override;
 
-  HttpResponse send(const HttpRequest& request) override;
+    HttpResponse send(HttpRequest const& request) override;
 
- private:
-  struct Impl;
-  Impl* impl_;
+  private:
+    struct Impl;
+    Impl *impl_;
 };
 
-}  // namespace alpaca
-
+} // namespace alpaca

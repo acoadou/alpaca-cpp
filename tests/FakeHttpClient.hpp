@@ -7,34 +7,37 @@
 #include "alpaca/HttpClient.hpp"
 
 struct RecordedRequest {
-  alpaca::HttpRequest request;
+    alpaca::HttpRequest request;
 };
 
 struct FakeHttpResponse {
-  alpaca::HttpResponse response;
+    alpaca::HttpResponse response;
 };
 
 /// Simple fake implementation used to capture requests within unit tests.
 class FakeHttpClient : public alpaca::HttpClient {
- public:
-  FakeHttpClient() = default;
+  public:
+    FakeHttpClient() = default;
 
-  void push_response(alpaca::HttpResponse response) { responses_.push_back(std::move(response)); }
-
-  [[nodiscard]] const std::vector<RecordedRequest>& requests() const { return requests_; }
-
-  alpaca::HttpResponse send(const alpaca::HttpRequest& request) override {
-    requests_.push_back(RecordedRequest{request});
-    if (responses_.empty()) {
-      return alpaca::HttpResponse{};
+    void push_response(alpaca::HttpResponse response) {
+        responses_.push_back(std::move(response));
     }
-    alpaca::HttpResponse response = std::move(responses_.front());
-    responses_.pop_front();
-    return response;
-  }
 
- private:
-  std::deque<alpaca::HttpResponse> responses_{};
-  std::vector<RecordedRequest> requests_{};
+    [[nodiscard]] std::vector<RecordedRequest> const& requests() const {
+        return requests_;
+    }
+
+    alpaca::HttpResponse send(alpaca::HttpRequest const& request) override {
+        requests_.push_back(RecordedRequest{request});
+        if (responses_.empty()) {
+            return alpaca::HttpResponse{};
+        }
+        alpaca::HttpResponse response = std::move(responses_.front());
+        responses_.pop_front();
+        return response;
+    }
+
+  private:
+    std::deque<alpaca::HttpResponse> responses_{};
+    std::vector<RecordedRequest> requests_{};
 };
-

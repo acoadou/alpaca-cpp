@@ -5,4 +5,3 @@
 namespace alpaca {
 using Json = nlohmann::json;
 }
-
