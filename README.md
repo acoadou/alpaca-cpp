@@ -23,8 +23,8 @@ client while embracing contemporary C++ idioms. The codebase builds a compiled l
   types where appropriate.
 - **Robust testing** powered by GoogleTest/GoogleMock and a fake HTTP client that validates headers, query encoding and JSON
   serialization.
-- **Synchronous by design** REST and streaming clients that you can wrap in your preferred executor, coroutine, or
-  future abstraction when integrating with asynchronous pipelines.
+- **Native async helpers** with `std::future`-based REST endpoints and websocket controls alongside the existing
+  synchronous APIs, enabling seamless integration with executors, coroutines, or custom event loops.
 - **First-class OAuth2 support** with helpers for PKCE generation, authorization URL construction, and token exchange for
   Alpaca Connect applications.
 
@@ -294,6 +294,49 @@ tokens.apply(config);
 Refer to [`examples/oauth_pkce.cpp`](examples/oauth_pkce.cpp) for an
 end-to-end console sample that guides the user through the flow and stores the
 resulting bearer token on an `alpaca::Configuration` instance.
+
+## Asynchronous REST and streaming usage
+
+All REST verbs on `alpaca::RestClient` now expose `_async` variants that return
+`std::future<T>`. These helpers reuse the existing retry, rate limit, and JSON
+handling paths while dispatching work on a background task so you can compose
+them with executors, coroutines, or custom schedulers:
+
+```cpp
+auto http = alpaca::create_default_http_client({});
+alpaca::Configuration config = alpaca::Configuration::Paper("KEY", "SECRET");
+alpaca::RestClient rest(config, http, config.trading_base_url);
+
+std::future<alpaca::Order> order_fut = rest.post_async<alpaca::Order>(
+    "/v2/orders",
+    alpaca::Json{{"symbol", "AAPL"},
+                 {"qty", "10"},
+                 {"side", "buy"},
+                 {"type", "market"},
+                 {"time_in_force", "day"}});
+
+// Block, await, or transform the future.
+alpaca::Order order = order_fut.get();
+```
+
+Websocket operations mirror this pattern with asynchronous helpers for
+connecting, subscribing, and sending payloads:
+
+```cpp
+alpaca::streaming::WebSocketClient client(config.market_data_stream_url,
+                                          config.api_key_id,
+                                          config.api_secret_key);
+
+alpaca::streaming::MarketSubscription sub{};
+sub.trades.push_back("AAPL");
+
+auto subscribe_fut = client.subscribe_async(sub);
+subscribe_fut.get();
+```
+
+Custom HTTP transports can override `alpaca::HttpClient::send_async` to hook the
+SDK into existing event loops rather than relying on the default thread-based
+dispatcher.
 
 ## Handling empty REST responses
 

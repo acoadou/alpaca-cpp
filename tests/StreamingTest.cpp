@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include <chrono>
+#include <mutex>
 #include <optional>
 #include <tuple>
 #include <utility>
@@ -14,9 +15,14 @@
 namespace alpaca::streaming {
 
 class WebSocketClientHarness {
-  public:
+public:
     static void feed(WebSocketClient& client, Json const& payload) {
         client.handle_payload(payload);
+    }
+
+    static std::size_t pending_message_count(WebSocketClient const& client) {
+        std::lock_guard<std::mutex> lock(client.connection_mutex_);
+        return client.pending_messages_.size();
     }
 };
 
@@ -202,6 +208,27 @@ TEST(StreamingTest, RoutesTradeCorrectionMessages) {
     ASSERT_TRUE(message->tape.has_value());
     EXPECT_EQ(*message->tape, "C");
     EXPECT_EQ(message->timestamp, parse_timestamp("2024-05-01T15:10:00.000000000Z"));
+}
+
+TEST(StreamingTest, AsyncSubscribeQueuesMessageWhileDisconnected) {
+    auto client = make_client();
+
+    alpaca::streaming::MarketSubscription subscription;
+    subscription.trades.push_back("AAPL");
+
+    auto future = client.subscribe_async(subscription);
+    EXPECT_NO_THROW(future.get());
+
+    EXPECT_EQ(WebSocketClientHarness::pending_message_count(client), 1U);
+}
+
+TEST(StreamingTest, AsyncSendRawBuffersMessageUntilConnected) {
+    auto client = make_client();
+
+    auto future = client.send_raw_async(alpaca::Json{{"action", "noop"}});
+    EXPECT_NO_THROW(future.get());
+
+    EXPECT_EQ(WebSocketClientHarness::pending_message_count(client), 1U);
 }
 
 TEST(StreamingTest, RoutesNewsMessages) {

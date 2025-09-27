@@ -2,6 +2,7 @@
 #include <gtest/gtest.h>
 
 #include <chrono>
+#include <future>
 #include <memory>
 #include <optional>
 
@@ -197,6 +198,59 @@ TEST(RestClientTest, SupportsCustomAuthenticationHandler) {
     EXPECT_THAT(request.headers.at("Authorization"), Eq("Custom token"));
     EXPECT_EQ(request.headers.count("APCA-API-KEY-ID"), 0);
     EXPECT_EQ(request.headers.count("APCA-API-SECRET-KEY"), 0);
+}
+
+TEST(RestClientTest, SupportsAsyncGetRequests) {
+    alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
+    auto fake_client = std::make_shared<FakeHttpClient>();
+
+    alpaca::Json account_json = {
+        {"id",                "async"},
+        {"currency",          "USD"  },
+        {"status",            "ACTIVE"}
+    };
+
+    fake_client->push_response(alpaca::HttpResponse{200, account_json.dump(), {}});
+
+    alpaca::RestClient client(config, fake_client, config.trading_base_url);
+    auto future = client.get_async<alpaca::Account>("/v2/account");
+    alpaca::Account account = future.get();
+
+    EXPECT_EQ(account.id, "async");
+    ASSERT_THAT(fake_client->requests(), SizeIs(1));
+    EXPECT_THAT(fake_client->requests().front().request.method, Eq(alpaca::HttpMethod::GET));
+}
+
+TEST(RestClientTest, SupportsAsyncPostRequests) {
+    alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
+    auto fake_client = std::make_shared<FakeHttpClient>();
+
+    alpaca::Json watchlist_json = {
+        {"id",          "wl-1"           },
+        {"name",        "Growth"         },
+        {"account_id",  "acct"           },
+        {"created_at",  "2024-05-01T00:00:00Z"},
+        {"updated_at",  "2024-05-01T00:00:00Z"},
+        {"assets",      alpaca::Json::array() }
+    };
+
+    fake_client->push_response(alpaca::HttpResponse{200, watchlist_json.dump(), {}});
+
+    alpaca::RestClient client(config, fake_client, config.trading_base_url);
+
+    alpaca::Json payload = {
+        {"name",   "Growth"},
+        {"symbols", alpaca::Json::array({"AAPL", "MSFT"})}
+    };
+
+    auto future = client.post_async<alpaca::Watchlist>("/v2/watchlists", payload);
+    alpaca::Watchlist watchlist = future.get();
+
+    EXPECT_EQ(watchlist.id, "wl-1");
+    ASSERT_THAT(fake_client->requests(), SizeIs(1));
+    auto const& request = fake_client->requests().front().request;
+    EXPECT_THAT(request.method, Eq(alpaca::HttpMethod::POST));
+    EXPECT_THAT(request.body, Eq(payload.dump()));
 }
 
 TEST(RestClientTest, PropagatesApiErrors) {

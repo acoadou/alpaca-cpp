@@ -3,6 +3,7 @@
 #include <chrono>
 #include <cstddef>
 #include <functional>
+#include <future>
 #include <mutex>
 #include <optional>
 #include <string>
@@ -74,9 +75,21 @@ class RestClient {
         return request_json<T>(HttpMethod::GET, path, params, std::nullopt);
     }
 
+    /// Performs a GET request asynchronously and resolves with the JSON
+    /// response deserialized into \c T.
+    template <typename T> std::future<T> get_async(std::string path, QueryParams params = {}) const {
+        return request_json_async<T>(HttpMethod::GET, std::move(path), std::move(params), std::nullopt);
+    }
+
     /// Performs a DELETE request and deserializes the JSON response into \c T.
     template <typename T = Json> T del(std::string const& path, QueryParams const& params = {}) const {
         return request_json<T>(HttpMethod::DELETE_, path, params, std::nullopt);
+    }
+
+    /// Performs a DELETE request asynchronously and resolves with the JSON
+    /// response deserialized into \c T.
+    template <typename T = Json> std::future<T> del_async(std::string path, QueryParams params = {}) const {
+        return request_json_async<T>(HttpMethod::DELETE_, std::move(path), std::move(params), std::nullopt);
     }
 
     /// Performs a POST request with a JSON payload and returns the JSON
@@ -85,10 +98,22 @@ class RestClient {
         return request_json<T>(HttpMethod::POST, path, params, payload.dump());
     }
 
+    /// Performs a POST request asynchronously with a JSON payload and resolves
+    /// with the JSON response deserialized into \c T.
+    template <typename T> std::future<T> post_async(std::string path, Json payload, QueryParams params = {}) const {
+        return request_json_async<T>(HttpMethod::POST, std::move(path), std::move(params), payload.dump());
+    }
+
     /// Performs a PUT request with a JSON payload and returns the response as
     /// \c T.
     template <typename T> T put(std::string const& path, Json const& payload, QueryParams const& params = {}) const {
         return request_json<T>(HttpMethod::PUT, path, params, payload.dump());
+    }
+
+    /// Performs a PUT request asynchronously with a JSON payload and resolves
+    /// with the response deserialized into \c T.
+    template <typename T> std::future<T> put_async(std::string path, Json payload, QueryParams params = {}) const {
+        return request_json_async<T>(HttpMethod::PUT, std::move(path), std::move(params), payload.dump());
     }
 
     /// Performs a PATCH request with a JSON payload and returns the response as
@@ -97,13 +122,31 @@ class RestClient {
         return request_json<T>(HttpMethod::PATCH, path, params, payload.dump());
     }
 
+    /// Performs a PATCH request asynchronously with a JSON payload and resolves
+    /// with the response deserialized into \c T.
+    template <typename T> std::future<T> patch_async(std::string path, Json payload, QueryParams params = {}) const {
+        return request_json_async<T>(HttpMethod::PATCH, std::move(path), std::move(params), payload.dump());
+    }
+
     /// Performs an HTTP request and returns the raw JSON body if present.
     [[nodiscard]] std::optional<std::string> get_raw(std::string const& path, QueryParams const& params = {}) const {
         return request_raw(HttpMethod::GET, path, params, std::nullopt);
     }
 
+    /// Performs an HTTP GET request asynchronously and resolves with the raw
+    /// JSON body when present.
+    [[nodiscard]] std::future<std::optional<std::string>> get_raw_async(std::string path,
+                                                                        QueryParams params = {}) const {
+        return request_raw_async(HttpMethod::GET, std::move(path), std::move(params), std::nullopt);
+    }
+
     [[nodiscard]] std::optional<std::string> del_raw(std::string const& path, QueryParams const& params = {}) const {
         return request_raw(HttpMethod::DELETE_, path, params, std::nullopt);
+    }
+
+    [[nodiscard]] std::future<std::optional<std::string>> del_raw_async(std::string path,
+                                                                        QueryParams params = {}) const {
+        return request_raw_async(HttpMethod::DELETE_, std::move(path), std::move(params), std::nullopt);
     }
 
     [[nodiscard]] std::optional<std::string> post_raw(std::string const& path, Json const& payload,
@@ -111,14 +154,29 @@ class RestClient {
         return request_raw(HttpMethod::POST, path, params, payload.dump());
     }
 
+    [[nodiscard]] std::future<std::optional<std::string>> post_raw_async(std::string path, Json payload,
+                                                                         QueryParams params = {}) const {
+        return request_raw_async(HttpMethod::POST, std::move(path), std::move(params), payload.dump());
+    }
+
     [[nodiscard]] std::optional<std::string> put_raw(std::string const& path, Json const& payload,
                                                      QueryParams const& params = {}) const {
         return request_raw(HttpMethod::PUT, path, params, payload.dump());
     }
 
+    [[nodiscard]] std::future<std::optional<std::string>> put_raw_async(std::string path, Json payload,
+                                                                        QueryParams params = {}) const {
+        return request_raw_async(HttpMethod::PUT, std::move(path), std::move(params), payload.dump());
+    }
+
     [[nodiscard]] std::optional<std::string> patch_raw(std::string const& path, Json const& payload,
                                                        QueryParams const& params = {}) const {
         return request_raw(HttpMethod::PATCH, path, params, payload.dump());
+    }
+
+    [[nodiscard]] std::future<std::optional<std::string>> patch_raw_async(std::string path, Json payload,
+                                                                          QueryParams params = {}) const {
+        return request_raw_async(HttpMethod::PATCH, std::move(path), std::move(params), payload.dump());
     }
 
   private:
@@ -140,6 +198,25 @@ class RestClient {
     void apply_authentication(HttpRequest& request) const;
     [[nodiscard]] bool should_retry(long status_code, std::size_t attempt) const;
     [[nodiscard]] std::chrono::milliseconds next_backoff(std::chrono::milliseconds current) const;
+
+    template <typename T>
+    std::future<T> request_json_async(HttpMethod method, std::string path, QueryParams params,
+                                      std::optional<std::string> payload) const {
+        return std::async(std::launch::async,
+                          [this, method, path = std::move(path), params = std::move(params),
+                           payload = std::move(payload)]() mutable {
+                              return this->request_json<T>(method, path, params, std::move(payload));
+                          });
+    }
+
+    std::future<std::optional<std::string>> request_raw_async(HttpMethod method, std::string path, QueryParams params,
+                                                              std::optional<std::string> payload) const {
+        return std::async(std::launch::async,
+                          [this, method, path = std::move(path), params = std::move(params),
+                           payload = std::move(payload)]() mutable {
+                              return this->request_raw(method, path, params, std::move(payload));
+                          });
+    }
 
     template <typename T>
     T request_json(HttpMethod method, std::string const& path, QueryParams const& params,

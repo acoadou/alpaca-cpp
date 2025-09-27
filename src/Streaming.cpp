@@ -6,6 +6,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <future>
 #include <limits>
 #include <random>
 #include <stdexcept>
@@ -23,7 +24,7 @@ std::int64_t steady_now_ns() {
     return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
 }
 
-Timestamp parse_timestamp_field_or_default(Json const& j, char const *key) {
+Timestamp parse_timestamp_field_or_default(Json const& j, char const* key) {
     if (!j.contains(key)) {
         return {};
     }
@@ -34,14 +35,14 @@ Timestamp parse_timestamp_field_or_default(Json const& j, char const *key) {
     return parse_timestamp(field.get<std::string>());
 }
 
-std::vector<std::string> parse_conditions(Json const& j, char const *key) {
+std::vector<std::string> parse_conditions(Json const& j, char const* key) {
     if (!j.contains(key) || j.at(key).is_null()) {
         return {};
     }
     return j.at(key).get<std::vector<std::string>>();
 }
 
-template <typename T> std::optional<T> parse_optional(Json const& j, char const *key) {
+template <typename T> std::optional<T> parse_optional(Json const& j, char const* key) {
     if (!j.contains(key)) {
         return std::nullopt;
     }
@@ -52,7 +53,7 @@ template <typename T> std::optional<T> parse_optional(Json const& j, char const 
     return field.get<T>();
 }
 
-std::optional<std::uint64_t> parse_optional_uint64(Json const& j, char const *key) {
+std::optional<std::uint64_t> parse_optional_uint64(Json const& j, char const* key) {
     if (!j.contains(key)) {
         return std::nullopt;
     }
@@ -96,7 +97,7 @@ std::optional<std::uint64_t> parse_optional_uint64(Json const& j, char const *ke
     return std::nullopt;
 }
 
-std::optional<std::string> parse_optional_string_like(Json const& j, char const *key) {
+std::optional<std::string> parse_optional_string_like(Json const& j, char const* key) {
     if (!j.contains(key)) {
         return std::nullopt;
     }
@@ -119,7 +120,7 @@ std::optional<std::string> parse_optional_string_like(Json const& j, char const 
     return field.dump();
 }
 
-std::vector<OrderBookLevel> parse_order_book_side(Json const& payload, char const *key) {
+std::vector<OrderBookLevel> parse_order_book_side(Json const& payload, char const* key) {
     if (!payload.contains(key) || !payload.at(key).is_array()) {
         return {};
     }
@@ -458,7 +459,7 @@ bool is_secure_url(std::string const& url) {
 } // namespace
 
 WebSocketClient::WebSocketClient(std::string url, std::string key, std::string secret, StreamFeed feed)
-  : url_(std::move(url)), key_(std::move(key)), secret_(std::move(secret)), feed_(feed), rng_(std::random_device{}()) {
+    : url_(std::move(url)), key_(std::move(key)), secret_(std::move(secret)), feed_(feed), rng_(std::random_device{}()) {
     if (is_secure_url(url_)) {
         tls_options_.tls = true;
         tls_options_.caFile = "SYSTEM";
@@ -581,6 +582,10 @@ void WebSocketClient::connect() {
     start_socket();
 }
 
+std::future<void> WebSocketClient::connect_async() {
+    return std::async(std::launch::async, [this]() { this->connect(); });
+}
+
 void WebSocketClient::disconnect() {
     std::thread thread_to_join;
     {
@@ -604,6 +609,10 @@ void WebSocketClient::disconnect() {
         std::lock_guard<std::mutex> lock(dispatcher_mutex_);
         inbound_queue_.clear();
     }
+}
+
+std::future<void> WebSocketClient::disconnect_async() {
+    return std::async(std::launch::async, [this]() { this->disconnect(); });
 }
 
 void WebSocketClient::subscribe(MarketSubscription const& subscription) {
@@ -744,6 +753,13 @@ void WebSocketClient::subscribe(MarketSubscription const& subscription) {
     send_raw(message);
 }
 
+std::future<void> WebSocketClient::subscribe_async(MarketSubscription subscription) {
+    return std::async(std::launch::async,
+                      [this, subscription = std::move(subscription)]() mutable {
+        this->subscribe(subscription);
+    });
+}
+
 void WebSocketClient::unsubscribe(MarketSubscription const& subscription) {
     MarketSubscription diff;
     {
@@ -882,6 +898,13 @@ void WebSocketClient::unsubscribe(MarketSubscription const& subscription) {
     send_raw(message);
 }
 
+std::future<void> WebSocketClient::unsubscribe_async(MarketSubscription subscription) {
+    return std::async(std::launch::async,
+                      [this, subscription = std::move(subscription)]() mutable {
+        this->unsubscribe(subscription);
+    });
+}
+
 void WebSocketClient::listen(std::vector<std::string> const& streams) {
     std::vector<std::string> newly_added;
     {
@@ -902,6 +925,11 @@ void WebSocketClient::listen(std::vector<std::string> const& streams) {
     message["data"] = Json::object();
     message["data"]["streams"] = newly_added;
     send_raw(message);
+}
+
+std::future<void> WebSocketClient::listen_async(std::vector<std::string> streams) {
+    return std::async(std::launch::async,
+                      [this, streams = std::move(streams)]() mutable { this->listen(streams); });
 }
 
 void WebSocketClient::send_raw(Json const& message) {
@@ -925,6 +953,11 @@ void WebSocketClient::send_raw(Json const& message) {
             error_handler_("websocket send failed");
         }
     }
+}
+
+std::future<void> WebSocketClient::send_raw_async(Json message) {
+    return std::async(std::launch::async,
+                      [this, message = std::move(message)]() mutable { this->send_raw(message); });
 }
 
 void WebSocketClient::set_message_handler(MessageHandler handler) {

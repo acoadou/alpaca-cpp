@@ -6,6 +6,7 @@
 #include <condition_variable>
 #include <deque>
 #include <functional>
+#include <future>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -372,17 +373,36 @@ class WebSocketClient {
     void connect();
     void disconnect();
 
+    /// Initiates the connection asynchronously, returning a future that
+    /// resolves once the websocket stack has been started.
+    std::future<void> connect_async();
+
+    /// Terminates the connection asynchronously.
+    std::future<void> disconnect_async();
+
     /// Returns true when the websocket connection is currently open.
     bool is_connected() const;
 
     void subscribe(MarketSubscription const& subscription);
     void unsubscribe(MarketSubscription const& subscription);
 
+    /// Subscribes to the provided channels asynchronously.
+    std::future<void> subscribe_async(MarketSubscription subscription);
+
+    /// Unsubscribes from the provided channels asynchronously.
+    std::future<void> unsubscribe_async(MarketSubscription subscription);
+
     /// Subscribe to trading stream channels (e.g. "trade_updates",
     /// "account_updates").
     void listen(std::vector<std::string> const& streams);
 
+    /// Asynchronously listen to trading stream channels.
+    std::future<void> listen_async(std::vector<std::string> streams);
+
     void send_raw(Json const& message);
+
+    /// Sends a raw JSON payload asynchronously.
+    std::future<void> send_raw_async(Json message);
 
     void set_message_handler(MessageHandler handler);
     void set_open_handler(LifecycleHandler handler);
