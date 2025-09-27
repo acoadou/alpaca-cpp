@@ -2,7 +2,9 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <cstdint>
+#include <random>
 #include <stdexcept>
 #include <thread>
 #include <utility>
@@ -135,13 +137,14 @@ bool is_secure_url(std::string const& url) {
 } // namespace
 
 WebSocketClient::WebSocketClient(std::string url, std::string key, std::string secret, StreamFeed feed)
-  : url_(std::move(url)), key_(std::move(key)), secret_(std::move(secret)), feed_(feed) {
+  : url_(std::move(url)), key_(std::move(key)), secret_(std::move(secret)), feed_(feed), rng_(std::random_device{}()) {
     if (is_secure_url(url_)) {
         tls_options_.tls = true;
         tls_options_.caFile = "SYSTEM";
     }
 
     socket_.disableAutomaticReconnection();
+    socket_.setPingInterval(static_cast<uint32_t>(ping_interval_.count()));
     socket_.setOnMessageCallback([this](ix::WebSocketMessagePtr const& msg) {
         if (msg->type == ix::WebSocketMessageType::Open) {
             {
@@ -422,6 +425,19 @@ void WebSocketClient::set_tls_options(ix::SocketTLSOptions options) {
     custom_tls_options_ = true;
 }
 
+void WebSocketClient::set_reconnect_policy(ReconnectPolicy policy) {
+    std::lock_guard<std::mutex> lock(connection_mutex_);
+    reconnect_policy_ = std::move(policy);
+}
+
+void WebSocketClient::set_ping_interval(std::chrono::seconds interval) {
+    if (interval.count() <= 0) {
+        throw std::invalid_argument("ping interval must be positive");
+    }
+    ping_interval_ = interval;
+    socket_.setPingInterval(static_cast<uint32_t>(ping_interval_.count()));
+}
+
 bool WebSocketClient::is_connected() const {
     return connected_.load();
 }
@@ -575,6 +591,37 @@ void WebSocketClient::replay_subscriptions() {
     }
 }
 
+std::chrono::milliseconds WebSocketClient::compute_backoff_delay(std::size_t attempt) {
+    if (attempt == 0) {
+        attempt = 1;
+    }
+
+    double factor = std::pow(reconnect_policy_.multiplier, static_cast<double>(attempt - 1));
+    auto base_delay = static_cast<long long>(static_cast<double>(reconnect_policy_.initial_delay.count()) * factor);
+    if (base_delay <= 0) {
+        base_delay = reconnect_policy_.initial_delay.count();
+    }
+    std::chrono::milliseconds delay{base_delay};
+    if (delay > reconnect_policy_.max_delay) {
+        delay = reconnect_policy_.max_delay;
+    }
+
+    if (reconnect_policy_.jitter.count() > 0) {
+        std::uniform_int_distribution<long long> dist(0, reconnect_policy_.jitter.count());
+        auto jitter = std::chrono::milliseconds(dist(rng_));
+        if (delay + jitter > reconnect_policy_.max_delay) {
+            delay = reconnect_policy_.max_delay;
+        } else {
+            delay += jitter;
+        }
+    }
+
+    if (delay.count() <= 0) {
+        delay = reconnect_policy_.initial_delay;
+    }
+    return delay;
+}
+
 void WebSocketClient::schedule_reconnect() {
     std::size_t attempt = 0;
     std::thread previous_thread;
@@ -594,10 +641,9 @@ void WebSocketClient::schedule_reconnect() {
         previous_thread.join();
     }
 
-    std::size_t const capped_attempt = std::min<std::size_t>(attempt - 1, 5);
-    auto const delay_seconds = static_cast<unsigned>(1u << capped_attempt);
-    std::thread worker([this, delay_seconds]() {
-        std::this_thread::sleep_for(std::chrono::seconds(delay_seconds));
+    auto const delay = compute_backoff_delay(attempt);
+    std::thread worker([this, delay]() {
+        std::this_thread::sleep_for(delay);
         std::lock_guard<std::mutex> lock(connection_mutex_);
         if (!should_reconnect_ || manual_disconnect_) {
             return;
@@ -630,6 +676,7 @@ void WebSocketClient::start_socket_locked() {
 
     socket_.setUrl(url_);
     socket_.setTLSOptions(tls_options_);
+    socket_.setPingInterval(static_cast<uint32_t>(ping_interval_.count()));
     socket_.start();
 }
 

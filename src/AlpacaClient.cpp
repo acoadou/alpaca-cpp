@@ -1,10 +1,8 @@
 #include "alpaca/AlpacaClient.hpp"
-#include "alpaca/HttpClientFactory.hpp"
 
-#include <memory>
-#include <optional>
-#include <string_view>
 #include <utility>
+
+#include "alpaca/HttpClientFactory.hpp"
 
 namespace alpaca {
 namespace {
@@ -14,391 +12,330 @@ HttpClientPtr ensure_http_client(HttpClientPtr& client) {
     }
     return client;
 }
-
-std::string make_data_beta_base_url(std::string const& data_base_url) {
-    constexpr std::string_view v2_suffix{"/v2"};
-    if (data_base_url.ends_with(v2_suffix)) {
-        return data_base_url.substr(0, data_base_url.size() - v2_suffix.size()) + "/v1beta1";
-    }
-    if (data_base_url.ends_with('/')) {
-        return data_base_url + "v1beta1";
-    }
-    return data_base_url + "/v1beta1";
-}
-
-Json to_json_payload(AccountConfigurationUpdateRequest const& request) {
-    Json payload;
-    to_json(payload, request);
-    return payload;
-}
-
-Json to_json_payload(NewOrderRequest const& request) {
-    Json payload;
-    to_json(payload, request);
-    return payload;
-}
-
-Json to_json_payload(ReplaceOrderRequest const& request) {
-    Json payload;
-    to_json(payload, request);
-    return payload;
-}
-
-Json to_json_payload(CreateWatchlistRequest const& request) {
-    Json payload;
-    to_json(payload, request);
-    return payload;
-}
-
-Json to_json_payload(UpdateWatchlistRequest const& request) {
-    Json payload;
-    to_json(payload, request);
-    return payload;
-}
-
-Json to_json_payload(CreateBrokerAccountRequest const& request) {
-    Json payload;
-    to_json(payload, request);
-    return payload;
-}
-
-Json to_json_payload(UpdateBrokerAccountRequest const& request) {
-    Json payload;
-    to_json(payload, request);
-    return payload;
-}
-
-Json to_json_payload(CreateAccountDocumentRequest const& request) {
-    Json payload;
-    to_json(payload, request);
-    return payload;
-}
-
-Json to_json_payload(CreateTransferRequest const& request) {
-    Json payload;
-    to_json(payload, request);
-    return payload;
-}
-
-Json to_json_payload(CreateJournalRequest const& request) {
-    Json payload;
-    to_json(payload, request);
-    return payload;
-}
-
-Json to_json_payload(CreateAchRelationshipRequest const& request) {
-    Json payload;
-    to_json(payload, request);
-    return payload;
-}
-
-Json to_json_payload(CreateWireRelationshipRequest const& request) {
-    Json payload;
-    to_json(payload, request);
-    return payload;
-}
-
-Json symbol_payload(std::string const& symbol) {
-    return Json{
-        {"symbol", symbol}
-    };
-}
 } // namespace
 
 AlpacaClient::AlpacaClient(Configuration config, HttpClientPtr http_client)
-  : trading_client_(config, ensure_http_client(http_client), config.trading_base_url),
-    data_client_(config, ensure_http_client(http_client), config.data_base_url),
-    data_beta_client_(config, ensure_http_client(http_client), make_data_beta_base_url(config.data_base_url)),
-    broker_client_(config, ensure_http_client(http_client), config.broker_base_url) {
+  : config_(std::move(config)), http_client_(ensure_http_client(http_client)), trading_client_(config_, http_client_),
+    market_data_client_(config_, http_client_), broker_client_(config_, http_client_) {
+}
+
+AlpacaClient::AlpacaClient(Environment const& environment, std::string api_key_id, std::string api_secret_key,
+                           HttpClientPtr http_client)
+  : AlpacaClient(Configuration::FromEnvironment(environment, std::move(api_key_id), std::move(api_secret_key)),
+                 std::move(http_client)) {
+}
+
+TradingClient& AlpacaClient::trading() noexcept {
+    return trading_client_;
+}
+
+TradingClient const& AlpacaClient::trading() const noexcept {
+    return trading_client_;
+}
+
+MarketDataClient& AlpacaClient::market_data() noexcept {
+    return market_data_client_;
+}
+
+MarketDataClient const& AlpacaClient::market_data() const noexcept {
+    return market_data_client_;
+}
+
+BrokerClient& AlpacaClient::broker() noexcept {
+    return broker_client_;
+}
+
+BrokerClient const& AlpacaClient::broker() const noexcept {
+    return broker_client_;
 }
 
 Account AlpacaClient::get_account() {
-    return trading_client_.get<Account>("/v2/account");
+    return trading().get_account();
 }
 
 AccountConfiguration AlpacaClient::get_account_configuration() {
-    return trading_client_.get<AccountConfiguration>("/v2/account/configurations");
+    return trading().get_account_configuration();
 }
 
 AccountConfiguration AlpacaClient::update_account_configuration(AccountConfigurationUpdateRequest const& request) {
-    return trading_client_.patch<AccountConfiguration>("/v2/account/configurations", to_json_payload(request));
+    return trading().update_account_configuration(request);
 }
 
 std::vector<Position> AlpacaClient::list_positions() {
-    return trading_client_.get<std::vector<Position>>("/v2/positions");
+    return trading().list_positions();
 }
 
 Position AlpacaClient::get_position(std::string const& symbol) {
-    return trading_client_.get<Position>("/v2/positions/" + symbol);
+    return trading().get_position(symbol);
 }
 
 Position AlpacaClient::close_position(std::string const& symbol, ClosePositionRequest const& request) {
-    return trading_client_.del<Position>("/v2/positions/" + symbol, request.to_query_params());
+    return trading().close_position(symbol, request);
 }
 
 std::vector<Order> AlpacaClient::list_orders(ListOrdersRequest const& request) {
-    return trading_client_.get<std::vector<Order>>("/v2/orders", request.to_query_params());
+    return trading().list_orders(request);
 }
 
 Order AlpacaClient::get_order(std::string const& order_id) {
-    return trading_client_.get<Order>("/v2/orders/" + order_id);
+    return trading().get_order(order_id);
 }
 
 Order AlpacaClient::get_order_by_client_order_id(std::string const& client_order_id) {
-    return trading_client_.get<Order>("/v2/orders:by_client_order_id", {
-                                                                           {"client_order_id", client_order_id}
-    });
+    return trading().get_order_by_client_order_id(client_order_id);
 }
 
 void AlpacaClient::cancel_order(std::string const& order_id) {
-    trading_client_.del<void>("/v2/orders/" + order_id);
+    trading().cancel_order(order_id);
 }
 
 std::vector<CancelledOrderId> AlpacaClient::cancel_all_orders() {
-    return trading_client_.del<std::vector<CancelledOrderId>>("/v2/orders");
+    return trading().cancel_all_orders();
 }
 
 Order AlpacaClient::submit_order(NewOrderRequest const& request) {
-    return trading_client_.post<Order>("/v2/orders", to_json_payload(request));
+    return trading().submit_order(request);
 }
 
 Order AlpacaClient::replace_order(std::string const& order_id, ReplaceOrderRequest const& request) {
-    return trading_client_.patch<Order>("/v2/orders/" + order_id, to_json_payload(request));
+    return trading().replace_order(order_id, request);
 }
 
 Clock AlpacaClient::get_clock() {
-    return trading_client_.get<Clock>("/v2/clock");
+    return trading().get_clock();
 }
 
 std::vector<CalendarDay> AlpacaClient::get_calendar(CalendarRequest const& request) {
-    return trading_client_.get<std::vector<CalendarDay>>("/v2/calendar", request.to_query_params());
+    return trading().get_calendar(request);
 }
 
 std::vector<Asset> AlpacaClient::list_assets(ListAssetsRequest const& request) {
-    return trading_client_.get<std::vector<Asset>>("/v2/assets", request.to_query_params());
+    return trading().list_assets(request);
 }
 
 Asset AlpacaClient::get_asset(std::string const& symbol) {
-    return trading_client_.get<Asset>("/v2/assets/" + symbol);
+    return trading().get_asset(symbol);
 }
 
 std::vector<AccountActivity> AlpacaClient::get_account_activities(AccountActivitiesRequest const& request) {
-    return trading_client_.get<std::vector<AccountActivity>>("/v2/account/activities", request.to_query_params());
+    return trading().get_account_activities(request);
 }
 
 PortfolioHistory AlpacaClient::get_portfolio_history(PortfolioHistoryRequest const& request) {
-    return trading_client_.get<PortfolioHistory>("/v2/account/portfolio/history", request.to_query_params());
+    return trading().get_portfolio_history(request);
 }
 
 std::vector<Watchlist> AlpacaClient::list_watchlists() {
-    return trading_client_.get<std::vector<Watchlist>>("/v2/watchlists");
+    return trading().list_watchlists();
 }
 
 Watchlist AlpacaClient::get_watchlist(std::string const& id) {
-    return trading_client_.get<Watchlist>("/v2/watchlists/" + id);
+    return trading().get_watchlist(id);
 }
 
 Watchlist AlpacaClient::get_watchlist_by_name(std::string const& name) {
-    return trading_client_.get<Watchlist>("/v2/watchlists:by_name", {
-                                                                        {"name", name}
-    });
+    return trading().get_watchlist_by_name(name);
 }
 
 Watchlist AlpacaClient::create_watchlist(CreateWatchlistRequest const& request) {
-    return trading_client_.post<Watchlist>("/v2/watchlists", to_json_payload(request));
+    return trading().create_watchlist(request);
 }
 
 Watchlist AlpacaClient::update_watchlist(std::string const& id, UpdateWatchlistRequest const& request) {
-    return trading_client_.put<Watchlist>("/v2/watchlists/" + id, to_json_payload(request));
+    return trading().update_watchlist(id, request);
 }
 
 Watchlist AlpacaClient::add_asset_to_watchlist(std::string const& id, std::string const& symbol) {
-    return trading_client_.post<Watchlist>("/v2/watchlists/" + id, symbol_payload(symbol));
+    return trading().add_asset_to_watchlist(id, symbol);
 }
 
 Watchlist AlpacaClient::remove_asset_from_watchlist(std::string const& id, std::string const& symbol) {
-    return trading_client_.del<Watchlist>("/v2/watchlists/" + id + "/" + symbol);
+    return trading().remove_asset_from_watchlist(id, symbol);
 }
 
 void AlpacaClient::delete_watchlist(std::string const& id) {
-    trading_client_.del<void>("/v2/watchlists/" + id);
+    trading().delete_watchlist(id);
 }
 
 LatestStockTrade AlpacaClient::get_latest_stock_trade(std::string const& symbol) {
-    return data_client_.get<LatestStockTrade>("stocks/" + symbol + "/trades/latest");
+    return market_data().get_latest_stock_trade(symbol);
 }
 
 LatestStockQuote AlpacaClient::get_latest_stock_quote(std::string const& symbol) {
-    return data_client_.get<LatestStockQuote>("stocks/" + symbol + "/quotes/latest");
+    return market_data().get_latest_stock_quote(symbol);
 }
 
 StockBars AlpacaClient::get_stock_bars(std::string const& symbol, StockBarsRequest const& request) {
-    return data_client_.get<StockBars>("stocks/" + symbol + "/bars", request.to_query_params());
+    return market_data().get_stock_bars(symbol, request);
 }
 
 std::vector<StockBar> AlpacaClient::get_all_stock_bars(std::string const& symbol, StockBarsRequest request) {
-    std::vector<StockBar> all_bars;
-    std::optional<std::string> next_page = request.page_token;
+    return market_data().get_all_stock_bars(symbol, std::move(request));
+}
 
-    while (true) {
-        if (next_page.has_value()) {
-            request.page_token = next_page;
-        } else {
-            request.page_token.reset();
-        }
-
-        auto const page = get_stock_bars(symbol, request);
-        all_bars.insert(all_bars.end(), page.bars.begin(), page.bars.end());
-
-        next_page = page.next_page_token;
-        if (!next_page.has_value()) {
-            break;
-        }
-    }
-
-    return all_bars;
+PaginatedVectorRange<StockBarsRequest, StockBars, StockBar>
+AlpacaClient::stock_bars_range(std::string const& symbol, StockBarsRequest request) const {
+    return market_data().stock_bars_range(symbol, std::move(request));
 }
 
 StockSnapshot AlpacaClient::get_stock_snapshot(std::string const& symbol) {
-    return data_client_.get<StockSnapshot>("stocks/" + symbol + "/snapshot");
+    return market_data().get_stock_snapshot(symbol);
 }
 
-NewsResponse AlpacaClient::get_news(QueryParams const& params) {
-    return data_beta_client_.get<NewsResponse>("news", params);
+NewsResponse AlpacaClient::get_news(NewsRequest const& request) {
+    return market_data().get_news(request);
 }
 
-CorporateActionAnnouncementsResponse AlpacaClient::get_corporate_announcements(QueryParams const& params) {
-    return data_beta_client_.get<CorporateActionAnnouncementsResponse>("corporate-actions/announcements", params);
+PaginatedVectorRange<NewsRequest, NewsResponse, NewsArticle> AlpacaClient::news_range(NewsRequest request) const {
+    return market_data().news_range(std::move(request));
 }
 
-CorporateActionEventsResponse AlpacaClient::get_corporate_actions(QueryParams const& params) {
-    return data_beta_client_.get<CorporateActionEventsResponse>("corporate-actions/events", params);
+CorporateActionAnnouncementsResponse
+AlpacaClient::get_corporate_announcements(CorporateActionAnnouncementsRequest const& request) {
+    return market_data().get_corporate_announcements(request);
 }
 
-MultiStockBars AlpacaClient::get_stock_aggregates(QueryParams const& params) {
-    return data_client_.get<MultiStockBars>("stocks/bars", params);
+CorporateActionEventsResponse AlpacaClient::get_corporate_actions(CorporateActionEventsRequest const& request) {
+    return market_data().get_corporate_actions(request);
 }
 
-MultiStockQuotes AlpacaClient::get_stock_quotes(QueryParams const& params) {
-    return data_client_.get<MultiStockQuotes>("stocks/quotes", params);
+MultiStockBars AlpacaClient::get_stock_aggregates(MultiStockBarsRequest const& request) {
+    return market_data().get_stock_aggregates(request);
 }
 
-MultiStockTrades AlpacaClient::get_stock_trades(QueryParams const& params) {
-    return data_client_.get<MultiStockTrades>("stocks/trades", params);
+MultiStockQuotes AlpacaClient::get_stock_quotes(MultiStockQuotesRequest const& request) {
+    return market_data().get_stock_quotes(request);
 }
 
-MultiOptionBars AlpacaClient::get_option_aggregates(QueryParams const& params) {
-    return data_beta_client_.get<MultiOptionBars>("options/bars", params);
+MultiStockTrades AlpacaClient::get_stock_trades(MultiStockTradesRequest const& request) {
+    return market_data().get_stock_trades(request);
 }
 
-MultiOptionQuotes AlpacaClient::get_option_quotes(QueryParams const& params) {
-    return data_beta_client_.get<MultiOptionQuotes>("options/quotes", params);
+MultiOptionBars AlpacaClient::get_option_aggregates(MultiOptionBarsRequest const& request) {
+    return market_data().get_option_aggregates(request);
 }
 
-MultiOptionTrades AlpacaClient::get_option_trades(QueryParams const& params) {
-    return data_beta_client_.get<MultiOptionTrades>("options/trades", params);
+MultiOptionQuotes AlpacaClient::get_option_quotes(MultiOptionQuotesRequest const& request) {
+    return market_data().get_option_quotes(request);
 }
 
-MultiCryptoBars AlpacaClient::get_crypto_aggregates(QueryParams const& params) {
-    return data_beta_client_.get<MultiCryptoBars>("crypto/bars", params);
+MultiOptionTrades AlpacaClient::get_option_trades(MultiOptionTradesRequest const& request) {
+    return market_data().get_option_trades(request);
 }
 
-MultiCryptoQuotes AlpacaClient::get_crypto_quotes(QueryParams const& params) {
-    return data_beta_client_.get<MultiCryptoQuotes>("crypto/quotes", params);
+MultiCryptoBars AlpacaClient::get_crypto_aggregates(MultiCryptoBarsRequest const& request) {
+    return market_data().get_crypto_aggregates(request);
 }
 
-MultiCryptoTrades AlpacaClient::get_crypto_trades(QueryParams const& params) {
-    return data_beta_client_.get<MultiCryptoTrades>("crypto/trades", params);
+MultiCryptoQuotes AlpacaClient::get_crypto_quotes(MultiCryptoQuotesRequest const& request) {
+    return market_data().get_crypto_quotes(request);
+}
+
+MultiCryptoTrades AlpacaClient::get_crypto_trades(MultiCryptoTradesRequest const& request) {
+    return market_data().get_crypto_trades(request);
 }
 
 BrokerAccountsPage AlpacaClient::list_broker_accounts(ListBrokerAccountsRequest const& request) {
-    return broker_client_.get<BrokerAccountsPage>("/v1/accounts", request.to_query_params());
+    return broker().list_accounts(request);
+}
+
+PaginatedVectorRange<ListBrokerAccountsRequest, BrokerAccountsPage, BrokerAccount>
+AlpacaClient::list_broker_accounts_range(ListBrokerAccountsRequest request) const {
+    return broker().list_accounts_range(std::move(request));
 }
 
 BrokerAccount AlpacaClient::get_broker_account(std::string const& account_id) {
-    return broker_client_.get<BrokerAccount>("/v1/accounts/" + account_id);
+    return broker().get_account(account_id);
 }
 
 BrokerAccount AlpacaClient::create_broker_account(CreateBrokerAccountRequest const& request) {
-    return broker_client_.post<BrokerAccount>("/v1/accounts", to_json_payload(request));
+    return broker().create_account(request);
 }
 
 BrokerAccount AlpacaClient::update_broker_account(std::string const& account_id,
                                                   UpdateBrokerAccountRequest const& request) {
-    return broker_client_.patch<BrokerAccount>("/v1/accounts/" + account_id, to_json_payload(request));
+    return broker().update_account(account_id, request);
 }
 
 void AlpacaClient::delete_broker_account(std::string const& account_id) {
-    broker_client_.post<void>("/v1/accounts/" + account_id + "/actions/close", Json::object());
+    broker().close_account(account_id);
 }
 
 std::vector<AccountDocument> AlpacaClient::list_account_documents(std::string const& account_id) {
-    return broker_client_.get<std::vector<AccountDocument>>("/v1/accounts/" + account_id + "/documents");
+    return broker().list_documents(account_id);
 }
 
 AccountDocument AlpacaClient::upload_account_document(std::string const& account_id,
                                                       CreateAccountDocumentRequest const& request) {
-    return broker_client_.post<AccountDocument>("/v1/accounts/" + account_id + "/documents", to_json_payload(request));
+    return broker().upload_document(account_id, request);
 }
 
 TransfersPage AlpacaClient::list_account_transfers(std::string const& account_id, ListTransfersRequest const& request) {
-    return broker_client_.get<TransfersPage>("/v1/accounts/" + account_id + "/transfers", request.to_query_params());
+    return broker().list_transfers(account_id, request);
 }
 
 Transfer AlpacaClient::create_account_transfer(std::string const& account_id, CreateTransferRequest const& request) {
-    return broker_client_.post<Transfer>("/v1/accounts/" + account_id + "/transfers", to_json_payload(request));
+    return broker().create_transfer(account_id, request);
 }
 
 Transfer AlpacaClient::get_transfer(std::string const& transfer_id) {
-    return broker_client_.get<Transfer>("/v1/transfers/" + transfer_id);
+    return broker().get_transfer(transfer_id);
 }
 
 void AlpacaClient::cancel_transfer(std::string const& account_id, std::string const& transfer_id) {
-    broker_client_.del<void>("/v1/accounts/" + account_id + "/transfers/" + transfer_id);
+    broker().cancel_transfer(account_id, transfer_id);
+}
+
+PaginatedVectorRange<ListTransfersRequest, TransfersPage, Transfer>
+AlpacaClient::list_account_transfers_range(std::string const& account_id, ListTransfersRequest request) const {
+    return broker().list_transfers_range(account_id, std::move(request));
 }
 
 JournalsPage AlpacaClient::list_journals(ListJournalsRequest const& request) {
-    return broker_client_.get<JournalsPage>("/v1/journals", request.to_query_params());
+    return broker().list_journals(request);
 }
 
 Journal AlpacaClient::create_journal(CreateJournalRequest const& request) {
-    return broker_client_.post<Journal>("/v1/journals", to_json_payload(request));
+    return broker().create_journal(request);
 }
 
 Journal AlpacaClient::get_journal(std::string const& journal_id) {
-    return broker_client_.get<Journal>("/v1/journals/" + journal_id);
+    return broker().get_journal(journal_id);
 }
 
 void AlpacaClient::cancel_journal(std::string const& journal_id) {
-    broker_client_.del<void>("/v1/journals/" + journal_id);
+    broker().cancel_journal(journal_id);
+}
+
+PaginatedVectorRange<ListJournalsRequest, JournalsPage, Journal>
+AlpacaClient::list_journals_range(ListJournalsRequest request) const {
+    return broker().list_journals_range(std::move(request));
 }
 
 BankRelationshipsPage AlpacaClient::list_ach_relationships(std::string const& account_id) {
-    return broker_client_.get<BankRelationshipsPage>("/v1/accounts/" + account_id + "/ach_relationships");
+    return broker().list_ach_relationships(account_id);
 }
 
 BankRelationship AlpacaClient::create_ach_relationship(std::string const& account_id,
                                                        CreateAchRelationshipRequest const& request) {
-    return broker_client_.post<BankRelationship>("/v1/accounts/" + account_id + "/ach_relationships",
-                                                 to_json_payload(request));
+    return broker().create_ach_relationship(account_id, request);
 }
 
 void AlpacaClient::delete_ach_relationship(std::string const& account_id, std::string const& relationship_id) {
-    broker_client_.del<void>("/v1/accounts/" + account_id + "/ach_relationships/" + relationship_id);
+    broker().delete_ach_relationship(account_id, relationship_id);
 }
 
 BankRelationshipsPage AlpacaClient::list_wire_relationships(std::string const& account_id) {
-    return broker_client_.get<BankRelationshipsPage>("/v1/accounts/" + account_id + "/wire_relationships");
+    return broker().list_wire_relationships(account_id);
 }
 
 BankRelationship AlpacaClient::create_wire_relationship(std::string const& account_id,
                                                         CreateWireRelationshipRequest const& request) {
-    return broker_client_.post<BankRelationship>("/v1/accounts/" + account_id + "/wire_relationships",
-                                                 to_json_payload(request));
+    return broker().create_wire_relationship(account_id, request);
 }
 
 void AlpacaClient::delete_wire_relationship(std::string const& account_id, std::string const& relationship_id) {
-    broker_client_.del<void>("/v1/accounts/" + account_id + "/wire_relationships/" + relationship_id);
+    broker().delete_wire_relationship(account_id, relationship_id);
 }
 
 } // namespace alpaca

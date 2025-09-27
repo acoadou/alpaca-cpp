@@ -1,11 +1,13 @@
 #pragma once
 
 #include <atomic>
+#include <chrono>
 #include <cstdint>
 #include <functional>
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <random>
 #include <string>
 #include <thread>
 #include <unordered_set>
@@ -146,6 +148,14 @@ using LifecycleHandler = std::function<void()>;
 /// Callback invoked when the websocket stack reports an error.
 using ErrorHandler = std::function<void(std::string const&)>;
 
+/// Configuration describing the exponential backoff strategy for reconnects.
+struct ReconnectPolicy {
+    std::chrono::milliseconds initial_delay{std::chrono::milliseconds{500}};
+    std::chrono::milliseconds max_delay{std::chrono::seconds{30}};
+    double multiplier{2.0};
+    std::chrono::milliseconds jitter{std::chrono::milliseconds{250}};
+};
+
 /// Lightweight websocket client capable of connecting to Alpaca's streaming
 /// APIs.
 class WebSocketClient {
@@ -178,6 +188,8 @@ class WebSocketClient {
     void set_close_handler(LifecycleHandler handler);
     void set_error_handler(ErrorHandler handler);
     void set_tls_options(ix::SocketTLSOptions options);
+    void set_reconnect_policy(ReconnectPolicy policy);
+    void set_ping_interval(std::chrono::seconds interval);
 
   private:
     void authenticate();
@@ -187,6 +199,7 @@ class WebSocketClient {
     void schedule_reconnect();
     void start_socket();
     void start_socket_locked();
+    std::chrono::milliseconds compute_backoff_delay(std::size_t attempt);
 
     std::string url_;
     std::string key_;
@@ -216,6 +229,10 @@ class WebSocketClient {
     std::unordered_set<std::string> subscribed_bars_;
     std::unordered_set<std::string> subscribed_statuses_;
     std::unordered_set<std::string> listened_streams_;
+
+    ReconnectPolicy reconnect_policy_{};
+    std::mt19937_64 rng_;
+    std::chrono::seconds ping_interval_{std::chrono::seconds{30}};
 };
 
 } // namespace alpaca::streaming

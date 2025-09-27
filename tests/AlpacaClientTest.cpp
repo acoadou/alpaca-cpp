@@ -39,6 +39,17 @@ class StubHttpClient : public alpaca::HttpClient {
     std::vector<alpaca::HttpRequest> requests_{};
 };
 
+TEST(ConfigurationTest, FromEnvironmentIncludesStreamingEndpoints) {
+    auto environment = alpaca::Environments::Paper();
+    alpaca::Configuration cfg = alpaca::Configuration::FromEnvironment(environment, "id", "secret");
+
+    EXPECT_EQ(cfg.trading_base_url, environment.trading_base_url);
+    EXPECT_EQ(cfg.data_base_url, environment.data_base_url);
+    EXPECT_EQ(cfg.trading_stream_url, environment.trading_stream_url);
+    EXPECT_EQ(cfg.market_data_stream_url, environment.market_data_stream_url);
+    EXPECT_EQ(cfg.crypto_stream_url, environment.crypto_stream_url);
+}
+
 TEST(AlpacaClientTest, SubmitOrderSerializesAdvancedFields) {
     auto stub = std::make_shared<StubHttpClient>();
     stub->enqueue_response(alpaca::HttpResponse{
@@ -75,6 +86,39 @@ TEST(AlpacaClientTest, SubmitOrderSerializesAdvancedFields) {
     EXPECT_EQ(json.at("order_class"), "bracket");
     EXPECT_EQ(json.at("take_profit").at("limit_price"), "140");
     EXPECT_EQ(json.at("stop_loss").at("stop_price"), "110");
+}
+
+TEST(AlpacaClientTest, NewsRangeRespectsRetryAfterAndPagination) {
+    auto stub = std::make_shared<StubHttpClient>();
+    stub->enqueue_response(alpaca::HttpResponse{429, R"({"message":"rate limit"})", {{"Retry-After", "0"}}});
+    stub->enqueue_response(alpaca::HttpResponse{
+        200,
+        R"({"news":[{"id":"n1","headline":"First","url":"https://example.com/1","source":"X","symbols":["AAPL"]}],"next_page_token":"cursor"})",
+        {}});
+    stub->enqueue_response(alpaca::HttpResponse{
+        200,
+        R"({"news":[{"id":"n2","headline":"Second","url":"https://example.com/2","source":"X","symbols":["AAPL"]}],"next_page_token":null})",
+        {}});
+
+    alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
+    alpaca::AlpacaClient client(config, stub);
+
+    alpaca::NewsRequest request;
+    request.symbols = {"AAPL"};
+    request.limit = 1;
+
+    std::vector<std::string> headlines;
+    for (auto const& article : client.news_range(request)) {
+        headlines.push_back(article.headline);
+    }
+
+    ASSERT_EQ(headlines.size(), 2U);
+    EXPECT_EQ(headlines.front(), "First");
+    EXPECT_EQ(headlines.back(), "Second");
+
+    EXPECT_EQ(stub->requests().size(), 3U);
+    EXPECT_NE(stub->requests()[1].url.find("symbols=AAPL"), std::string::npos);
+    EXPECT_NE(stub->requests()[2].url.find("page_token=cursor"), std::string::npos);
 }
 
 TEST(AlpacaClientTest, CalendarRequestsIncludeQueryParameters) {

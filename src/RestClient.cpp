@@ -73,7 +73,7 @@ std::string RestClient::encode_query(QueryParams const& params) {
 }
 
 std::optional<Json> RestClient::perform_request(HttpMethod method, std::string const& path, QueryParams const& params,
-                                                std::optional<std::string> payload) {
+                                                std::optional<std::string> payload) const {
     std::string url = build_url(base_url_, path, params);
 
     HttpRequest request;

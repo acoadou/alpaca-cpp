@@ -33,30 +33,30 @@ class RestClient {
     }
 
     /// Performs a GET request and deserializes the JSON response into \c T.
-    template <typename T> T get(std::string const& path, QueryParams const& params = {}) {
+    template <typename T> T get(std::string const& path, QueryParams const& params = {}) const {
         return request_json<T>(HttpMethod::GET, path, params, std::nullopt);
     }
 
     /// Performs a DELETE request and deserializes the JSON response into \c T.
-    template <typename T = Json> T del(std::string const& path, QueryParams const& params = {}) {
+    template <typename T = Json> T del(std::string const& path, QueryParams const& params = {}) const {
         return request_json<T>(HttpMethod::DELETE_, path, params, std::nullopt);
     }
 
     /// Performs a POST request with a JSON payload and returns the JSON
     /// response as \c T.
-    template <typename T> T post(std::string const& path, Json const& payload, QueryParams const& params = {}) {
+    template <typename T> T post(std::string const& path, Json const& payload, QueryParams const& params = {}) const {
         return request_json<T>(HttpMethod::POST, path, params, payload.dump());
     }
 
     /// Performs a PUT request with a JSON payload and returns the response as
     /// \c T.
-    template <typename T> T put(std::string const& path, Json const& payload, QueryParams const& params = {}) {
+    template <typename T> T put(std::string const& path, Json const& payload, QueryParams const& params = {}) const {
         return request_json<T>(HttpMethod::PUT, path, params, payload.dump());
     }
 
     /// Performs a PATCH request with a JSON payload and returns the response as
     /// \c T.
-    template <typename T> T patch(std::string const& path, Json const& payload, QueryParams const& params = {}) {
+    template <typename T> T patch(std::string const& path, Json const& payload, QueryParams const& params = {}) const {
         return request_json<T>(HttpMethod::PATCH, path, params, payload.dump());
     }
 
@@ -69,11 +69,11 @@ class RestClient {
     static std::string encode_query(QueryParams const& params);
 
     std::optional<Json> perform_request(HttpMethod method, std::string const& path, QueryParams const& params,
-                                        std::optional<std::string> payload);
+                                        std::optional<std::string> payload) const;
 
     template <typename T>
     T request_json(HttpMethod method, std::string const& path, QueryParams const& params,
-                   std::optional<std::string> payload) {
+                   std::optional<std::string> payload) const {
         std::optional<Json> json = perform_request(method, path, params, std::move(payload));
 
         if (!json.has_value()) {

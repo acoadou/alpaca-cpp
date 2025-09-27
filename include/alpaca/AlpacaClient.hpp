@@ -5,8 +5,11 @@
 #include <string>
 #include <vector>
 
+#include "alpaca/BrokerClient.hpp"
 #include "alpaca/Configuration.hpp"
+#include "alpaca/MarketDataClient.hpp"
 #include "alpaca/RestClient.hpp"
+#include "alpaca/TradingClient.hpp"
 #include "alpaca/models/Account.hpp"
 #include "alpaca/models/AccountActivity.hpp"
 #include "alpaca/models/AccountConfiguration.hpp"
@@ -29,6 +32,20 @@ namespace alpaca {
 class AlpacaClient {
   public:
     explicit AlpacaClient(Configuration config, HttpClientPtr http_client = nullptr);
+    AlpacaClient(Environment const& environment, std::string api_key_id, std::string api_secret_key,
+                 HttpClientPtr http_client = nullptr);
+
+    /// Returns the trading domain client.
+    [[nodiscard]] TradingClient& trading() noexcept;
+    [[nodiscard]] TradingClient const& trading() const noexcept;
+
+    /// Returns the market data domain client.
+    [[nodiscard]] MarketDataClient& market_data() noexcept;
+    [[nodiscard]] MarketDataClient const& market_data() const noexcept;
+
+    /// Returns the broker domain client.
+    [[nodiscard]] BrokerClient& broker() noexcept;
+    [[nodiscard]] BrokerClient const& broker() const noexcept;
 
     /// Returns account information for the authenticated user.
     [[nodiscard]] Account get_account();
@@ -126,49 +143,60 @@ class AlpacaClient {
     /// automatically traversing pagination.
     [[nodiscard]] std::vector<StockBar> get_all_stock_bars(std::string const& symbol, StockBarsRequest request = {});
 
+    /// Returns a single-pass range that yields stock bars across every page the API exposes.
+    [[nodiscard]] PaginatedVectorRange<StockBarsRequest, StockBars, StockBar>
+    stock_bars_range(std::string const& symbol, StockBarsRequest request = {}) const;
+
     /// Returns a consolidated market data snapshot for the supplied stock
     /// symbol.
     [[nodiscard]] StockSnapshot get_stock_snapshot(std::string const& symbol);
 
     /// Retrieves Alpaca news articles using the optional filters supplied in \p
     /// params.
-    [[nodiscard]] NewsResponse get_news(QueryParams const& params = {});
+    [[nodiscard]] NewsResponse get_news(NewsRequest const& request = {});
+
+    /// Returns a range that streams news articles respecting server rate limits.
+    [[nodiscard]] PaginatedVectorRange<NewsRequest, NewsResponse, NewsArticle>
+    news_range(NewsRequest request = {}) const;
 
     /// Retrieves corporate action announcements with optional filters.
-    [[nodiscard]] CorporateActionAnnouncementsResponse get_corporate_announcements(QueryParams const& params = {});
+    [[nodiscard]] CorporateActionAnnouncementsResponse
+    get_corporate_announcements(CorporateActionAnnouncementsRequest const& request = {});
 
     /// Retrieves corporate action events with optional filters.
-    [[nodiscard]] CorporateActionEventsResponse get_corporate_actions(QueryParams const& params = {});
+    [[nodiscard]] CorporateActionEventsResponse get_corporate_actions(CorporateActionEventsRequest const& request = {});
 
     /// Retrieves multi-symbol stock aggregates from the Alpaca market data API.
-    [[nodiscard]] MultiStockBars get_stock_aggregates(QueryParams const& params = {});
+    [[nodiscard]] MultiStockBars get_stock_aggregates(MultiStockBarsRequest const& request);
 
     /// Retrieves multi-symbol stock quotes from the Alpaca market data API.
-    [[nodiscard]] MultiStockQuotes get_stock_quotes(QueryParams const& params = {});
+    [[nodiscard]] MultiStockQuotes get_stock_quotes(MultiStockQuotesRequest const& request);
 
     /// Retrieves multi-symbol stock trades from the Alpaca market data API.
-    [[nodiscard]] MultiStockTrades get_stock_trades(QueryParams const& params = {});
+    [[nodiscard]] MultiStockTrades get_stock_trades(MultiStockTradesRequest const& request);
 
     /// Retrieves options aggregates across one or more contracts.
-    [[nodiscard]] MultiOptionBars get_option_aggregates(QueryParams const& params = {});
+    [[nodiscard]] MultiOptionBars get_option_aggregates(MultiOptionBarsRequest const& request);
 
     /// Retrieves the latest options quotes across one or more contracts.
-    [[nodiscard]] MultiOptionQuotes get_option_quotes(QueryParams const& params = {});
+    [[nodiscard]] MultiOptionQuotes get_option_quotes(MultiOptionQuotesRequest const& request);
 
     /// Retrieves the latest options trades across one or more contracts.
-    [[nodiscard]] MultiOptionTrades get_option_trades(QueryParams const& params = {});
+    [[nodiscard]] MultiOptionTrades get_option_trades(MultiOptionTradesRequest const& request);
 
     /// Retrieves crypto aggregates across one or more symbols.
-    [[nodiscard]] MultiCryptoBars get_crypto_aggregates(QueryParams const& params = {});
+    [[nodiscard]] MultiCryptoBars get_crypto_aggregates(MultiCryptoBarsRequest const& request);
 
     /// Retrieves crypto quotes across one or more symbols.
-    [[nodiscard]] MultiCryptoQuotes get_crypto_quotes(QueryParams const& params = {});
+    [[nodiscard]] MultiCryptoQuotes get_crypto_quotes(MultiCryptoQuotesRequest const& request);
 
     /// Retrieves crypto trades across one or more symbols.
-    [[nodiscard]] MultiCryptoTrades get_crypto_trades(QueryParams const& params = {});
+    [[nodiscard]] MultiCryptoTrades get_crypto_trades(MultiCryptoTradesRequest const& request);
 
     /// Lists broker accounts using the optional filters.
     [[nodiscard]] BrokerAccountsPage list_broker_accounts(ListBrokerAccountsRequest const& request = {});
+    [[nodiscard]] PaginatedVectorRange<ListBrokerAccountsRequest, BrokerAccountsPage, BrokerAccount>
+    list_broker_accounts_range(ListBrokerAccountsRequest request = {}) const;
 
     /// Retrieves a single broker account by identifier.
     [[nodiscard]] BrokerAccount get_broker_account(std::string const& account_id);
@@ -193,6 +221,8 @@ class AlpacaClient {
     /// Lists transfers initiated for the provided account.
     [[nodiscard]] TransfersPage list_account_transfers(std::string const& account_id,
                                                        ListTransfersRequest const& request = {});
+    [[nodiscard]] PaginatedVectorRange<ListTransfersRequest, TransfersPage, Transfer>
+    list_account_transfers_range(std::string const& account_id, ListTransfersRequest request = {}) const;
 
     /// Initiates a new transfer for the provided account.
     [[nodiscard]] Transfer create_account_transfer(std::string const& account_id, CreateTransferRequest const& request);
@@ -205,6 +235,8 @@ class AlpacaClient {
 
     /// Lists journals with the optional filters.
     [[nodiscard]] JournalsPage list_journals(ListJournalsRequest const& request = {});
+    [[nodiscard]] PaginatedVectorRange<ListJournalsRequest, JournalsPage, Journal>
+    list_journals_range(ListJournalsRequest request = {}) const;
 
     /// Creates a journal entry.
     [[nodiscard]] Journal create_journal(CreateJournalRequest const& request);
@@ -236,10 +268,11 @@ class AlpacaClient {
     void delete_wire_relationship(std::string const& account_id, std::string const& relationship_id);
 
   private:
-    RestClient trading_client_;
-    RestClient data_client_;
-    RestClient data_beta_client_;
-    RestClient broker_client_;
+    Configuration config_;
+    HttpClientPtr http_client_;
+    TradingClient trading_client_;
+    MarketDataClient market_data_client_;
+    BrokerClient broker_client_;
 };
 
 } // namespace alpaca

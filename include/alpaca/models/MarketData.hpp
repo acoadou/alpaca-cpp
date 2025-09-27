@@ -186,4 +186,95 @@ struct MultiCryptoTrades {
 
 void from_json(Json const& j, MultiCryptoTrades& response);
 
+/// Request payload for the news endpoint with typed filters.
+struct NewsRequest {
+    std::vector<std::string> symbols{};
+    std::optional<Timestamp> start{};
+    std::optional<Timestamp> end{};
+    std::optional<int> limit{};
+    std::optional<SortDirection> sort{};
+    std::optional<std::string> page_token{};
+    bool include_content{false};
+
+    [[nodiscard]] QueryParams to_query_params() const;
+};
+
+/// Request payload for corporate action announcements.
+struct CorporateActionAnnouncementsRequest {
+    std::vector<std::string> symbols{};
+    std::vector<std::string> corporate_action_types{};
+    std::optional<Timestamp> since{};
+    std::optional<Timestamp> until{};
+    std::optional<int> limit{};
+    std::optional<SortDirection> sort{};
+    std::optional<std::string> page_token{};
+
+    [[nodiscard]] QueryParams to_query_params() const;
+};
+
+/// Request payload for corporate action events.
+struct CorporateActionEventsRequest {
+    std::vector<std::string> symbols{};
+    std::vector<std::string> corporate_action_types{};
+    std::optional<Timestamp> since{};
+    std::optional<Timestamp> until{};
+    std::optional<int> limit{};
+    std::optional<SortDirection> sort{};
+    std::optional<std::string> page_token{};
+
+    [[nodiscard]] QueryParams to_query_params() const;
+};
+
+/// Shared request structure for multi-symbol bar endpoints.
+struct MultiBarsRequest {
+    std::vector<std::string> symbols{};
+    std::optional<std::string> timeframe{};
+    std::optional<Timestamp> start{};
+    std::optional<Timestamp> end{};
+    std::optional<int> limit{};
+    std::optional<SortDirection> sort{};
+    std::optional<std::string> page_token{};
+    std::optional<std::string> feed{};
+    std::optional<std::string> adjustment{};
+    std::optional<Timestamp> asof{};
+
+    [[nodiscard]] QueryParams to_query_params() const;
+};
+
+/// Shared request structure for multi-symbol quote endpoints.
+struct MultiQuotesRequest {
+    std::vector<std::string> symbols{};
+    std::optional<Timestamp> start{};
+    std::optional<Timestamp> end{};
+    std::optional<int> limit{};
+    std::optional<SortDirection> sort{};
+    std::optional<std::string> page_token{};
+    std::optional<std::string> feed{};
+
+    [[nodiscard]] QueryParams to_query_params() const;
+};
+
+/// Shared request structure for multi-symbol trade endpoints.
+struct MultiTradesRequest {
+    std::vector<std::string> symbols{};
+    std::optional<Timestamp> start{};
+    std::optional<Timestamp> end{};
+    std::optional<int> limit{};
+    std::optional<SortDirection> sort{};
+    std::optional<std::string> page_token{};
+    std::optional<std::string> feed{};
+
+    [[nodiscard]] QueryParams to_query_params() const;
+};
+
+using MultiStockBarsRequest = MultiBarsRequest;
+using MultiOptionBarsRequest = MultiBarsRequest;
+using MultiCryptoBarsRequest = MultiBarsRequest;
+using MultiStockQuotesRequest = MultiQuotesRequest;
+using MultiOptionQuotesRequest = MultiQuotesRequest;
+using MultiCryptoQuotesRequest = MultiQuotesRequest;
+using MultiStockTradesRequest = MultiTradesRequest;
+using MultiOptionTradesRequest = MultiTradesRequest;
+using MultiCryptoTradesRequest = MultiTradesRequest;
+
 } // namespace alpaca

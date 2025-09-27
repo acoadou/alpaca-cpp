@@ -9,8 +9,12 @@ client while embracing contemporary C++ idioms. The codebase builds a compiled l
 
 - **Comprehensive endpoint coverage** for accounts, account configuration, activities, orders (including advanced order
   classes), positions, assets, calendar/clock data, portfolio history and watchlists.
+- **Domain specific clients** for trading, market data, and broker operations mirroring the layout of the official
+  Alpaca SDKs, with environment presets for paper and live trading.
 - **Market data helpers** for fetching latest trades/quotes, historical bars and per-symbol snapshots from Alpaca Market
   Data v2.
+- **Typed request models** that perform lightweight validation before hitting the API and cursor ranges that iterate
+  paginated endpoints while honouring `Retry-After` headers and applying exponential backoff with jitter.
 - **Extensible transport** abstraction with a libcurl-based implementation bundled by default.
 - **Secure by default** HTTPS requests with TLS peer and hostname verification, configurable CA bundles and
   opt-in overrides for custom environments.
@@ -37,6 +41,27 @@ client while embracing contemporary C++ idioms. The codebase builds a compiled l
   `-DALPACA_FETCH_IXWEBSOCKET=ON` (the default) to download and build ixwebsocket as part of the
   project. Downstream packagers are encouraged to install the dependency ahead of time and set
   `-DALPACA_FETCH_IXWEBSOCKET=OFF` so the build fails fast if the system package is missing.
+
+### Selecting an environment
+
+The library exposes ready-made environments that mirror the official SDKs. Use `alpaca::Environments`
+to choose paper or live trading and build a configuration that wires both REST and streaming
+endpoints:
+
+```cpp
+alpaca::Configuration paper = alpaca::Configuration::FromEnvironment(
+    alpaca::Environments::Paper(),
+    "API_KEY",
+    "SECRET"
+);
+
+// Domain clients can be used independently when you do not need the umbrella AlpacaClient.
+alpaca::TradingClient trading(paper);
+alpaca::MarketDataClient market_data(paper);
+```
+
+You can still override any field on the configuration after construction when targeting custom
+deployments.
 
 ### Building and running the tests
 
@@ -149,13 +174,30 @@ outages.
 
 ```cpp
 #include <alpaca/AlpacaClient.hpp>
+#include <alpaca/Chrono.hpp>
 
 int main() {
-  alpaca::Configuration config = alpaca::Configuration::Paper("API_KEY", "SECRET_KEY");
+  alpaca::Configuration config = alpaca::Configuration::FromEnvironment(
+      alpaca::Environments::Paper(),
+      "API_KEY",
+      "SECRET_KEY");
   alpaca::AlpacaClient client(config);
 
-  const alpaca::Account account = client.get_account();
-  const alpaca::PortfolioHistory history = client.get_portfolio_history();
+  alpaca::Account account = client.trading().get_account();
+
+  alpaca::StockBarsRequest intraday;
+  intraday.timeframe = "1Min";
+  intraday.start = alpaca::since(std::chrono::hours{1});
+  for (auto const& bar : client.stock_bars_range("AAPL", intraday)) {
+    // Process bar data across every page.
+  }
+
+  alpaca::NewsRequest news;
+  news.symbols = {"AAPL"};
+  news.limit = 5;
+  for (auto const& article : client.news_range(news)) {
+    // Consume the latest headlines without managing pagination manually.
+  }
 
   alpaca::NewOrderRequest order;
   order.symbol = "AAPL";
@@ -164,11 +206,7 @@ int main() {
   order.time_in_force = alpaca::TimeInForce::DAY;
   order.quantity = "1";
   order.limit_price = "150";
-  client.submit_order(order);
-
-  for (const auto& watchlist : client.list_watchlists()) {
-    // Inspect watchlists, add/remove symbols, etc.
-  }
+  client.trading().submit_order(order);
 
   return 0;
 }
@@ -183,6 +221,30 @@ custom HTTP client to exercise the API surface without issuing real network call
 All REST operations are issued through the `alpaca::HttpClient` interface. The default implementation uses libcurl, but you can
 provide any custom transport (Boost.Beast, cpp-httplib, proprietary stacks, …) by supplying your own implementation when
 constructing `alpaca::AlpacaClient`.
+
+### Streaming
+
+`alpaca::streaming::WebSocketClient` bundles robust reconnect behaviour by default. You can tweak the
+backoff settings and control heartbeats through the new setters:
+
+```cpp
+alpaca::streaming::WebSocketClient socket(
+    config.market_data_stream_url + "/stocks",
+    config.api_key_id,
+    config.api_secret_key,
+    alpaca::streaming::StreamFeed::MarketData);
+
+socket.set_reconnect_policy({
+    std::chrono::milliseconds{500},  // initial delay
+    std::chrono::seconds{10},        // max delay
+    2.0,                             // multiplier
+    std::chrono::milliseconds{250}   // jitter
+});
+socket.set_ping_interval(std::chrono::seconds{15});
+```
+
+The client automatically resubscribes after reconnecting and responds to server pings with a `pong`
+message, so long-running feeds keep flowing without manual intervention.
 
 ### TLS configuration
 

@@ -1,5 +1,7 @@
 #include "alpaca/models/MarketData.hpp"
 
+#include <stdexcept>
+
 namespace alpaca {
 
 namespace {
@@ -147,6 +149,28 @@ void append_timestamp(QueryParams& params, std::string const& key, std::optional
         params.emplace_back(key, format_timestamp(*value));
     }
 }
+
+void append_csv(QueryParams& params, std::string const& key, std::vector<std::string> const& values) {
+    if (!values.empty()) {
+        params.emplace_back(key, join_csv(values));
+    }
+}
+
+void append_limit(QueryParams& params, std::optional<int> const& limit) {
+    if (!limit.has_value()) {
+        return;
+    }
+    if (*limit <= 0) {
+        throw std::invalid_argument("limit must be positive");
+    }
+    params.emplace_back("limit", std::to_string(*limit));
+}
+
+void append_sort(QueryParams& params, std::optional<SortDirection> const& sort) {
+    if (sort.has_value()) {
+        params.emplace_back("sort", to_string(*sort));
+    }
+}
 } // namespace
 
 QueryParams StockBarsRequest::to_query_params() const {
@@ -168,6 +192,137 @@ QueryParams StockBarsRequest::to_query_params() const {
     append_timestamp(params, "asof", asof);
     if (page_token.has_value()) {
         params.emplace_back("page_token", *page_token);
+    }
+    return params;
+}
+
+QueryParams NewsRequest::to_query_params() const {
+    QueryParams params;
+    append_csv(params, "symbols", symbols);
+    append_timestamp(params, "start", start);
+    append_timestamp(params, "end", end);
+    if (start.has_value() && end.has_value() && *start > *end) {
+        throw std::invalid_argument("news request start must be <= end");
+    }
+    append_limit(params, limit);
+    append_sort(params, sort);
+    if (page_token.has_value()) {
+        params.emplace_back("page_token", *page_token);
+    }
+    if (include_content) {
+        params.emplace_back("include_content", "true");
+    }
+    return params;
+}
+
+QueryParams CorporateActionAnnouncementsRequest::to_query_params() const {
+    QueryParams params;
+    append_csv(params, "symbols", symbols);
+    append_csv(params, "ca_types", corporate_action_types);
+    append_timestamp(params, "since", since);
+    append_timestamp(params, "until", until);
+    if (since.has_value() && until.has_value() && *since > *until) {
+        throw std::invalid_argument("announcements since must be <= until");
+    }
+    append_limit(params, limit);
+    append_sort(params, sort);
+    if (page_token.has_value()) {
+        params.emplace_back("page_token", *page_token);
+    }
+    return params;
+}
+
+QueryParams CorporateActionEventsRequest::to_query_params() const {
+    QueryParams params;
+    append_csv(params, "symbols", symbols);
+    append_csv(params, "ca_types", corporate_action_types);
+    append_timestamp(params, "since", since);
+    append_timestamp(params, "until", until);
+    if (since.has_value() && until.has_value() && *since > *until) {
+        throw std::invalid_argument("events since must be <= until");
+    }
+    append_limit(params, limit);
+    append_sort(params, sort);
+    if (page_token.has_value()) {
+        params.emplace_back("page_token", *page_token);
+    }
+    return params;
+}
+
+namespace {
+void validate_symbols(std::vector<std::string> const& symbols) {
+    if (symbols.empty()) {
+        throw std::invalid_argument("at least one symbol must be provided");
+    }
+}
+} // namespace
+
+QueryParams MultiBarsRequest::to_query_params() const {
+    validate_symbols(symbols);
+    QueryParams params;
+    append_csv(params, "symbols", symbols);
+    if (timeframe.has_value() && timeframe->empty()) {
+        throw std::invalid_argument("timeframe cannot be empty when provided");
+    }
+    if (timeframe.has_value()) {
+        params.emplace_back("timeframe", *timeframe);
+    }
+    append_timestamp(params, "start", start);
+    append_timestamp(params, "end", end);
+    if (start.has_value() && end.has_value() && *start > *end) {
+        throw std::invalid_argument("bars start must be <= end");
+    }
+    append_limit(params, limit);
+    append_sort(params, sort);
+    if (page_token.has_value()) {
+        params.emplace_back("page_token", *page_token);
+    }
+    if (feed.has_value()) {
+        params.emplace_back("feed", *feed);
+    }
+    if (adjustment.has_value()) {
+        params.emplace_back("adjustment", *adjustment);
+    }
+    append_timestamp(params, "asof", asof);
+    return params;
+}
+
+QueryParams MultiQuotesRequest::to_query_params() const {
+    validate_symbols(symbols);
+    QueryParams params;
+    append_csv(params, "symbols", symbols);
+    append_timestamp(params, "start", start);
+    append_timestamp(params, "end", end);
+    if (start.has_value() && end.has_value() && *start > *end) {
+        throw std::invalid_argument("quotes start must be <= end");
+    }
+    append_limit(params, limit);
+    append_sort(params, sort);
+    if (page_token.has_value()) {
+        params.emplace_back("page_token", *page_token);
+    }
+    if (feed.has_value()) {
+        params.emplace_back("feed", *feed);
+    }
+    return params;
+}
+
+QueryParams MultiTradesRequest::to_query_params() const {
+    validate_symbols(symbols);
+    QueryParams params;
+    append_csv(params, "symbols", symbols);
+    append_timestamp(params, "start", start);
+    append_timestamp(params, "end", end);
+    if (start.has_value() && end.has_value() && *start > *end) {
+        throw std::invalid_argument("trades start must be <= end");
+    }
+    append_limit(params, limit);
+    append_sort(params, sort);
+    if (page_token.has_value()) {
+        params.emplace_back("page_token", *page_token);
+    }
+    if (feed.has_value()) {
+        params.emplace_back("feed", *feed);
     }
     return params;
 }

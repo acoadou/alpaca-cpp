@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <chrono>
 
 #include "alpaca/models/Account.hpp"
@@ -171,6 +172,46 @@ TEST(ModelSerializationTest, PortfolioHistoryRequestBuildsQueryParams) {
     EXPECT_EQ(params[2].second, "2023-01-01");
     EXPECT_EQ(params[3].first, "extended_hours");
     EXPECT_EQ(params[3].second, "true");
+}
+
+TEST(ModelSerializationTest, NewsRequestValidationAndQueryParams) {
+    alpaca::NewsRequest request;
+    request.symbols = {"AAPL", "MSFT"};
+    request.limit = 5;
+    request.page_token = std::string{"cursor"};
+
+    auto params = request.to_query_params();
+    EXPECT_NE(std::find_if(params.begin(), params.end(),
+                           [](auto const& pair) {
+                               return pair.first == "symbols" && pair.second.find("AAPL") != std::string::npos;
+                           }),
+              params.end());
+    EXPECT_NE(std::find_if(params.begin(), params.end(),
+                           [](auto const& pair) {
+                               return pair.first == "limit" && pair.second == "5";
+                           }),
+              params.end());
+    EXPECT_NE(std::find_if(params.begin(), params.end(),
+                           [](auto const& pair) {
+                               return pair.first == "page_token" && pair.second == "cursor";
+                           }),
+              params.end());
+
+    request.limit = 0;
+    EXPECT_THROW(request.to_query_params(), std::invalid_argument);
+}
+
+TEST(ModelSerializationTest, MultiBarsRequestRequiresSymbols) {
+    alpaca::MultiStockBarsRequest request;
+    EXPECT_THROW(request.to_query_params(), std::invalid_argument);
+
+    request.symbols = {"AAPL"};
+    auto params = request.to_query_params();
+    EXPECT_NE(std::find_if(params.begin(), params.end(),
+                           [](auto const& pair) {
+                               return pair.first == "symbols" && pair.second == "AAPL";
+                           }),
+              params.end());
 }
 
 TEST(ModelSerializationTest, LatestStockTradeParsesCoreFields) {
