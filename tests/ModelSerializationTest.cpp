@@ -485,6 +485,19 @@ TEST(ModelSerializationTest, ListOrdersRequestBuildsQueryParams) {
     EXPECT_EQ(params[5].second, "AAPL,MSFT");
 }
 
+TEST(ModelSerializationTest, OptionChainRequestIncludesRootSymbolInQueryParams) {
+    alpaca::OptionChainRequest request;
+    request.root_symbol = "AAPL";
+
+    auto const params = request.to_query_params();
+    auto const it = std::find_if(params.begin(), params.end(), [](auto const& pair) {
+        return pair.first == "root_symbol";
+    });
+
+    ASSERT_NE(it, params.end());
+    EXPECT_EQ(it->second, "AAPL");
+}
+
 TEST(ModelSerializationTest, AccountActivitiesRequestSerializesChronoFields) {
     alpaca::AccountActivitiesRequest request;
     request.activity_types = {"FILL", "FEE"};

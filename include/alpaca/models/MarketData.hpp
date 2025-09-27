@@ -616,6 +616,7 @@ struct MultiOptionSnapshotsRequest {
 
 /// Query parameters accepted by the historical option chain endpoint.
 struct OptionChainRequest {
+    std::optional<std::string> root_symbol{};
     std::optional<std::string> expiration{};
     std::optional<std::string> expiration_gte{};
     std::optional<std::string> expiration_lte{};

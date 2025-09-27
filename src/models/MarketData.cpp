@@ -999,6 +999,9 @@ QueryParams MultiOptionSnapshotsRequest::to_query_params() const {
 
 QueryParams OptionChainRequest::to_query_params() const {
     QueryParams params;
+    if (root_symbol.has_value()) {
+        params.emplace_back("root_symbol", *root_symbol);
+    }
     if (expiration.has_value()) {
         params.emplace_back("expiration", *expiration);
     }
