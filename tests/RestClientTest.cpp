@@ -1,7 +1,9 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include <chrono>
 #include <memory>
+#include <optional>
 
 #include "FakeHttpClient.hpp"
 #include "alpaca/RestClient.hpp"
@@ -46,6 +48,115 @@ TEST(RestClientTest, AddsAuthenticationHeaders) {
     EXPECT_THAT(request.url, Eq(config.trading_base_url + "/v2/account"));
     EXPECT_TRUE(request.verify_peer);
     EXPECT_TRUE(request.verify_host);
+}
+
+TEST(RestClientTest, RetriesFailedRequests) {
+    alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
+    auto fake_client = std::make_shared<FakeHttpClient>();
+
+    alpaca::Json account_json = {
+        {"id",                "test"  },
+        {"currency",          "USD"   },
+        {"status",            "ACTIVE"},
+        {"trade_blocked",     false   },
+        {"trading_blocked",   false   },
+        {"transfers_blocked", false   },
+        {"buying_power",      "1000"  },
+        {"equity",            "1000"  },
+        {"last_equity",       "1000"  }
+    };
+
+    fake_client->push_response(alpaca::HttpResponse{500, alpaca::Json{{"message", "fail"}}.dump(), {}});
+    fake_client->push_response(alpaca::HttpResponse{200, account_json.dump(), {}});
+
+    alpaca::RestClient::Options options;
+    options.retry.max_attempts = 2;
+    options.retry.initial_backoff = std::chrono::milliseconds{0};
+    options.retry.max_backoff = std::chrono::milliseconds{0};
+    options.retry.retry_status_codes = {500};
+
+    alpaca::RestClient client(config, fake_client, config.trading_base_url, options);
+    alpaca::Account account = client.get<alpaca::Account>("/v2/account");
+
+    EXPECT_EQ(account.id, "test");
+    ASSERT_THAT(fake_client->requests(), SizeIs(2));
+}
+
+TEST(RestClientTest, InvokesRequestInterceptors) {
+    alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
+    auto fake_client = std::make_shared<FakeHttpClient>();
+
+    alpaca::Json account_json = {
+        {"id", "test"},
+    };
+
+    fake_client->push_response(alpaca::HttpResponse{200, account_json.dump(), {}});
+
+    int pre_invocations = 0;
+    bool post_invoked = false;
+
+    alpaca::RestClient::Options options;
+    options.pre_request_hook = [&](alpaca::HttpRequest& request) {
+        ++pre_invocations;
+        request.headers.emplace("X-Trace", "trace-id");
+    };
+    options.post_request_hook = [&](alpaca::HttpRequest const& request, alpaca::HttpResponse const& response) {
+        post_invoked = true;
+        EXPECT_THAT(request.headers.at("X-Trace"), Eq("trace-id"));
+        EXPECT_EQ(response.status_code, 200);
+    };
+
+    alpaca::RestClient client(config, fake_client, config.trading_base_url, options);
+    EXPECT_NO_THROW(client.get<alpaca::Account>("/v2/account"));
+
+    EXPECT_EQ(pre_invocations, 1);
+    EXPECT_TRUE(post_invoked);
+
+    ASSERT_THAT(fake_client->requests(), SizeIs(1));
+    auto const& request = fake_client->requests().front().request;
+    EXPECT_THAT(request.headers.at("X-Trace"), Eq("trace-id"));
+}
+
+TEST(RestClientTest, ReturnsRawJsonResponses) {
+    alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
+    auto fake_client = std::make_shared<FakeHttpClient>();
+
+    alpaca::Json account_json = {
+        {"id", "raw"}
+    };
+
+    fake_client->push_response(alpaca::HttpResponse{200, account_json.dump(), {}});
+
+    alpaca::RestClient client(config, fake_client, config.trading_base_url);
+    std::optional<std::string> raw = client.get_raw("/v2/account");
+
+    ASSERT_TRUE(raw.has_value());
+    EXPECT_THAT(*raw, Eq(account_json.dump()));
+}
+
+TEST(RestClientTest, SupportsCustomAuthenticationHandler) {
+    alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
+    auto fake_client = std::make_shared<FakeHttpClient>();
+
+    alpaca::Json account_json = {
+        {"id", "custom"}
+    };
+
+    fake_client->push_response(alpaca::HttpResponse{200, account_json.dump(), {}});
+
+    alpaca::RestClient::Options options;
+    options.auth_handler = [](alpaca::HttpRequest& request, alpaca::Configuration const&) {
+        request.headers["Authorization"] = "Custom token";
+    };
+
+    alpaca::RestClient client(config, fake_client, config.trading_base_url, options);
+    EXPECT_NO_THROW(client.get<alpaca::Account>("/v2/account"));
+
+    ASSERT_THAT(fake_client->requests(), SizeIs(1));
+    auto const& request = fake_client->requests().front().request;
+    EXPECT_THAT(request.headers.at("Authorization"), Eq("Custom token"));
+    EXPECT_EQ(request.headers.count("APCA-API-KEY-ID"), 0);
+    EXPECT_EQ(request.headers.count("APCA-API-SECRET-KEY"), 0);
 }
 
 TEST(RestClientTest, PropagatesApiErrors) {

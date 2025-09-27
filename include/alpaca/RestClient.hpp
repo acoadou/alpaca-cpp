@@ -1,5 +1,8 @@
 #pragma once
 
+#include <chrono>
+#include <cstddef>
+#include <functional>
 #include <optional>
 #include <string>
 #include <type_traits>
@@ -26,7 +29,27 @@ template <typename T> inline constexpr bool is_optional_v = is_optional<T>::valu
 /// Lightweight REST client responsible for communicating with Alpaca endpoints.
 class RestClient {
   public:
+    struct RetryOptions {
+        std::size_t max_attempts{1};
+        std::chrono::milliseconds initial_backoff{std::chrono::milliseconds{0}};
+        double backoff_multiplier{2.0};
+        std::chrono::milliseconds max_backoff{std::chrono::seconds{1}};
+        std::vector<long> retry_status_codes{429, 500, 502, 503, 504};
+    };
+
+    using PreRequestHook = std::function<void(HttpRequest&)>;
+    using PostRequestHook = std::function<void(HttpRequest const&, HttpResponse const&)>;
+    using AuthHandler = std::function<void(HttpRequest&, Configuration const&)>;
+
+    struct Options {
+        RetryOptions retry{};
+        PreRequestHook pre_request_hook{};
+        PostRequestHook post_request_hook{};
+        AuthHandler auth_handler{};
+    };
+
     RestClient(Configuration config, HttpClientPtr http_client, std::string base_url);
+    RestClient(Configuration config, HttpClientPtr http_client, std::string base_url, Options options);
 
     [[nodiscard]] Configuration const& config() const noexcept {
         return config_;
@@ -60,23 +83,54 @@ class RestClient {
         return request_json<T>(HttpMethod::PATCH, path, params, payload.dump());
     }
 
+    /// Performs an HTTP request and returns the raw JSON body if present.
+    [[nodiscard]] std::optional<std::string> get_raw(std::string const& path, QueryParams const& params = {}) const {
+        return request_raw(HttpMethod::GET, path, params, std::nullopt);
+    }
+
+    [[nodiscard]] std::optional<std::string> del_raw(std::string const& path, QueryParams const& params = {}) const {
+        return request_raw(HttpMethod::DELETE_, path, params, std::nullopt);
+    }
+
+    [[nodiscard]] std::optional<std::string> post_raw(std::string const& path, Json const& payload,
+                                                      QueryParams const& params = {}) const {
+        return request_raw(HttpMethod::POST, path, params, payload.dump());
+    }
+
+    [[nodiscard]] std::optional<std::string> put_raw(std::string const& path, Json const& payload,
+                                                     QueryParams const& params = {}) const {
+        return request_raw(HttpMethod::PUT, path, params, payload.dump());
+    }
+
+    [[nodiscard]] std::optional<std::string> patch_raw(std::string const& path, Json const& payload,
+                                                       QueryParams const& params = {}) const {
+        return request_raw(HttpMethod::PATCH, path, params, payload.dump());
+    }
+
   private:
     Configuration config_;
     HttpClientPtr http_client_;
     std::string base_url_;
+    Options options_{};
 
     static std::string build_url(std::string const& base, std::string const& path, QueryParams const& params);
     static std::string encode_query(QueryParams const& params);
 
-    std::optional<Json> perform_request(HttpMethod method, std::string const& path, QueryParams const& params,
-                                        std::optional<std::string> payload) const;
+    [[nodiscard]] std::optional<std::string> request_raw(HttpMethod method, std::string const& path,
+                                                         QueryParams const& params,
+                                                         std::optional<std::string> payload) const;
+    HttpResponse perform_request(HttpMethod method, std::string const& path, QueryParams const& params,
+                                 std::optional<std::string> payload) const;
+    void apply_authentication(HttpRequest& request) const;
+    [[nodiscard]] bool should_retry(long status_code, std::size_t attempt) const;
+    [[nodiscard]] std::chrono::milliseconds next_backoff(std::chrono::milliseconds current) const;
 
     template <typename T>
     T request_json(HttpMethod method, std::string const& path, QueryParams const& params,
                    std::optional<std::string> payload) const {
-        std::optional<Json> json = perform_request(method, path, params, std::move(payload));
+        std::optional<std::string> body = request_raw(method, path, params, std::move(payload));
 
-        if (!json.has_value()) {
+        if (!body.has_value()) {
             if constexpr (std::is_void_v<T>) {
                 return;
             } else if constexpr (detail::is_optional_v<T>) {
@@ -93,15 +147,17 @@ class RestClient {
             }
         }
 
+        Json json = Json::parse(*body);
+
         if constexpr (std::is_void_v<T>) {
             return;
         } else if constexpr (std::is_same_v<T, Json>) {
-            return *json;
+            return json;
         } else if constexpr (detail::is_optional_v<T>) {
             using value_type = typename T::value_type;
-            return T{json->get<value_type>()};
+            return T{json.get<value_type>()};
         } else {
-            return json->get<T>();
+            return json.get<T>();
         }
     }
 };
