@@ -403,9 +403,48 @@ struct NewsRequest {
     std::optional<SortDirection> sort{};
     std::optional<std::string> page_token{};
     bool include_content{false};
+    bool exclude_contentless{false};
 
     [[nodiscard]] QueryParams to_query_params() const;
 };
+
+/// Represents a single historical stock auction event.
+struct StockAuction {
+    std::string symbol;
+    Timestamp timestamp{};
+    std::optional<std::string> auction_type{};
+    std::optional<std::string> exchange{};
+    std::optional<double> price{};
+    std::optional<std::uint64_t> size{};
+    std::optional<double> imbalance{};
+    std::optional<std::string> imbalance_side{};
+    std::optional<double> clearing_price{};
+    std::optional<double> open_price{};
+    std::optional<double> close_price{};
+    std::optional<std::uint64_t> order_imbalance{};
+    std::optional<std::uint64_t> matched_quantity{};
+};
+
+/// Response payload returned by the historical auctions endpoints.
+struct HistoricalAuctionsResponse {
+    std::vector<StockAuction> auctions;
+    std::optional<std::string> next_page_token{};
+};
+
+/// Filter parameters accepted by the historical auctions endpoints.
+struct HistoricalAuctionsRequest {
+    std::vector<std::string> symbols{};
+    std::optional<Timestamp> start{};
+    std::optional<Timestamp> end{};
+    std::optional<int> limit{};
+    std::optional<SortDirection> sort{};
+    std::optional<std::string> page_token{};
+
+    [[nodiscard]] QueryParams to_query_params() const;
+};
+
+void from_json(Json const& j, StockAuction& auction);
+void from_json(Json const& j, HistoricalAuctionsResponse& response);
 
 /// Request payload for corporate action announcements.
 struct CorporateActionAnnouncementsRequest {

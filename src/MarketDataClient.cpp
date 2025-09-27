@@ -197,6 +197,51 @@ PaginatedVectorRange<NewsRequest, NewsResponse, NewsArticle> MarketDataClient::n
     });
 }
 
+HistoricalAuctionsResponse MarketDataClient::get_stock_auctions(std::string const& symbol,
+                                                                HistoricalAuctionsRequest const& request) const {
+    return v2_client_.get<HistoricalAuctionsResponse>("stocks/" + symbol + "/auctions", request.to_query_params());
+}
+
+HistoricalAuctionsResponse MarketDataClient::get_auctions(HistoricalAuctionsRequest const& request) const {
+    return v2_client_.get<HistoricalAuctionsResponse>("stocks/auctions", request.to_query_params());
+}
+
+PaginatedVectorRange<HistoricalAuctionsRequest, HistoricalAuctionsResponse, StockAuction>
+MarketDataClient::stock_auctions_range(std::string const& symbol, HistoricalAuctionsRequest request) const {
+    return PaginatedVectorRange<HistoricalAuctionsRequest, HistoricalAuctionsResponse, StockAuction>(
+    std::move(request),
+    [this, symbol](HistoricalAuctionsRequest const& req) {
+        return get_stock_auctions(symbol, req);
+    },
+    [](HistoricalAuctionsResponse const& page) -> std::vector<StockAuction> const& {
+        return page.auctions;
+    },
+    [](HistoricalAuctionsResponse const& page) {
+        return page.next_page_token;
+    },
+    [](HistoricalAuctionsRequest& req, std::optional<std::string> const& token) {
+        req.page_token = token;
+    });
+}
+
+PaginatedVectorRange<HistoricalAuctionsRequest, HistoricalAuctionsResponse, StockAuction>
+MarketDataClient::auctions_range(HistoricalAuctionsRequest request) const {
+    return PaginatedVectorRange<HistoricalAuctionsRequest, HistoricalAuctionsResponse, StockAuction>(
+    std::move(request),
+    [this](HistoricalAuctionsRequest const& req) {
+        return get_auctions(req);
+    },
+    [](HistoricalAuctionsResponse const& page) -> std::vector<StockAuction> const& {
+        return page.auctions;
+    },
+    [](HistoricalAuctionsResponse const& page) {
+        return page.next_page_token;
+    },
+    [](HistoricalAuctionsRequest& req, std::optional<std::string> const& token) {
+        req.page_token = token;
+    });
+}
+
 CorporateActionAnnouncementsResponse
 MarketDataClient::get_corporate_announcements(CorporateActionAnnouncementsRequest const& request) const {
     return beta_client_.get<CorporateActionAnnouncementsResponse>("corporate-actions/announcements",

@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cctype>
 #include <iomanip>
+#include <mutex>
 #include <optional>
 #include <sstream>
 #include <stdexcept>
@@ -31,6 +32,40 @@ std::string url_encode(std::string_view value) {
         }
     }
     return encoded.str();
+}
+
+std::optional<long> parse_long_header(HttpHeaders const& headers, std::string_view key) {
+    auto it = headers.find(key);
+    if (it == headers.end()) {
+        return std::nullopt;
+    }
+    try {
+        return std::stol(it->second);
+    } catch (...) {
+        return std::nullopt;
+    }
+}
+
+std::optional<std::chrono::system_clock::time_point> parse_reset_header(HttpHeaders const& headers,
+                                                                        std::string_view key) {
+    auto raw = parse_long_header(headers, key);
+    if (!raw.has_value()) {
+        return std::nullopt;
+    }
+    return std::chrono::system_clock::time_point{std::chrono::seconds{*raw}};
+}
+
+std::optional<RestClient::RateLimitStatus> extract_rate_limit(HttpHeaders const& headers) {
+    RestClient::RateLimitStatus status;
+    status.limit = parse_long_header(headers, "x-ratelimit-limit");
+    status.remaining = parse_long_header(headers, "x-ratelimit-remaining");
+    status.used = parse_long_header(headers, "x-ratelimit-used");
+    status.reset = parse_reset_header(headers, "x-ratelimit-reset");
+
+    if (!status.limit && !status.remaining && !status.used && !status.reset) {
+        return std::nullopt;
+    }
+    return status;
 }
 } // namespace
 
@@ -106,6 +141,15 @@ HttpResponse RestClient::perform_request(HttpMethod method, std::string const& p
 
         HttpResponse response = http_client_->send(attempt_request);
 
+        auto rate_limit_status = extract_rate_limit(response.headers);
+        {
+            std::lock_guard<std::mutex> lock(rate_limit_mutex_);
+            last_rate_limit_status_ = rate_limit_status;
+        }
+        if (rate_limit_status.has_value() && options_.rate_limit_handler) {
+            options_.rate_limit_handler(*rate_limit_status);
+        }
+
         if (options_.post_request_hook) {
             options_.post_request_hook(attempt_request, response);
         }
@@ -135,6 +179,16 @@ HttpResponse RestClient::perform_request(HttpMethod method, std::string const& p
             backoff = next_backoff(backoff);
         }
     }
+}
+
+std::optional<RestClient::RateLimitStatus> RestClient::last_rate_limit_status() const {
+    std::lock_guard<std::mutex> lock(rate_limit_mutex_);
+    return last_rate_limit_status_;
+}
+
+void RestClient::set_rate_limit_handler(RateLimitHandler handler) {
+    std::lock_guard<std::mutex> lock(rate_limit_mutex_);
+    options_.rate_limit_handler = std::move(handler);
 }
 
 std::optional<std::string> RestClient::request_raw(HttpMethod method, std::string const& path,

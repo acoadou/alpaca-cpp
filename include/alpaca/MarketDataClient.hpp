@@ -55,6 +55,21 @@ class MarketDataClient {
     [[nodiscard]] NewsResponse get_news(NewsRequest const& request = {}) const;
     [[nodiscard]] PaginatedVectorRange<NewsRequest, NewsResponse, NewsArticle>
     news_range(NewsRequest request = {}) const;
+
+    /// Retrieves historical auctions for a single stock symbol.
+    [[nodiscard]] HistoricalAuctionsResponse get_stock_auctions(std::string const& symbol,
+                                                                HistoricalAuctionsRequest const& request = {}) const;
+
+    /// Retrieves historical auctions across multiple symbols.
+    [[nodiscard]] HistoricalAuctionsResponse get_auctions(HistoricalAuctionsRequest const& request) const;
+
+    /// Streams historical auctions for a single symbol across all pages.
+    [[nodiscard]] PaginatedVectorRange<HistoricalAuctionsRequest, HistoricalAuctionsResponse, StockAuction>
+    stock_auctions_range(std::string const& symbol, HistoricalAuctionsRequest request = {}) const;
+
+    /// Streams historical auctions across all requested symbols.
+    [[nodiscard]] PaginatedVectorRange<HistoricalAuctionsRequest, HistoricalAuctionsResponse, StockAuction>
+    auctions_range(HistoricalAuctionsRequest request = {}) const;
     [[nodiscard]] CorporateActionAnnouncementsResponse
     get_corporate_announcements(CorporateActionAnnouncementsRequest const& request = {}) const;
     [[nodiscard]] CorporateActionEventsResponse

@@ -179,6 +179,8 @@ TEST(ModelSerializationTest, NewsRequestValidationAndQueryParams) {
     request.symbols = {"AAPL", "MSFT"};
     request.limit = 5;
     request.page_token = std::string{"cursor"};
+    request.include_content = true;
+    request.exclude_contentless = true;
 
     auto params = request.to_query_params();
     EXPECT_NE(std::find_if(params.begin(), params.end(),
@@ -194,6 +196,16 @@ TEST(ModelSerializationTest, NewsRequestValidationAndQueryParams) {
     EXPECT_NE(std::find_if(params.begin(), params.end(),
                            [](auto const& pair) {
                                return pair.first == "page_token" && pair.second == "cursor";
+                           }),
+              params.end());
+    EXPECT_NE(std::find_if(params.begin(), params.end(),
+                           [](auto const& pair) {
+                               return pair.first == "include_content" && pair.second == "true";
+                           }),
+              params.end());
+    EXPECT_NE(std::find_if(params.begin(), params.end(),
+                           [](auto const& pair) {
+                               return pair.first == "exclude_contentless" && pair.second == "true";
                            }),
               params.end());
 
@@ -230,6 +242,53 @@ TEST(ModelSerializationTest, LatestCryptoOrderbookRequestSerializesExchanges) {
     EXPECT_NE(params[1].second.find("CBSE"), std::string::npos);
 
     request.symbols.clear();
+    EXPECT_THROW(request.to_query_params(), std::invalid_argument);
+}
+
+TEST(ModelSerializationTest, HistoricalAuctionsRequestValidatesRange) {
+    alpaca::HistoricalAuctionsRequest request;
+    request.symbols = {"AAPL", "MSFT"};
+    request.limit = 50;
+    request.sort = alpaca::SortDirection::DESC;
+    request.page_token = std::string{"cursor"};
+
+    auto const start = alpaca::parse_timestamp("2024-05-01T09:30:00Z");
+    auto const end = alpaca::parse_timestamp("2024-05-01T16:00:00Z");
+    request.start = start;
+    request.end = end;
+
+    auto params = request.to_query_params();
+    EXPECT_NE(std::find_if(params.begin(), params.end(),
+                           [](auto const& entry) {
+                               return entry.first == "symbols" && entry.second.find("AAPL") != std::string::npos;
+                           }),
+              params.end());
+    EXPECT_NE(std::find_if(params.begin(), params.end(),
+                           [](auto const& entry) {
+                               return entry.first == "limit" && entry.second == "50";
+                           }),
+              params.end());
+    EXPECT_NE(std::find_if(params.begin(), params.end(),
+                           [](auto const& entry) {
+                               return entry.first == "sort" && entry.second == "desc";
+                           }),
+              params.end());
+    EXPECT_NE(std::find_if(params.begin(), params.end(),
+                           [](auto const& entry) {
+                               return entry.first == "page_token" && entry.second == "cursor";
+                           }),
+              params.end());
+
+    request.end = request.start;
+    EXPECT_NO_THROW(request.to_query_params());
+
+    auto copy = request;
+    copy.end.reset();
+    ASSERT_FALSE(copy.end.has_value());
+    EXPECT_NO_THROW(copy.to_query_params());
+
+    request.end = start;
+    request.start = end;
     EXPECT_THROW(request.to_query_params(), std::invalid_argument);
 }
 

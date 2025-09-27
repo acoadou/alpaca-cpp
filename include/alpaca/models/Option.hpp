@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <vector>
@@ -62,6 +63,11 @@ struct OptionContract {
     std::optional<std::string> exchange{};
     std::optional<std::string> exercise_style{};
     std::optional<std::string> multiplier{};
+    std::optional<std::uint64_t> open_interest{};
+    std::optional<std::string> open_interest_date{};
+    std::optional<double> close_price{};
+    std::optional<std::string> contract_size{};
+    std::optional<std::string> underlying_asset_id{};
 };
 
 /// Response payload for option contract listings.

@@ -360,6 +360,25 @@ PaginatedVectorRange<NewsRequest, NewsResponse, NewsArticle> AlpacaClient::news_
     return market_data().news_range(std::move(request));
 }
 
+HistoricalAuctionsResponse AlpacaClient::get_stock_auctions(std::string const& symbol,
+                                                            HistoricalAuctionsRequest const& request) {
+    return market_data().get_stock_auctions(symbol, request);
+}
+
+HistoricalAuctionsResponse AlpacaClient::get_auctions(HistoricalAuctionsRequest const& request) {
+    return market_data().get_auctions(request);
+}
+
+PaginatedVectorRange<HistoricalAuctionsRequest, HistoricalAuctionsResponse, StockAuction>
+AlpacaClient::stock_auctions_range(std::string const& symbol, HistoricalAuctionsRequest request) const {
+    return market_data().stock_auctions_range(symbol, std::move(request));
+}
+
+PaginatedVectorRange<HistoricalAuctionsRequest, HistoricalAuctionsResponse, StockAuction>
+AlpacaClient::auctions_range(HistoricalAuctionsRequest request) const {
+    return market_data().auctions_range(std::move(request));
+}
+
 CorporateActionAnnouncementsResponse
 AlpacaClient::get_corporate_announcements(CorporateActionAnnouncementsRequest const& request) {
     return market_data().get_corporate_announcements(request);

@@ -117,6 +117,46 @@ TEST(RestClientTest, InvokesRequestInterceptors) {
     EXPECT_THAT(request.headers.at("X-Trace"), Eq("trace-id"));
 }
 
+TEST(RestClientTest, CapturesRateLimitHeaders) {
+    alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
+    auto fake_client = std::make_shared<FakeHttpClient>();
+
+    alpaca::Json account_json = {
+        {"id", "limit-test"}
+    };
+
+    alpaca::HttpHeaders headers{
+        {"X-RateLimit-Limit",     "200"       },
+        {"X-RateLimit-Remaining", "198"       },
+        {"X-RateLimit-Used",      "2"         },
+        {"X-RateLimit-Reset",     "1700000000"}
+    };
+
+    fake_client->push_response(alpaca::HttpResponse{200, account_json.dump(), headers});
+
+    bool handler_invoked = false;
+    alpaca::RestClient::RateLimitStatus observed{};
+
+    alpaca::RestClient::Options options;
+    options.rate_limit_handler = [&](alpaca::RestClient::RateLimitStatus const& status) {
+        handler_invoked = true;
+        observed = status;
+    };
+
+    alpaca::RestClient client(config, fake_client, config.trading_base_url, options);
+    EXPECT_NO_THROW(client.get<alpaca::Account>("/v2/account"));
+
+    EXPECT_TRUE(handler_invoked);
+    auto const last = client.last_rate_limit_status();
+    ASSERT_TRUE(last.has_value());
+    EXPECT_EQ(last->limit, std::make_optional<long>(200));
+    EXPECT_EQ(last->remaining, std::make_optional<long>(198));
+    EXPECT_EQ(last->used, std::make_optional<long>(2));
+    ASSERT_TRUE(last->reset.has_value());
+    ASSERT_TRUE(observed.reset.has_value());
+    EXPECT_EQ(last->reset->time_since_epoch().count(), observed.reset->time_since_epoch().count());
+}
+
 TEST(RestClientTest, ReturnsRawJsonResponses) {
     alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
     auto fake_client = std::make_shared<FakeHttpClient>();

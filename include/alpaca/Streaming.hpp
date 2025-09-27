@@ -26,6 +26,7 @@
 #include "alpaca/Json.hpp"
 #include "alpaca/models/Account.hpp"
 #include "alpaca/models/MarketData.hpp"
+#include "alpaca/models/News.hpp"
 #include "alpaca/models/Order.hpp"
 
 namespace alpaca::streaming {
@@ -53,6 +54,7 @@ enum class MessageCategory {
     TradeCancel,
     TradeCorrection,
     Imbalance,
+    News,
     Status,
     Error,
     OrderUpdate,
@@ -243,6 +245,9 @@ struct ImbalanceMessage {
     Json raw_payload{};
 };
 
+/// News headline and article metadata delivered through the websocket feed.
+using NewsMessage = NewsArticle;
+
 /// Order update payload delivered from the trading stream.
 struct OrderUpdateMessage {
     std::string event;
@@ -272,7 +277,7 @@ struct ControlMessage {
 using StreamMessage = std::variant<TradeMessage, QuoteMessage, BarMessage, StatusMessage, OrderUpdateMessage,
                                    UpdatedBarMessage, DailyBarMessage, OrderBookMessage, LuldMessage, AuctionMessage,
                                    GreeksMessage, UnderlyingMessage, TradeCancelMessage, TradeCorrectionMessage,
-                                   ImbalanceMessage, AccountUpdateMessage, ErrorMessage, ControlMessage>;
+                                   ImbalanceMessage, NewsMessage, AccountUpdateMessage, ErrorMessage, ControlMessage>;
 
 /// Subscription helper for market data feeds.
 struct MarketSubscription {
@@ -290,6 +295,7 @@ struct MarketSubscription {
     std::vector<std::string> trade_cancels{};
     std::vector<std::string> trade_corrections{};
     std::vector<std::string> imbalances{};
+    std::vector<std::string> news{};
 };
 
 /// Callback invoked for every decoded streaming payload.
@@ -401,6 +407,7 @@ class WebSocketClient {
     std::unordered_set<std::string> subscribed_trade_cancels_;
     std::unordered_set<std::string> subscribed_trade_corrections_;
     std::unordered_set<std::string> subscribed_imbalances_;
+    std::unordered_set<std::string> subscribed_news_;
     std::unordered_set<std::string> listened_streams_;
 
     ReconnectPolicy reconnect_policy_{};

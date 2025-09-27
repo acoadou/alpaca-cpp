@@ -200,6 +200,43 @@ TEST(StreamingTest, RoutesTradeCorrectionMessages) {
     EXPECT_EQ(message->timestamp, parse_timestamp("2024-05-01T15:10:00.000000000Z"));
 }
 
+TEST(StreamingTest, RoutesNewsMessages) {
+    auto client = make_client();
+    std::optional<MessageCategory> category;
+    std::optional<alpaca::streaming::NewsMessage> message;
+
+    client.set_message_handler([&category, &message](StreamMessage const& msg, MessageCategory observed_category) {
+        category = observed_category;
+        ASSERT_TRUE(std::holds_alternative<alpaca::streaming::NewsMessage>(msg));
+        message = std::get<alpaca::streaming::NewsMessage>(msg);
+    });
+
+    alpaca::Json payload{
+        {"T",          "n"                             },
+        {"id",         "news-1"                        },
+        {"headline",   "Breaking headline"             },
+        {"author",     "Reporter"                      },
+        {"summary",    "Summary"                       },
+        {"content",    "Full content"                  },
+        {"url",        "https://example.com/article"   },
+        {"source",     "TestWire"                      },
+        {"symbols",    alpaca::Json::array({"AAPL"})   },
+        {"created_at", "2024-05-01T15:10:00.000000000Z"}
+    };
+
+    WebSocketClientHarness::feed(client, payload);
+
+    ASSERT_TRUE(category.has_value());
+    EXPECT_EQ(*category, MessageCategory::News);
+    ASSERT_TRUE(message.has_value());
+    EXPECT_EQ(message->id, "news-1");
+    EXPECT_EQ(message->headline, "Breaking headline");
+    ASSERT_EQ(message->symbols.size(), 1U);
+    EXPECT_EQ(message->symbols.front(), "AAPL");
+    ASSERT_TRUE(message->created_at.has_value());
+    EXPECT_EQ(*message->created_at, parse_timestamp("2024-05-01T15:10:00.000000000Z"));
+}
+
 TEST(StreamingTest, RoutesImbalanceMessages) {
     auto client = make_client();
     std::optional<MessageCategory> category;

@@ -293,6 +293,21 @@ class AlpacaClient {
     [[nodiscard]] PaginatedVectorRange<NewsRequest, NewsResponse, NewsArticle>
     news_range(NewsRequest request = {}) const;
 
+    /// Retrieves historical stock auctions for a single symbol.
+    [[nodiscard]] HistoricalAuctionsResponse get_stock_auctions(std::string const& symbol,
+                                                                HistoricalAuctionsRequest const& request = {});
+
+    /// Retrieves historical stock auctions across multiple symbols.
+    [[nodiscard]] HistoricalAuctionsResponse get_auctions(HistoricalAuctionsRequest const& request);
+
+    /// Returns a range over historical auctions for a single symbol.
+    [[nodiscard]] PaginatedVectorRange<HistoricalAuctionsRequest, HistoricalAuctionsResponse, StockAuction>
+    stock_auctions_range(std::string const& symbol, HistoricalAuctionsRequest request = {}) const;
+
+    /// Returns a range over historical auctions for multiple symbols.
+    [[nodiscard]] PaginatedVectorRange<HistoricalAuctionsRequest, HistoricalAuctionsResponse, StockAuction>
+    auctions_range(HistoricalAuctionsRequest request = {}) const;
+
     /// Retrieves corporate action announcements with optional filters.
     [[nodiscard]] CorporateActionAnnouncementsResponse
     get_corporate_announcements(CorporateActionAnnouncementsRequest const& request = {});

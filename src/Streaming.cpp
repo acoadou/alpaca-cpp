@@ -410,6 +410,11 @@ StreamMessage build_imbalance_message(Json const& payload) {
     return message;
 }
 
+StreamMessage build_news_message(Json const& payload) {
+    NewsArticle article = payload.get<NewsArticle>();
+    return article;
+}
+
 StreamMessage build_error_message(std::string const& message) {
     return ErrorMessage{message};
 }
@@ -656,12 +661,17 @@ void WebSocketClient::subscribe(MarketSubscription const& subscription) {
                 diff.imbalances.push_back(symbol);
             }
         }
+        for (auto const& symbol : subscription.news) {
+            if (subscribed_news_.insert(symbol).second) {
+                diff.news.push_back(symbol);
+            }
+        }
     }
 
     if (diff.trades.empty() && diff.quotes.empty() && diff.bars.empty() && diff.updated_bars.empty() &&
         diff.daily_bars.empty() && diff.statuses.empty() && diff.orderbooks.empty() && diff.lulds.empty() &&
         diff.auctions.empty() && diff.greeks.empty() && diff.underlyings.empty() && diff.trade_cancels.empty() &&
-        diff.trade_corrections.empty() && diff.imbalances.empty()) {
+        diff.trade_corrections.empty() && diff.imbalances.empty() && diff.news.empty()) {
         return;
     }
 
@@ -708,6 +718,9 @@ void WebSocketClient::subscribe(MarketSubscription const& subscription) {
     }
     if (!diff.imbalances.empty()) {
         message["imbalances"] = diff.imbalances;
+    }
+    if (!diff.news.empty()) {
+        message["news"] = diff.news;
     }
     send_raw(message);
 }
@@ -786,12 +799,17 @@ void WebSocketClient::unsubscribe(MarketSubscription const& subscription) {
                 diff.imbalances.push_back(symbol);
             }
         }
+        for (auto const& symbol : subscription.news) {
+            if (subscribed_news_.erase(symbol) > 0) {
+                diff.news.push_back(symbol);
+            }
+        }
     }
 
     if (diff.trades.empty() && diff.quotes.empty() && diff.bars.empty() && diff.updated_bars.empty() &&
         diff.daily_bars.empty() && diff.statuses.empty() && diff.orderbooks.empty() && diff.lulds.empty() &&
         diff.auctions.empty() && diff.greeks.empty() && diff.underlyings.empty() && diff.trade_cancels.empty() &&
-        diff.trade_corrections.empty() && diff.imbalances.empty()) {
+        diff.trade_corrections.empty() && diff.imbalances.empty() && diff.news.empty()) {
         return;
     }
 
@@ -838,6 +856,9 @@ void WebSocketClient::unsubscribe(MarketSubscription const& subscription) {
     }
     if (!diff.imbalances.empty()) {
         message["imbalances"] = diff.imbalances;
+    }
+    if (!diff.news.empty()) {
+        message["news"] = diff.news;
     }
     send_raw(message);
 }
@@ -1024,6 +1045,10 @@ void WebSocketClient::handle_payload(Json const& payload) {
             message_handler_(build_imbalance_message(payload), MessageCategory::Imbalance);
             return;
         }
+        if (type == "n") {
+            message_handler_(build_news_message(payload), MessageCategory::News);
+            return;
+        }
         if (type == "s") {
             message_handler_(build_status_message(payload), MessageCategory::Status);
             return;
@@ -1110,6 +1135,7 @@ void WebSocketClient::replay_subscriptions() {
         snapshot.trade_cancels.assign(subscribed_trade_cancels_.begin(), subscribed_trade_cancels_.end());
         snapshot.trade_corrections.assign(subscribed_trade_corrections_.begin(), subscribed_trade_corrections_.end());
         snapshot.imbalances.assign(subscribed_imbalances_.begin(), subscribed_imbalances_.end());
+        snapshot.news.assign(subscribed_news_.begin(), subscribed_news_.end());
         streams.assign(listened_streams_.begin(), listened_streams_.end());
     }
 
@@ -1117,7 +1143,7 @@ void WebSocketClient::replay_subscriptions() {
         !snapshot.updated_bars.empty() || !snapshot.daily_bars.empty() || !snapshot.statuses.empty() ||
         !snapshot.orderbooks.empty() || !snapshot.lulds.empty() || !snapshot.auctions.empty() ||
         !snapshot.greeks.empty() || !snapshot.underlyings.empty() || !snapshot.trade_cancels.empty() ||
-        !snapshot.trade_corrections.empty() || !snapshot.imbalances.empty()) {
+        !snapshot.trade_corrections.empty() || !snapshot.imbalances.empty() || !snapshot.news.empty()) {
         Json message;
         message["action"] = "subscribe";
         if (!snapshot.trades.empty()) {
@@ -1161,6 +1187,9 @@ void WebSocketClient::replay_subscriptions() {
         }
         if (!snapshot.imbalances.empty()) {
             message["imbalances"] = snapshot.imbalances;
+        }
+        if (!snapshot.news.empty()) {
+            message["news"] = snapshot.news;
         }
         send_raw(message);
     }

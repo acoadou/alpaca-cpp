@@ -43,6 +43,50 @@ std::optional<double> parse_optional_double(Json const& j, char const *key) {
     return j.at(key).get<double>();
 }
 
+std::optional<std::uint64_t> parse_optional_uint64(Json const& j, char const *key) {
+    if (!j.contains(key) || j.at(key).is_null()) {
+        return std::nullopt;
+    }
+    if (j.at(key).is_string()) {
+        auto const value = j.at(key).get<std::string>();
+        if (value.empty()) {
+            return std::nullopt;
+        }
+        return static_cast<std::uint64_t>(std::stoull(value));
+    }
+    if (j.at(key).is_number_unsigned()) {
+        return j.at(key).get<std::uint64_t>();
+    }
+    if (j.at(key).is_number_integer()) {
+        auto const number = j.at(key).get<std::int64_t>();
+        if (number < 0) {
+            return std::nullopt;
+        }
+        return static_cast<std::uint64_t>(number);
+    }
+    return std::nullopt;
+}
+
+std::optional<std::string> optional_string_from_any(Json const& j, char const *key) {
+    if (!j.contains(key) || j.at(key).is_null()) {
+        return std::nullopt;
+    }
+    auto const& value = j.at(key);
+    if (value.is_string()) {
+        return value.get<std::string>();
+    }
+    if (value.is_number_integer()) {
+        return std::to_string(value.get<std::int64_t>());
+    }
+    if (value.is_number_unsigned()) {
+        return std::to_string(value.get<std::uint64_t>());
+    }
+    if (value.is_number_float()) {
+        return std::to_string(value.get<double>());
+    }
+    return value.dump();
+}
+
 void append_if_present(QueryParams& params, std::string const& key, std::optional<std::string> const& value) {
     if (value.has_value()) {
         params.emplace_back(key, *value);
@@ -137,6 +181,11 @@ void from_json(Json const& j, OptionContract& contract) {
     } else {
         contract.multiplier.reset();
     }
+    contract.open_interest = parse_optional_uint64(j, "open_interest");
+    contract.open_interest_date = optional_string_from_any(j, "open_interest_date");
+    contract.close_price = parse_optional_double(j, "close_price");
+    contract.contract_size = optional_string_from_any(j, "contract_size");
+    contract.underlying_asset_id = optional_string_from_any(j, "underlying_asset_id");
 }
 
 void from_json(Json const& j, OptionContractsResponse& response) {

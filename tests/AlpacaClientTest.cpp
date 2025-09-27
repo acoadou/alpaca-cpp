@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <queue>
@@ -250,7 +251,12 @@ TEST(AlpacaClientTest, ListOptionContractsParsesResponse) {
                     "root_symbol": "AAPL",
                     "exchange": "OPRA",
                     "exercise_style": "american",
-                    "multiplier": "100"
+                    "multiplier": "100",
+                    "open_interest": 1500,
+                    "open_interest_date": "2023-09-14",
+                    "close_price": 5.25,
+                    "contract_size": "100",
+                    "underlying_asset_id": "asset-1"
                 }
             ],
             "next_page_token": "cursor"
@@ -271,6 +277,12 @@ TEST(AlpacaClientTest, ListOptionContractsParsesResponse) {
     EXPECT_EQ(contract.symbol, "AAPL240119C00195000");
     EXPECT_TRUE(contract.tradable);
     EXPECT_EQ(contract.multiplier, std::make_optional<std::string>("100"));
+    EXPECT_EQ(contract.open_interest, std::make_optional<std::uint64_t>(1500));
+    EXPECT_EQ(contract.open_interest_date, std::make_optional<std::string>("2023-09-14"));
+    ASSERT_TRUE(contract.close_price.has_value());
+    EXPECT_NEAR(*contract.close_price, 5.25, 1e-9);
+    EXPECT_EQ(contract.contract_size, std::make_optional<std::string>("100"));
+    EXPECT_EQ(contract.underlying_asset_id, std::make_optional<std::string>("asset-1"));
 
     ASSERT_EQ(stub->requests().size(), 1U);
     auto const& http_request = stub->requests().front();
@@ -404,6 +416,34 @@ TEST(AlpacaClientTest, NewsRangeRespectsRetryAfterAndPagination) {
     EXPECT_EQ(stub->requests().size(), 3U);
     EXPECT_NE(stub->requests()[1].url.find("symbols=AAPL"), std::string::npos);
     EXPECT_NE(stub->requests()[2].url.find("page_token=cursor"), std::string::npos);
+}
+
+TEST(AlpacaClientTest, GetStockAuctionsDelegatesToMarketDataClient) {
+    auto stub = std::make_shared<StubHttpClient>();
+    stub->enqueue_response(alpaca::HttpResponse{200,
+                                                R"({
+            "auctions": [
+                {
+                    "symbol": "AAPL",
+                    "timestamp": "2024-05-01T13:30:00Z",
+                    "auction_type": "closing"
+                }
+            ]
+        })",
+                                                {}});
+
+    alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
+    alpaca::AlpacaClient client(config, stub);
+
+    alpaca::HistoricalAuctionsRequest request;
+    auto const response = client.get_stock_auctions("AAPL", request);
+    ASSERT_EQ(response.auctions.size(), 1U);
+    EXPECT_EQ(response.auctions.front().symbol, "AAPL");
+
+    ASSERT_EQ(stub->requests().size(), 1U);
+    auto const& http_request = stub->requests().front();
+    EXPECT_EQ(http_request.method, alpaca::HttpMethod::GET);
+    EXPECT_TRUE(http_request.url.find("/v2/stocks/AAPL/auctions") != std::string::npos);
 }
 
 TEST(AlpacaClientTest, CalendarRequestsIncludeQueryParameters) {

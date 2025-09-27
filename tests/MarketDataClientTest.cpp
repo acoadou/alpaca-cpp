@@ -76,6 +76,51 @@ TEST(MarketDataClientTest, MultiLatestOptionQuotesTargetsBetaEndpoint) {
     EXPECT_TRUE(http_request.url.find("feed=opra") != std::string::npos);
 }
 
+TEST(MarketDataClientTest, GetStockAuctionsParsesResponse) {
+    auto fake = std::make_shared<FakeHttpClient>();
+    fake->push_response(MakeHttpResponse(R"({
+        "auctions": [
+            {
+                "symbol": "AAPL",
+                "timestamp": "2024-05-01T13:30:00Z",
+                "auction_type": "closing",
+                "exchange": "XNYS",
+                "price": 170.25,
+                "size": 1000,
+                "imbalance": 1500.5,
+                "imbalance_side": "buy",
+                "clearing_price": 170.20,
+                "matched_quantity": 2500
+            }
+        ],
+        "next_page_token": "cursor"
+    })"));
+
+    alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
+    alpaca::MarketDataClient client(config, fake);
+
+    alpaca::HistoricalAuctionsRequest request;
+    request.start = alpaca::parse_timestamp("2024-05-01T09:30:00Z");
+
+    alpaca::HistoricalAuctionsResponse response = client.get_stock_auctions("AAPL", request);
+    ASSERT_EQ(response.auctions.size(), 1U);
+    auto const& auction = response.auctions.front();
+    EXPECT_EQ(auction.symbol, "AAPL");
+    ASSERT_TRUE(auction.price.has_value());
+    EXPECT_NEAR(*auction.price, 170.25, 1e-9);
+    ASSERT_TRUE(auction.size.has_value());
+    EXPECT_EQ(*auction.size, 1000U);
+    ASSERT_TRUE(auction.imbalance.has_value());
+    EXPECT_NEAR(*auction.imbalance, 1500.5, 1e-9);
+    EXPECT_EQ(auction.imbalance_side, std::make_optional<std::string>("buy"));
+    EXPECT_EQ(response.next_page_token, std::make_optional<std::string>("cursor"));
+
+    ASSERT_EQ(fake->requests().size(), 1U);
+    auto const& http_request = fake->requests().front().request;
+    EXPECT_TRUE(http_request.url.find("/v2/stocks/AAPL/auctions") != std::string::npos);
+    EXPECT_TRUE(http_request.url.find("start=") != std::string::npos);
+}
+
 TEST(MarketDataClientTest, CryptoOrderbooksParseSnapshots) {
     auto fake = std::make_shared<FakeHttpClient>();
     fake->push_response(MakeHttpResponse(R"({

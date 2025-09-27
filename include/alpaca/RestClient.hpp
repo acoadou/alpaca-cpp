@@ -3,6 +3,7 @@
 #include <chrono>
 #include <cstddef>
 #include <functional>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <type_traits>
@@ -29,6 +30,13 @@ template <typename T> inline constexpr bool is_optional_v = is_optional<T>::valu
 /// Lightweight REST client responsible for communicating with Alpaca endpoints.
 class RestClient {
   public:
+    struct RateLimitStatus {
+        std::optional<long> limit{};
+        std::optional<long> remaining{};
+        std::optional<long> used{};
+        std::optional<std::chrono::system_clock::time_point> reset{};
+    };
+
     struct RetryOptions {
         std::size_t max_attempts{1};
         std::chrono::milliseconds initial_backoff{std::chrono::milliseconds{0}};
@@ -40,12 +48,14 @@ class RestClient {
     using PreRequestHook = std::function<void(HttpRequest&)>;
     using PostRequestHook = std::function<void(HttpRequest const&, HttpResponse const&)>;
     using AuthHandler = std::function<void(HttpRequest&, Configuration const&)>;
+    using RateLimitHandler = std::function<void(RateLimitStatus const&)>;
 
     struct Options {
         RetryOptions retry{};
         PreRequestHook pre_request_hook{};
         PostRequestHook post_request_hook{};
         AuthHandler auth_handler{};
+        RateLimitHandler rate_limit_handler{};
     };
 
     RestClient(Configuration config, HttpClientPtr http_client, std::string base_url);
@@ -54,6 +64,10 @@ class RestClient {
     [[nodiscard]] Configuration const& config() const noexcept {
         return config_;
     }
+
+    [[nodiscard]] std::optional<RateLimitStatus> last_rate_limit_status() const;
+
+    void set_rate_limit_handler(RateLimitHandler handler);
 
     /// Performs a GET request and deserializes the JSON response into \c T.
     template <typename T> T get(std::string const& path, QueryParams const& params = {}) const {
@@ -112,6 +126,8 @@ class RestClient {
     HttpClientPtr http_client_;
     std::string base_url_;
     Options options_{};
+    mutable std::mutex rate_limit_mutex_;
+    mutable std::optional<RateLimitStatus> last_rate_limit_status_{};
 
     static std::string build_url(std::string const& base, std::string const& path, QueryParams const& params);
     static std::string encode_query(QueryParams const& params);

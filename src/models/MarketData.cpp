@@ -395,6 +395,10 @@ template <typename Orderbooks> void parse_orderbooks(Json const& j, Orderbooks& 
         response.orderbooks.emplace(symbol, std::move(snapshot));
     }
 }
+
+std::optional<double> parse_optional_double(Json const& j, char const *key);
+std::optional<std::uint64_t> parse_optional_uint64(Json const& j, char const *key);
+std::optional<std::string> parse_optional_string(Json const& j, char const *key);
 } // namespace
 
 void from_json(Json const& j, MultiStockOrderbooks& response) {
@@ -407,6 +411,39 @@ void from_json(Json const& j, MultiOptionOrderbooks& response) {
 
 void from_json(Json const& j, MultiCryptoOrderbooks& response) {
     parse_orderbooks(j, response);
+}
+
+void from_json(Json const& j, StockAuction& auction) {
+    auction.symbol = j.value("symbol", std::string{});
+    if (j.contains("timestamp") && !j.at("timestamp").is_null()) {
+        auction.timestamp = parse_timestamp(j.at("timestamp").get<std::string>());
+    } else {
+        auction.timestamp = {};
+    }
+    auction.auction_type = parse_optional_string(j, "auction_type");
+    auction.exchange = parse_optional_string(j, "exchange");
+    auction.price = parse_optional_double(j, "price");
+    auction.size = parse_optional_uint64(j, "size");
+    auction.imbalance = parse_optional_double(j, "imbalance");
+    auction.imbalance_side = parse_optional_string(j, "imbalance_side");
+    auction.clearing_price = parse_optional_double(j, "clearing_price");
+    auction.open_price = parse_optional_double(j, "open_price");
+    auction.close_price = parse_optional_double(j, "close_price");
+    auction.order_imbalance = parse_optional_uint64(j, "order_imbalance");
+    auction.matched_quantity = parse_optional_uint64(j, "matched_quantity");
+}
+
+void from_json(Json const& j, HistoricalAuctionsResponse& response) {
+    if (j.contains("auctions") && j.at("auctions").is_array()) {
+        response.auctions = j.at("auctions").get<std::vector<StockAuction>>();
+    } else {
+        response.auctions.clear();
+    }
+    if (j.contains("next_page_token") && !j.at("next_page_token").is_null()) {
+        response.next_page_token = j.at("next_page_token").get<std::string>();
+    } else {
+        response.next_page_token.reset();
+    }
 }
 
 void from_json(Json const& j, Exchange& exchange) {
@@ -582,6 +619,64 @@ void append_sort(QueryParams& params, std::optional<SortDirection> const& sort) 
         params.emplace_back("sort", to_string(*sort));
     }
 }
+
+std::optional<double> parse_optional_double(Json const& j, char const *key) {
+    if (!j.contains(key) || j.at(key).is_null()) {
+        return std::nullopt;
+    }
+    if (j.at(key).is_string()) {
+        auto const value = j.at(key).get<std::string>();
+        if (value.empty()) {
+            return std::nullopt;
+        }
+        return std::stod(value);
+    }
+    return j.at(key).get<double>();
+}
+
+std::optional<std::uint64_t> parse_optional_uint64(Json const& j, char const *key) {
+    if (!j.contains(key) || j.at(key).is_null()) {
+        return std::nullopt;
+    }
+    if (j.at(key).is_string()) {
+        auto const value = j.at(key).get<std::string>();
+        if (value.empty()) {
+            return std::nullopt;
+        }
+        return static_cast<std::uint64_t>(std::stoull(value));
+    }
+    if (j.at(key).is_number_unsigned()) {
+        return j.at(key).get<std::uint64_t>();
+    }
+    if (j.at(key).is_number_integer()) {
+        auto const number = j.at(key).get<std::int64_t>();
+        if (number < 0) {
+            return std::nullopt;
+        }
+        return static_cast<std::uint64_t>(number);
+    }
+    return std::nullopt;
+}
+
+std::optional<std::string> parse_optional_string(Json const& j, char const *key) {
+    if (!j.contains(key) || j.at(key).is_null()) {
+        return std::nullopt;
+    }
+    auto const& value = j.at(key);
+    if (value.is_string()) {
+        return value.get<std::string>();
+    }
+    if (value.is_number_integer()) {
+        return std::to_string(value.get<std::int64_t>());
+    }
+    if (value.is_number_unsigned()) {
+        return std::to_string(value.get<std::uint64_t>());
+    }
+    if (value.is_number_float()) {
+        return std::to_string(value.get<double>());
+    }
+    return value.dump();
+}
 } // namespace
 
 QueryParams StockBarsRequest::to_query_params() const {
@@ -622,6 +717,25 @@ QueryParams NewsRequest::to_query_params() const {
     }
     if (include_content) {
         params.emplace_back("include_content", "true");
+    }
+    if (exclude_contentless) {
+        params.emplace_back("exclude_contentless", "true");
+    }
+    return params;
+}
+
+QueryParams HistoricalAuctionsRequest::to_query_params() const {
+    QueryParams params;
+    append_csv(params, "symbols", symbols);
+    append_timestamp(params, "start", start);
+    append_timestamp(params, "end", end);
+    if (start.has_value() && end.has_value() && *start > *end) {
+        throw std::invalid_argument("historical auctions start must be <= end");
+    }
+    append_limit(params, limit);
+    append_sort(params, sort);
+    if (page_token.has_value()) {
+        params.emplace_back("page_token", *page_token);
     }
     return params;
 }
