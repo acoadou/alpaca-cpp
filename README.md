@@ -7,12 +7,13 @@ client while embracing contemporary C++ idioms. The codebase builds a compiled l
 
 ## Highlights
 
-- **Comprehensive endpoint coverage** for accounts, account configuration, activities, orders (including advanced order
-  classes), positions, assets, calendar/clock data, portfolio history and watchlists.
+- **Comprehensive endpoint coverage** for accounts, account configuration, activities, equities/options/crypto/OTC
+  orders, positions, assets, calendar/clock data, portfolio history and watchlists.
 - **Domain specific clients** for trading, market data, and broker operations mirroring the layout of the official
-  Alpaca SDKs, with environment presets for paper and live trading.
-- **Market data helpers** for fetching latest trades/quotes, historical bars, single and multi-symbol snapshots,
-  plus options snapshots and chains from Alpaca Market Data APIs.
+  Alpaca SDKs, with environment presets for paper and live trading and full support for onboarding, funding, and
+  managed portfolio flows.
+- **Market data helpers** for fetching latest trades/quotes, historical bars, order books, corporate actions, market
+  movers, single and multi-symbol snapshots, plus options snapshots and chains from Alpaca Market Data APIs.
 - **Typed request models** that perform lightweight validation before hitting the API and cursor ranges that iterate
   paginated endpoints while honouring `Retry-After` headers and applying exponential backoff with jitter.
 - **Extensible transport** abstraction with a libcurl-based implementation bundled by default.
@@ -29,12 +30,12 @@ client while embracing contemporary C++ idioms. The codebase builds a compiled l
 
 | Domain           | REST | Streaming | Notes |
 |------------------|:----:|:---------:|-------|
-| Trading          | OK   | OK        | Orders, positions, activities, market clock, watchlists, and `trade_updates` / `account_updates` streams. |
-| Market Data      | OK   | OK        | Trades, quotes, stock bars, single/multi snapshots, options snapshots/chains, and automatic pagination via `PaginatedVectorRange`. |
-| Broker / Connect | OK   | N/A       | Broker API for accounts, documents, transfers, journals, and banking relationships. |
-| Options          | OK   | OK        | REST aggregates/quotes/trades and trading endpoints for submitting, replacing, and cancelling options orders. |
+| Trading          | OK   | OK        | Equities, options, crypto, and OTC order workflows, option analytics/contracts, positions, activities, clock, watchlists, and `trade_updates` / `account_updates` streams. |
+| Market Data      | OK   | OK        | Trades, quotes, bars, order books, corporate actions, market movers, single/multi snapshots, options snapshots/chains, and automatic pagination via `PaginatedVectorRange`. |
+| Broker / Connect | OK   | N/A       | Account onboarding, documents, transfers, journals, banking relationships, watchlists, rebalancing portfolios/subscriptions, and managed portfolio history. |
+| Options          | OK   | OK        | REST aggregates/quotes/trades, option analytics, contracts, and trading endpoints for submitting, replacing, and cancelling options orders. |
 | News             | OK   | N/A       | REST `get_news` plus the `news_range` paginator; no public streaming endpoint. |
-| Crypto           | OK   | OK        | REST aggregates/quotes/trades and dedicated crypto streaming feed. |
+| Crypto           | OK   | OK        | REST aggregates/quotes/trades, order books, and dedicated crypto streaming feed. |
 
 ## Getting started
 
