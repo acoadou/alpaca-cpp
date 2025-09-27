@@ -349,7 +349,7 @@ int main() {
   alpaca::Account account = client.trading().get_account();
 
   alpaca::StockBarsRequest intraday;
-  intraday.timeframe = alpaca::TimeFrame::Min1;
+  intraday.timeframe = alpaca::TimeFrame::minute();
   intraday.start = alpaca::since(std::chrono::hours{1});
   for (auto const& bar : client.stock_bars_range("AAPL", intraday)) {
     // Process bar data across every page.
@@ -468,7 +468,7 @@ alpaca::MarketDataClient market(config);
 alpaca::TradingClient trading(config);
 
 alpaca::StockBarsRequest request;
-request.timeframe = alpaca::TimeFrame::Min1;
+request.timeframe = alpaca::TimeFrame::minute();
 request.start = alpaca::since(std::chrono::hours{2});
 
 for (auto const& bar : market.stock_bars_range("AAPL", request)) {

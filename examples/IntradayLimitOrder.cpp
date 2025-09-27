@@ -35,7 +35,7 @@ int main() {
     alpaca::TradingClient trading(config);
 
     alpaca::StockBarsRequest bars_request;
-    bars_request.timeframe = alpaca::TimeFrame::Min1;
+    bars_request.timeframe = alpaca::TimeFrame::minute();
     bars_request.start = alpaca::since(std::chrono::hours{2});
     bars_request.limit = 50;
 

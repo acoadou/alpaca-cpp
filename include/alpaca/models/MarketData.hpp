@@ -1,9 +1,11 @@
 #pragma once
 
+#include <chrono>
 #include <cstdint>
 #include <map>
 #include <optional>
 #include <string>
+#include <variant>
 #include <vector>
 
 #include "alpaca/Json.hpp"
@@ -13,22 +15,35 @@
 
 namespace alpaca {
 
-/// Supported aggregation intervals for market data requests.
-enum class TimeFrame {
-    Min1,
-    Min5,
-    Min15,
-    Min30,
-    Hour1,
-    Hour2,
-    Hour4,
-    Day1,
-    Week1,
-    Month1
+/// Aggregation interval representation backed by standard library durations.
+class TimeFrame {
+public:
+    using DurationVariant = std::variant<std::chrono::minutes, std::chrono::hours, std::chrono::days,
+                                         std::chrono::weeks, std::chrono::months>;
+
+    TimeFrame();
+    explicit TimeFrame(std::chrono::minutes minutes);
+    explicit TimeFrame(std::chrono::hours hours);
+    explicit TimeFrame(std::chrono::days days);
+    explicit TimeFrame(std::chrono::weeks weeks);
+    explicit TimeFrame(std::chrono::months months);
+
+    [[nodiscard]] static TimeFrame minute(int amount = 1);
+    [[nodiscard]] static TimeFrame hour(int amount = 1);
+    [[nodiscard]] static TimeFrame day();
+    [[nodiscard]] static TimeFrame week();
+    [[nodiscard]] static TimeFrame month(int amount = 1);
+
+    [[nodiscard]] DurationVariant const& value() const;
+
+    static void validate(DurationVariant const& duration);
+
+private:
+    DurationVariant duration_;
 };
 
-std::string to_string(TimeFrame timeframe);
-TimeFrame time_frame_from_string(std::string const& value);
+[[nodiscard]] std::string to_string(TimeFrame const& timeframe);
+[[nodiscard]] TimeFrame time_frame_from_string(std::string const& value);
 
 /// Represents an individual trade returned by Alpaca Market Data.
 struct StockTrade {
@@ -99,7 +114,7 @@ void from_json(Json const& j, StockBars& response);
 
 /// Request parameters for the per-symbol bars endpoint.
 struct StockBarsRequest {
-    TimeFrame timeframe{TimeFrame::Min1};
+    TimeFrame timeframe{TimeFrame::minute()};
     std::optional<Timestamp> start{};
     std::optional<Timestamp> end{};
     std::optional<int> limit{};

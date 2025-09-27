@@ -677,7 +677,7 @@ TEST(AlpacaClientTest, StockBarsForwardQueryParameters) {
     alpaca::AlpacaClient client(config, stub);
 
     alpaca::StockBarsRequest request;
-    request.timeframe = alpaca::TimeFrame::Min1;
+    request.timeframe = alpaca::TimeFrame::minute();
     request.limit = 1;
 
     auto const bars = client.get_stock_bars("AAPL", request);
@@ -707,7 +707,7 @@ TEST(AlpacaClientTest, GetAllStockBarsTraversesPagination) {
     alpaca::AlpacaClient client(config, stub);
 
     alpaca::StockBarsRequest request;
-    request.timeframe = alpaca::TimeFrame::Min1;
+    request.timeframe = alpaca::TimeFrame::minute();
 
     auto const bars = client.get_all_stock_bars("AAPL", request);
     ASSERT_EQ(bars.size(), 2U);

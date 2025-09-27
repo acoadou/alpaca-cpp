@@ -3,8 +3,127 @@
 #include <algorithm>
 #include <cctype>
 #include <stdexcept>
+#include <type_traits>
 
 namespace alpaca {
+
+namespace {
+
+template <typename Duration>
+constexpr bool is_supported_duration_v = std::is_same_v<Duration, std::chrono::minutes> ||
+                                         std::is_same_v<Duration, std::chrono::hours> ||
+                                         std::is_same_v<Duration, std::chrono::days> ||
+                                         std::is_same_v<Duration, std::chrono::weeks> ||
+                                         std::is_same_v<Duration, std::chrono::months>;
+
+template <typename Duration>
+[[nodiscard]] constexpr int to_int(Duration duration) {
+    return static_cast<int>(duration.count());
+}
+
+TimeFrame parse_timeframe(int amount, std::string const& normalized_unit, std::string const& original) {
+    if (normalized_unit == "min" || normalized_unit == "minute") {
+        return TimeFrame::minute(amount);
+    }
+    if (normalized_unit == "hour" || normalized_unit == "hr") {
+        return TimeFrame::hour(amount);
+    }
+    if (normalized_unit == "day") {
+        if (amount != 1) {
+            throw std::invalid_argument("Day and Week units can only be used with amount 1.");
+        }
+        return TimeFrame::day();
+    }
+    if (normalized_unit == "week") {
+        if (amount != 1) {
+            throw std::invalid_argument("Day and Week units can only be used with amount 1.");
+        }
+        return TimeFrame::week();
+    }
+    if (normalized_unit == "month") {
+        return TimeFrame::month(amount);
+    }
+
+    throw std::invalid_argument("Unknown timeframe string: " + original);
+}
+
+} // namespace
+
+TimeFrame::TimeFrame() : duration_(std::chrono::minutes{1}) {}
+
+TimeFrame::TimeFrame(std::chrono::minutes minutes) : duration_(minutes) { validate(duration_); }
+
+TimeFrame::TimeFrame(std::chrono::hours hours) : duration_(hours) { validate(duration_); }
+
+TimeFrame::TimeFrame(std::chrono::days days) : duration_(days) { validate(duration_); }
+
+TimeFrame::TimeFrame(std::chrono::weeks weeks) : duration_(weeks) { validate(duration_); }
+
+TimeFrame::TimeFrame(std::chrono::months months) : duration_(months) { validate(duration_); }
+
+TimeFrame TimeFrame::minute(int amount) {
+    return TimeFrame(std::chrono::minutes{amount});
+}
+
+TimeFrame TimeFrame::hour(int amount) {
+    return TimeFrame(std::chrono::hours{amount});
+}
+
+TimeFrame TimeFrame::day() {
+    return TimeFrame(std::chrono::days{1});
+}
+
+TimeFrame TimeFrame::week() {
+    return TimeFrame(std::chrono::weeks{1});
+}
+
+TimeFrame TimeFrame::month(int amount) {
+    return TimeFrame(std::chrono::months{amount});
+}
+
+TimeFrame::DurationVariant const& TimeFrame::value() const { return duration_; }
+
+void TimeFrame::validate(DurationVariant const& duration) {
+    std::visit(
+        [](auto const& value) {
+            using Duration = std::decay_t<decltype(value)>;
+            static_assert(is_supported_duration_v<Duration>, "Unsupported timeframe duration type");
+
+            auto const count = value.count();
+            if (count <= 0) {
+                throw std::invalid_argument("TimeFrame amount must be a positive integer value.");
+            }
+
+            if constexpr (std::is_same_v<Duration, std::chrono::minutes>) {
+                if (count > 59) {
+                    throw std::invalid_argument(
+                        "Minute units can only be used with amounts between 1-59.");
+                }
+            } else if constexpr (std::is_same_v<Duration, std::chrono::hours>) {
+                if (count > 23) {
+                    throw std::invalid_argument("Hour units can only be used with amounts 1-23.");
+                }
+            } else if constexpr (std::is_same_v<Duration, std::chrono::days> ||
+                                 std::is_same_v<Duration, std::chrono::weeks>) {
+                if (count != 1) {
+                    throw std::invalid_argument("Day and Week units can only be used with amount 1.");
+                }
+            } else if constexpr (std::is_same_v<Duration, std::chrono::months>) {
+                switch (count) {
+                case 1:
+                case 2:
+                case 3:
+                case 6:
+                case 12:
+                    break;
+                default:
+                    throw std::invalid_argument(
+                        "Month units can only be used with amount 1, 2, 3, 6 and 12.");
+                }
+            }
+        },
+        duration);
+}
 
 namespace {
 template <typename T> std::optional<T> optional_field(Json const& j, char const *key) {
@@ -701,68 +820,63 @@ std::optional<std::string> parse_optional_string(Json const& j, char const *key)
 }
 } // namespace
 
-std::string to_string(TimeFrame timeframe) {
-    switch (timeframe) {
-    case TimeFrame::Min1:
-        return "1Min";
-    case TimeFrame::Min5:
-        return "5Min";
-    case TimeFrame::Min15:
-        return "15Min";
-    case TimeFrame::Min30:
-        return "30Min";
-    case TimeFrame::Hour1:
-        return "1Hour";
-    case TimeFrame::Hour2:
-        return "2Hour";
-    case TimeFrame::Hour4:
-        return "4Hour";
-    case TimeFrame::Day1:
-        return "1Day";
-    case TimeFrame::Week1:
-        return "1Week";
-    case TimeFrame::Month1:
-        return "1Month";
-    }
-    throw std::invalid_argument("Unknown timeframe value");
+std::string to_string(TimeFrame const& timeframe) {
+    auto const& duration = timeframe.value();
+    TimeFrame::validate(duration);
+
+    return std::visit(
+        [](auto const& value) -> std::string {
+            using Duration = std::decay_t<decltype(value)>;
+            auto const amount = to_int(value);
+
+            if constexpr (std::is_same_v<Duration, std::chrono::minutes>) {
+                return std::to_string(amount) + "Min";
+            } else if constexpr (std::is_same_v<Duration, std::chrono::hours>) {
+                return std::to_string(amount) + "Hour";
+            } else if constexpr (std::is_same_v<Duration, std::chrono::days>) {
+                return std::to_string(amount) + "Day";
+            } else if constexpr (std::is_same_v<Duration, std::chrono::weeks>) {
+                return std::to_string(amount) + "Week";
+            } else if constexpr (std::is_same_v<Duration, std::chrono::months>) {
+                return std::to_string(amount) + "Month";
+            }
+            throw std::invalid_argument("Unknown timeframe unit");
+        },
+        duration);
 }
 
 TimeFrame time_frame_from_string(std::string const& value) {
-    std::string normalized = value;
-    std::transform(normalized.begin(), normalized.end(), normalized.begin(), [](unsigned char c) {
+    if (value.empty()) {
+        throw std::invalid_argument("Unknown timeframe string: " + value);
+    }
+
+    auto is_space = [](char c) { return std::isspace(static_cast<unsigned char>(c)) != 0; };
+    auto is_digit = [](char c) { return std::isdigit(static_cast<unsigned char>(c)) != 0; };
+
+    auto first = std::find_if_not(value.begin(), value.end(), is_space);
+    auto last = std::find_if_not(value.rbegin(), value.rend(), is_space).base();
+    if (first >= last) {
+        throw std::invalid_argument("Unknown timeframe string: " + value);
+    }
+
+    std::string trimmed(first, last);
+    std::size_t pos = 0;
+    while (pos < trimmed.size() && is_digit(trimmed[pos])) {
+        ++pos;
+    }
+
+    if (pos == 0) {
+        throw std::invalid_argument("Unknown timeframe string: " + value);
+    }
+
+    int amount = std::stoi(trimmed.substr(0, pos));
+    std::string unit_part = trimmed.substr(pos);
+    unit_part.erase(std::remove_if(unit_part.begin(), unit_part.end(), is_space), unit_part.end());
+    std::transform(unit_part.begin(), unit_part.end(), unit_part.begin(), [](unsigned char c) {
         return static_cast<char>(std::tolower(c));
     });
-    if (normalized == "1min") {
-        return TimeFrame::Min1;
-    }
-    if (normalized == "5min") {
-        return TimeFrame::Min5;
-    }
-    if (normalized == "15min") {
-        return TimeFrame::Min15;
-    }
-    if (normalized == "30min") {
-        return TimeFrame::Min30;
-    }
-    if (normalized == "1hour" || normalized == "1hr") {
-        return TimeFrame::Hour1;
-    }
-    if (normalized == "2hour" || normalized == "2hr") {
-        return TimeFrame::Hour2;
-    }
-    if (normalized == "4hour" || normalized == "4hr") {
-        return TimeFrame::Hour4;
-    }
-    if (normalized == "1day") {
-        return TimeFrame::Day1;
-    }
-    if (normalized == "1week") {
-        return TimeFrame::Week1;
-    }
-    if (normalized == "1month") {
-        return TimeFrame::Month1;
-    }
-    throw std::invalid_argument("Unknown timeframe string: " + value);
+
+    return parse_timeframe(amount, unit_part, value);
 }
 
 QueryParams StockBarsRequest::to_query_params() const {
