@@ -56,6 +56,36 @@ Json to_json_payload(CreateWireRelationshipRequest const& request) {
     return payload;
 }
 
+Json to_json_payload(CreateBrokerWatchlistRequest const& request) {
+    Json payload;
+    to_json(payload, request);
+    return payload;
+}
+
+Json to_json_payload(UpdateBrokerWatchlistRequest const& request) {
+    Json payload;
+    to_json(payload, request);
+    return payload;
+}
+
+Json to_json_payload(CreateRebalancingPortfolioRequest const& request) {
+    Json payload;
+    to_json(payload, request);
+    return payload;
+}
+
+Json to_json_payload(UpdateRebalancingPortfolioRequest const& request) {
+    Json payload;
+    to_json(payload, request);
+    return payload;
+}
+
+Json to_json_payload(CreateRebalancingSubscriptionRequest const& request) {
+    Json payload;
+    to_json(payload, request);
+    return payload;
+}
+
 } // namespace
 
 BrokerClient::BrokerClient(Configuration const& config, HttpClientPtr http_client)
@@ -210,6 +240,113 @@ BankRelationship BrokerClient::create_wire_relationship(std::string const& accou
 
 void BrokerClient::delete_wire_relationship(std::string const& account_id, std::string const& relationship_id) const {
     rest_client_.del<void>("/v1/accounts/" + account_id + "/wire_relationships/" + relationship_id);
+}
+
+std::vector<BrokerWatchlist> BrokerClient::list_watchlists(std::string const& account_id) const {
+    return rest_client_.get<std::vector<BrokerWatchlist>>("/trading/accounts/" + account_id + "/watchlists");
+}
+
+BrokerWatchlist BrokerClient::get_watchlist(std::string const& account_id, std::string const& watchlist_id) const {
+    return rest_client_.get<BrokerWatchlist>("/trading/accounts/" + account_id + "/watchlists/" + watchlist_id);
+}
+
+BrokerWatchlist BrokerClient::create_watchlist(std::string const& account_id,
+                                               CreateBrokerWatchlistRequest const& request) const {
+    return rest_client_.post<BrokerWatchlist>("/trading/accounts/" + account_id + "/watchlists",
+                                             to_json_payload(request));
+}
+
+BrokerWatchlist BrokerClient::update_watchlist(std::string const& account_id, std::string const& watchlist_id,
+                                               UpdateBrokerWatchlistRequest const& request) const {
+    return rest_client_.put<BrokerWatchlist>("/trading/accounts/" + account_id + "/watchlists/" + watchlist_id,
+                                            to_json_payload(request));
+}
+
+BrokerWatchlist BrokerClient::add_asset_to_watchlist(std::string const& account_id, std::string const& watchlist_id,
+                                                     std::string const& symbol) const {
+    Json payload = Json::object();
+    payload["symbol"] = symbol;
+    return rest_client_.post<BrokerWatchlist>("/trading/accounts/" + account_id + "/watchlists/" + watchlist_id, payload);
+}
+
+BrokerWatchlist BrokerClient::remove_asset_from_watchlist(std::string const& account_id,
+                                                          std::string const& watchlist_id, std::string const& symbol) const {
+    return rest_client_.del<BrokerWatchlist>(
+        "/trading/accounts/" + account_id + "/watchlists/" + watchlist_id + "/" + symbol);
+}
+
+void BrokerClient::delete_watchlist(std::string const& account_id, std::string const& watchlist_id) const {
+    rest_client_.del<void>("/trading/accounts/" + account_id + "/watchlists/" + watchlist_id);
+}
+
+std::vector<RebalancingPortfolio>
+BrokerClient::list_rebalancing_portfolios(ListRebalancingPortfoliosRequest const& request) const {
+    Json response = rest_client_.get<Json>("/rebalancing/portfolios", request.to_query_params());
+    if (response.is_array()) {
+        return response.get<std::vector<RebalancingPortfolio>>();
+    }
+    if (response.contains("portfolios")) {
+        return response.at("portfolios").get<std::vector<RebalancingPortfolio>>();
+    }
+    return {};
+}
+
+RebalancingPortfolio BrokerClient::get_rebalancing_portfolio(std::string const& portfolio_id) const {
+    return rest_client_.get<RebalancingPortfolio>("/rebalancing/portfolios/" + portfolio_id);
+}
+
+RebalancingPortfolio
+BrokerClient::create_rebalancing_portfolio(CreateRebalancingPortfolioRequest const& request) const {
+    return rest_client_.post<RebalancingPortfolio>("/rebalancing/portfolios", to_json_payload(request));
+}
+
+RebalancingPortfolio BrokerClient::update_rebalancing_portfolio(std::string const& portfolio_id,
+                                                                UpdateRebalancingPortfolioRequest const& request) const {
+    return rest_client_.patch<RebalancingPortfolio>("/rebalancing/portfolios/" + portfolio_id,
+                                                   to_json_payload(request));
+}
+
+void BrokerClient::deactivate_rebalancing_portfolio(std::string const& portfolio_id) const {
+    rest_client_.del<void>("/rebalancing/portfolios/" + portfolio_id);
+}
+
+RebalancingSubscriptionsPage
+BrokerClient::list_rebalancing_subscriptions(ListRebalancingSubscriptionsRequest const& request) const {
+    return rest_client_.get<RebalancingSubscriptionsPage>("/rebalancing/subscriptions", request.to_query_params());
+}
+
+PaginatedVectorRange<ListRebalancingSubscriptionsRequest, RebalancingSubscriptionsPage, RebalancingSubscription>
+BrokerClient::list_rebalancing_subscriptions_range(ListRebalancingSubscriptionsRequest request) const {
+    return PaginatedVectorRange<ListRebalancingSubscriptionsRequest, RebalancingSubscriptionsPage,
+                                RebalancingSubscription>(
+        std::move(request),
+        [this](ListRebalancingSubscriptionsRequest const& req) {
+            return list_rebalancing_subscriptions(req);
+        },
+        [](RebalancingSubscriptionsPage const& page) -> std::vector<RebalancingSubscription> const& {
+            return page.subscriptions;
+        },
+        [](RebalancingSubscriptionsPage const& page) {
+            return page.next_page_token;
+        },
+        [](ListRebalancingSubscriptionsRequest& req, std::optional<std::string> const& token) {
+            req.page_token = token;
+        });
+}
+
+RebalancingSubscription BrokerClient::get_rebalancing_subscription(std::string const& subscription_id) const {
+    return rest_client_.get<RebalancingSubscription>("/rebalancing/subscriptions/" + subscription_id);
+}
+
+RebalancingSubscription
+BrokerClient::create_rebalancing_subscription(CreateRebalancingSubscriptionRequest const& request) const {
+    return rest_client_.post<RebalancingSubscription>("/rebalancing/subscriptions", to_json_payload(request));
+}
+
+ManagedPortfolioHistory BrokerClient::get_managed_portfolio_history(std::string const& account_id,
+                                                                    ManagedPortfolioHistoryRequest const& request) const {
+    return rest_client_.get<ManagedPortfolioHistory>(
+        "/trading/accounts/" + account_id + "/account/portfolio/history", request.to_query_params());
 }
 
 } // namespace alpaca

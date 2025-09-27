@@ -1,11 +1,13 @@
 #pragma once
 
+#include <map>
 #include <optional>
 #include <string>
 #include <vector>
 
 #include "alpaca/Json.hpp"
 #include "alpaca/RestClient.hpp"
+#include "alpaca/models/Asset.hpp"
 
 namespace alpaca {
 
@@ -244,6 +246,127 @@ struct BankRelationshipsPage {
     std::optional<std::string> next_page_token;
 };
 
+struct BrokerWatchlist {
+    std::string id;
+    std::string name;
+    std::string account_id;
+    std::string created_at;
+    std::string updated_at;
+    std::vector<Asset> assets;
+};
+
+struct CreateBrokerWatchlistRequest {
+    std::string name;
+    std::vector<std::string> symbols;
+};
+
+struct UpdateBrokerWatchlistRequest {
+    std::optional<std::string> name;
+    std::optional<std::vector<std::string>> symbols;
+};
+
+struct RebalancingWeight {
+    std::string type;
+    std::optional<std::string> symbol;
+    double percent{0.0};
+};
+
+struct RebalancingCondition {
+    std::string type;
+    std::string sub_type;
+    std::optional<double> percent;
+    std::optional<std::string> day;
+};
+
+struct RebalancingPortfolio {
+    std::string id;
+    std::string name;
+    std::string description;
+    std::string status;
+    int cooldown_days{0};
+    std::string created_at;
+    std::string updated_at;
+    std::vector<RebalancingWeight> weights;
+    std::optional<std::vector<RebalancingCondition>> rebalance_conditions;
+};
+
+struct CreateRebalancingPortfolioRequest {
+    std::string name;
+    std::string description;
+    std::vector<RebalancingWeight> weights;
+    int cooldown_days{0};
+    std::optional<std::vector<RebalancingCondition>> rebalance_conditions;
+};
+
+struct UpdateRebalancingPortfolioRequest {
+    std::optional<std::string> name;
+    std::optional<std::string> description;
+    std::optional<std::vector<RebalancingWeight>> weights;
+    std::optional<int> cooldown_days;
+    std::optional<std::vector<RebalancingCondition>> rebalance_conditions;
+};
+
+struct ListRebalancingPortfoliosRequest {
+    std::optional<std::string> name;
+    std::optional<std::string> description;
+    std::optional<std::string> symbol;
+    std::optional<std::string> portfolio_id;
+    std::optional<std::string> status;
+
+    [[nodiscard]] QueryParams to_query_params() const;
+};
+
+struct RebalancingSubscription {
+    std::string id;
+    std::string account_id;
+    std::string portfolio_id;
+    std::string created_at;
+    std::optional<std::string> last_rebalanced_at;
+};
+
+struct CreateRebalancingSubscriptionRequest {
+    std::string account_id;
+    std::string portfolio_id;
+};
+
+struct ListRebalancingSubscriptionsRequest {
+    std::optional<std::string> account_id;
+    std::optional<std::string> portfolio_id;
+    std::optional<int> limit;
+    std::optional<std::string> page_token;
+
+    [[nodiscard]] QueryParams to_query_params() const;
+};
+
+struct RebalancingSubscriptionsPage {
+    std::vector<RebalancingSubscription> subscriptions;
+    std::optional<std::string> next_page_token;
+};
+
+struct ManagedPortfolioHistory {
+    std::vector<int64_t> timestamp;
+    std::vector<double> equity;
+    std::vector<double> profit_loss;
+    std::vector<std::optional<double>> profit_loss_pct;
+    std::optional<double> base_value;
+    std::string timeframe;
+    std::map<std::string, std::vector<double>> cashflow;
+};
+
+struct ManagedPortfolioHistoryRequest {
+    std::optional<std::string> period;
+    std::optional<std::string> timeframe;
+    std::optional<std::string> intraday_reporting;
+    std::optional<std::string> start;
+    std::optional<std::string> pnl_reset;
+    std::optional<std::string> end;
+    std::optional<std::string> date_end;
+    std::optional<bool> extended_hours;
+    std::optional<std::string> cashflow_types;
+
+    [[nodiscard]] QueryParams to_query_params() const;
+};
+
 void to_json(Json& j, Address const& value);
 void from_json(Json const& j, Address& value);
 
@@ -288,5 +411,23 @@ void to_json(Json& j, CreateAchRelationshipRequest const& value);
 void to_json(Json& j, CreateWireRelationshipRequest const& value);
 void from_json(Json const& j, BankRelationship& value);
 void from_json(Json const& j, BankRelationshipsPage& value);
+
+void from_json(Json const& j, BrokerWatchlist& value);
+void to_json(Json& j, CreateBrokerWatchlistRequest const& value);
+void to_json(Json& j, UpdateBrokerWatchlistRequest const& value);
+
+void to_json(Json& j, RebalancingWeight const& value);
+void from_json(Json const& j, RebalancingWeight& value);
+void to_json(Json& j, RebalancingCondition const& value);
+void from_json(Json const& j, RebalancingCondition& value);
+void from_json(Json const& j, RebalancingPortfolio& value);
+void to_json(Json& j, CreateRebalancingPortfolioRequest const& value);
+void to_json(Json& j, UpdateRebalancingPortfolioRequest const& value);
+
+void from_json(Json const& j, RebalancingSubscription& value);
+void to_json(Json& j, CreateRebalancingSubscriptionRequest const& value);
+void from_json(Json const& j, RebalancingSubscriptionsPage& value);
+
+void from_json(Json const& j, ManagedPortfolioHistory& value);
 
 } // namespace alpaca

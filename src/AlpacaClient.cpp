@@ -518,4 +518,83 @@ void AlpacaClient::delete_wire_relationship(std::string const& account_id, std::
     broker().delete_wire_relationship(account_id, relationship_id);
 }
 
+std::vector<BrokerWatchlist> AlpacaClient::list_broker_watchlists(std::string const& account_id) {
+    return broker().list_watchlists(account_id);
+}
+
+BrokerWatchlist AlpacaClient::get_broker_watchlist(std::string const& account_id, std::string const& watchlist_id) {
+    return broker().get_watchlist(account_id, watchlist_id);
+}
+
+BrokerWatchlist AlpacaClient::create_broker_watchlist(std::string const& account_id,
+                                                      CreateBrokerWatchlistRequest const& request) {
+    return broker().create_watchlist(account_id, request);
+}
+
+BrokerWatchlist AlpacaClient::update_broker_watchlist(std::string const& account_id, std::string const& watchlist_id,
+                                                      UpdateBrokerWatchlistRequest const& request) {
+    return broker().update_watchlist(account_id, watchlist_id, request);
+}
+
+BrokerWatchlist AlpacaClient::add_asset_to_broker_watchlist(std::string const& account_id, std::string const& watchlist_id,
+                                                            std::string const& symbol) {
+    return broker().add_asset_to_watchlist(account_id, watchlist_id, symbol);
+}
+
+BrokerWatchlist AlpacaClient::remove_asset_from_broker_watchlist(std::string const& account_id,
+                                                                 std::string const& watchlist_id,
+                                                                 std::string const& symbol) {
+    return broker().remove_asset_from_watchlist(account_id, watchlist_id, symbol);
+}
+
+void AlpacaClient::delete_broker_watchlist(std::string const& account_id, std::string const& watchlist_id) {
+    broker().delete_watchlist(account_id, watchlist_id);
+}
+
+std::vector<RebalancingPortfolio>
+AlpacaClient::list_rebalancing_portfolios(ListRebalancingPortfoliosRequest const& request) {
+    return broker().list_rebalancing_portfolios(request);
+}
+
+RebalancingPortfolio AlpacaClient::get_rebalancing_portfolio(std::string const& portfolio_id) {
+    return broker().get_rebalancing_portfolio(portfolio_id);
+}
+
+RebalancingPortfolio AlpacaClient::create_rebalancing_portfolio(CreateRebalancingPortfolioRequest const& request) {
+    return broker().create_rebalancing_portfolio(request);
+}
+
+RebalancingPortfolio AlpacaClient::update_rebalancing_portfolio(std::string const& portfolio_id,
+                                                                UpdateRebalancingPortfolioRequest const& request) {
+    return broker().update_rebalancing_portfolio(portfolio_id, request);
+}
+
+void AlpacaClient::deactivate_rebalancing_portfolio(std::string const& portfolio_id) {
+    broker().deactivate_rebalancing_portfolio(portfolio_id);
+}
+
+RebalancingSubscriptionsPage
+AlpacaClient::list_rebalancing_subscriptions(ListRebalancingSubscriptionsRequest const& request) {
+    return broker().list_rebalancing_subscriptions(request);
+}
+
+PaginatedVectorRange<ListRebalancingSubscriptionsRequest, RebalancingSubscriptionsPage, RebalancingSubscription>
+AlpacaClient::list_rebalancing_subscriptions_range(ListRebalancingSubscriptionsRequest request) const {
+    return broker().list_rebalancing_subscriptions_range(std::move(request));
+}
+
+RebalancingSubscription AlpacaClient::get_rebalancing_subscription(std::string const& subscription_id) {
+    return broker().get_rebalancing_subscription(subscription_id);
+}
+
+RebalancingSubscription
+AlpacaClient::create_rebalancing_subscription(CreateRebalancingSubscriptionRequest const& request) {
+    return broker().create_rebalancing_subscription(request);
+}
+
+ManagedPortfolioHistory AlpacaClient::get_managed_portfolio_history(std::string const& account_id,
+                                                                    ManagedPortfolioHistoryRequest const& request) {
+    return broker().get_managed_portfolio_history(account_id, request);
+}
+
 } // namespace alpaca

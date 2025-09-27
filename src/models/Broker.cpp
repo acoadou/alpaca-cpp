@@ -425,4 +425,224 @@ void from_json(Json const& j, BankRelationshipsPage& value) {
     assign_optional(j, "next_page_token", value.next_page_token);
 }
 
+void from_json(Json const& j, BrokerWatchlist& value) {
+    j.at("id").get_to(value.id);
+    j.at("name").get_to(value.name);
+    j.at("account_id").get_to(value.account_id);
+    j.at("created_at").get_to(value.created_at);
+    j.at("updated_at").get_to(value.updated_at);
+    if (j.contains("assets") && j.at("assets").is_array()) {
+        value.assets = j.at("assets").get<std::vector<Asset>>();
+    } else {
+        value.assets.clear();
+    }
+}
+
+void to_json(Json& j, CreateBrokerWatchlistRequest const& value) {
+    j = Json{{"name", value.name}, {"symbols", value.symbols}};
+}
+
+void to_json(Json& j, UpdateBrokerWatchlistRequest const& value) {
+    j = Json{};
+    add_optional_string(j, "name", value.name);
+    if (value.symbols.has_value()) {
+        j["symbols"] = *value.symbols;
+    }
+}
+
+void to_json(Json& j, RebalancingWeight const& value) {
+    j = Json{{"type", value.type}, {"percent", value.percent}};
+    add_optional_string(j, "symbol", value.symbol);
+}
+
+void from_json(Json const& j, RebalancingWeight& value) {
+    j.at("type").get_to(value.type);
+    assign_optional(j, "symbol", value.symbol);
+    j.at("percent").get_to(value.percent);
+}
+
+void to_json(Json& j, RebalancingCondition const& value) {
+    j = Json{
+        {"type", value.type},
+        {"sub_type", value.sub_type},
+    };
+    if (value.percent.has_value()) {
+        j["percent"] = *value.percent;
+    }
+    add_optional_string(j, "day", value.day);
+}
+
+void from_json(Json const& j, RebalancingCondition& value) {
+    j.at("type").get_to(value.type);
+    j.at("sub_type").get_to(value.sub_type);
+    assign_optional(j, "percent", value.percent);
+    assign_optional(j, "day", value.day);
+}
+
+void from_json(Json const& j, RebalancingPortfolio& value) {
+    j.at("id").get_to(value.id);
+    j.at("name").get_to(value.name);
+    j.at("description").get_to(value.description);
+    j.at("status").get_to(value.status);
+    j.at("cooldown_days").get_to(value.cooldown_days);
+    j.at("created_at").get_to(value.created_at);
+    j.at("updated_at").get_to(value.updated_at);
+    if (j.contains("weights")) {
+        value.weights = j.at("weights").get<std::vector<RebalancingWeight>>();
+    }
+    if (j.contains("rebalance_conditions") && !j.at("rebalance_conditions").is_null()) {
+        value.rebalance_conditions =
+            j.at("rebalance_conditions").get<std::vector<RebalancingCondition>>();
+    }
+}
+
+void to_json(Json& j, CreateRebalancingPortfolioRequest const& value) {
+    j = Json{
+        {"name", value.name},
+        {"description", value.description},
+        {"weights", value.weights},
+        {"cooldown_days", value.cooldown_days},
+    };
+    if (value.rebalance_conditions.has_value()) {
+        j["rebalance_conditions"] = *value.rebalance_conditions;
+    }
+}
+
+void to_json(Json& j, UpdateRebalancingPortfolioRequest const& value) {
+    j = Json{};
+    add_optional_string(j, "name", value.name);
+    add_optional_string(j, "description", value.description);
+    if (value.weights.has_value()) {
+        j["weights"] = *value.weights;
+    }
+    if (value.cooldown_days.has_value()) {
+        j["cooldown_days"] = *value.cooldown_days;
+    }
+    if (value.rebalance_conditions.has_value()) {
+        j["rebalance_conditions"] = *value.rebalance_conditions;
+    }
+}
+
+QueryParams ListRebalancingPortfoliosRequest::to_query_params() const {
+    QueryParams params;
+    if (name.has_value()) {
+        params.emplace_back("name", *name);
+    }
+    if (description.has_value()) {
+        params.emplace_back("description", *description);
+    }
+    if (symbol.has_value()) {
+        params.emplace_back("symbol", *symbol);
+    }
+    if (portfolio_id.has_value()) {
+        params.emplace_back("portfolio_id", *portfolio_id);
+    }
+    if (status.has_value()) {
+        params.emplace_back("status", *status);
+    }
+    return params;
+}
+
+void from_json(Json const& j, RebalancingSubscription& value) {
+    j.at("id").get_to(value.id);
+    j.at("account_id").get_to(value.account_id);
+    j.at("portfolio_id").get_to(value.portfolio_id);
+    j.at("created_at").get_to(value.created_at);
+    assign_optional(j, "last_rebalanced_at", value.last_rebalanced_at);
+}
+
+void to_json(Json& j, CreateRebalancingSubscriptionRequest const& value) {
+    j = Json{{"account_id", value.account_id}, {"portfolio_id", value.portfolio_id}};
+}
+
+QueryParams ListRebalancingSubscriptionsRequest::to_query_params() const {
+    QueryParams params;
+    if (account_id.has_value()) {
+        params.emplace_back("account_id", *account_id);
+    }
+    if (portfolio_id.has_value()) {
+        params.emplace_back("portfolio_id", *portfolio_id);
+    }
+    if (limit.has_value()) {
+        params.emplace_back("limit", std::to_string(*limit));
+    }
+    if (page_token.has_value()) {
+        params.emplace_back("page_token", *page_token);
+    }
+    return params;
+}
+
+void from_json(Json const& j, RebalancingSubscriptionsPage& value) {
+    if (j.contains("subscriptions")) {
+        value.subscriptions = j.at("subscriptions").get<std::vector<RebalancingSubscription>>();
+    } else if (j.is_array()) {
+        value.subscriptions = j.get<std::vector<RebalancingSubscription>>();
+    }
+    assign_optional(j, "next_page_token", value.next_page_token);
+}
+
+void from_json(Json const& j, ManagedPortfolioHistory& value) {
+    if (j.contains("timestamp")) {
+        value.timestamp = j.at("timestamp").get<std::vector<int64_t>>();
+    }
+    if (j.contains("equity")) {
+        value.equity = j.at("equity").get<std::vector<double>>();
+    }
+    if (j.contains("profit_loss")) {
+        value.profit_loss = j.at("profit_loss").get<std::vector<double>>();
+    }
+    value.profit_loss_pct.clear();
+    if (j.contains("profit_loss_pct") && j.at("profit_loss_pct").is_array()) {
+        for (auto const& entry : j.at("profit_loss_pct")) {
+            if (entry.is_null()) {
+                value.profit_loss_pct.emplace_back(std::nullopt);
+            } else {
+                value.profit_loss_pct.emplace_back(entry.get<double>());
+            }
+        }
+    }
+    assign_optional(j, "base_value", value.base_value);
+    if (j.contains("timeframe")) {
+        value.timeframe = j.at("timeframe").get<std::string>();
+    }
+    value.cashflow.clear();
+    if (j.contains("cashflow") && j.at("cashflow").is_object()) {
+        for (auto const& [key, val] : j.at("cashflow").items()) {
+            value.cashflow[key] = val.get<std::vector<double>>();
+        }
+    }
+}
+
+QueryParams ManagedPortfolioHistoryRequest::to_query_params() const {
+    QueryParams params;
+    if (period.has_value()) {
+        params.emplace_back("period", *period);
+    }
+    if (timeframe.has_value()) {
+        params.emplace_back("timeframe", *timeframe);
+    }
+    if (intraday_reporting.has_value()) {
+        params.emplace_back("intraday_reporting", *intraday_reporting);
+    }
+    if (start.has_value()) {
+        params.emplace_back("start", *start);
+    }
+    if (pnl_reset.has_value()) {
+        params.emplace_back("pnl_reset", *pnl_reset);
+    }
+    if (end.has_value()) {
+        params.emplace_back("end", *end);
+    }
+    if (date_end.has_value()) {
+        params.emplace_back("date_end", *date_end);
+    }
+    if (extended_hours.has_value()) {
+        params.emplace_back("extended_hours", *extended_hours ? "true" : "false");
+    }
+    if (cashflow_types.has_value()) {
+        params.emplace_back("cashflow_types", *cashflow_types);
+    }
+    return params;
+}
+
 } // namespace alpaca

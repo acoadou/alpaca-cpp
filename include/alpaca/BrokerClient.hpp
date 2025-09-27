@@ -58,6 +58,40 @@ class BrokerClient {
                                                             CreateWireRelationshipRequest const& request) const;
     void delete_wire_relationship(std::string const& account_id, std::string const& relationship_id) const;
 
+    [[nodiscard]] std::vector<BrokerWatchlist> list_watchlists(std::string const& account_id) const;
+    [[nodiscard]] BrokerWatchlist get_watchlist(std::string const& account_id, std::string const& watchlist_id) const;
+    [[nodiscard]] BrokerWatchlist create_watchlist(std::string const& account_id,
+                                                  CreateBrokerWatchlistRequest const& request) const;
+    [[nodiscard]] BrokerWatchlist update_watchlist(std::string const& account_id, std::string const& watchlist_id,
+                                                  UpdateBrokerWatchlistRequest const& request) const;
+    [[nodiscard]] BrokerWatchlist add_asset_to_watchlist(std::string const& account_id, std::string const& watchlist_id,
+                                                        std::string const& symbol) const;
+    [[nodiscard]] BrokerWatchlist remove_asset_from_watchlist(std::string const& account_id,
+                                                             std::string const& watchlist_id,
+                                                             std::string const& symbol) const;
+    void delete_watchlist(std::string const& account_id, std::string const& watchlist_id) const;
+
+    [[nodiscard]] std::vector<RebalancingPortfolio>
+    list_rebalancing_portfolios(ListRebalancingPortfoliosRequest const& request = {}) const;
+    [[nodiscard]] RebalancingPortfolio get_rebalancing_portfolio(std::string const& portfolio_id) const;
+    [[nodiscard]] RebalancingPortfolio create_rebalancing_portfolio(CreateRebalancingPortfolioRequest const& request) const;
+    [[nodiscard]] RebalancingPortfolio update_rebalancing_portfolio(std::string const& portfolio_id,
+                                                                   UpdateRebalancingPortfolioRequest const& request) const;
+    void deactivate_rebalancing_portfolio(std::string const& portfolio_id) const;
+
+    [[nodiscard]] RebalancingSubscriptionsPage
+    list_rebalancing_subscriptions(ListRebalancingSubscriptionsRequest const& request = {}) const;
+    [[nodiscard]] PaginatedVectorRange<ListRebalancingSubscriptionsRequest, RebalancingSubscriptionsPage,
+                                      RebalancingSubscription>
+    list_rebalancing_subscriptions_range(ListRebalancingSubscriptionsRequest request = {}) const;
+    [[nodiscard]] RebalancingSubscription get_rebalancing_subscription(std::string const& subscription_id) const;
+    [[nodiscard]] RebalancingSubscription
+    create_rebalancing_subscription(CreateRebalancingSubscriptionRequest const& request) const;
+
+    [[nodiscard]] ManagedPortfolioHistory
+    get_managed_portfolio_history(std::string const& account_id,
+                                  ManagedPortfolioHistoryRequest const& request = {}) const;
+
   private:
     RestClient rest_client_;
 };

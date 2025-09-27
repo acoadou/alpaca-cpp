@@ -409,6 +409,70 @@ class AlpacaClient {
     /// Deletes an existing wire relationship.
     void delete_wire_relationship(std::string const& account_id, std::string const& relationship_id);
 
+    /// Lists watchlists belonging to the managed account.
+    [[nodiscard]] std::vector<BrokerWatchlist> list_broker_watchlists(std::string const& account_id);
+
+    /// Retrieves a specific broker watchlist.
+    [[nodiscard]] BrokerWatchlist get_broker_watchlist(std::string const& account_id, std::string const& watchlist_id);
+
+    /// Creates a new broker watchlist for the managed account.
+    [[nodiscard]] BrokerWatchlist create_broker_watchlist(std::string const& account_id,
+                                                         CreateBrokerWatchlistRequest const& request);
+
+    /// Updates an existing broker watchlist.
+    [[nodiscard]] BrokerWatchlist update_broker_watchlist(std::string const& account_id, std::string const& watchlist_id,
+                                                          UpdateBrokerWatchlistRequest const& request);
+
+    /// Adds an asset to the broker watchlist.
+    [[nodiscard]] BrokerWatchlist add_asset_to_broker_watchlist(std::string const& account_id,
+                                                                std::string const& watchlist_id,
+                                                                std::string const& symbol);
+
+    /// Removes an asset from the broker watchlist.
+    [[nodiscard]] BrokerWatchlist remove_asset_from_broker_watchlist(std::string const& account_id,
+                                                                     std::string const& watchlist_id,
+                                                                     std::string const& symbol);
+
+    /// Deletes a broker watchlist.
+    void delete_broker_watchlist(std::string const& account_id, std::string const& watchlist_id);
+
+    /// Lists rebalancing portfolios using the optional filters.
+    [[nodiscard]] std::vector<RebalancingPortfolio>
+    list_rebalancing_portfolios(ListRebalancingPortfoliosRequest const& request = {});
+
+    /// Retrieves a rebalancing portfolio by identifier.
+    [[nodiscard]] RebalancingPortfolio get_rebalancing_portfolio(std::string const& portfolio_id);
+
+    /// Creates a new rebalancing portfolio.
+    [[nodiscard]] RebalancingPortfolio create_rebalancing_portfolio(CreateRebalancingPortfolioRequest const& request);
+
+    /// Updates an existing rebalancing portfolio.
+    [[nodiscard]] RebalancingPortfolio update_rebalancing_portfolio(std::string const& portfolio_id,
+                                                                    UpdateRebalancingPortfolioRequest const& request);
+
+    /// Deactivates a rebalancing portfolio.
+    void deactivate_rebalancing_portfolio(std::string const& portfolio_id);
+
+    /// Lists rebalancing subscriptions matching the optional filters.
+    [[nodiscard]] RebalancingSubscriptionsPage
+    list_rebalancing_subscriptions(ListRebalancingSubscriptionsRequest const& request = {});
+
+    /// Convenience helper returning a pagination range for rebalancing subscriptions.
+    [[nodiscard]] PaginatedVectorRange<ListRebalancingSubscriptionsRequest, RebalancingSubscriptionsPage,
+                                      RebalancingSubscription>
+    list_rebalancing_subscriptions_range(ListRebalancingSubscriptionsRequest request = {}) const;
+
+    /// Retrieves a rebalancing subscription by identifier.
+    [[nodiscard]] RebalancingSubscription get_rebalancing_subscription(std::string const& subscription_id);
+
+    /// Creates a new rebalancing subscription.
+    [[nodiscard]] RebalancingSubscription
+    create_rebalancing_subscription(CreateRebalancingSubscriptionRequest const& request);
+
+    /// Retrieves managed portfolio history statistics for an account.
+    [[nodiscard]] ManagedPortfolioHistory get_managed_portfolio_history(std::string const& account_id,
+                                                                        ManagedPortfolioHistoryRequest const& request = {});
+
   private:
     Configuration config_;
     HttpClientPtr http_client_;
