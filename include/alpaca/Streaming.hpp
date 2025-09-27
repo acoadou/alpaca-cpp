@@ -43,11 +43,16 @@ enum class MessageCategory {
     Trade,
     Quote,
     Bar,
+    UpdatedBar,
+    DailyBar,
     OrderBook,
     Luld,
     Auction,
     Greeks,
     Underlying,
+    TradeCancel,
+    TradeCorrection,
+    Imbalance,
     Status,
     Error,
     OrderUpdate,
@@ -84,6 +89,32 @@ struct QuoteMessage {
 
 /// Aggregated bar message delivered through market data streams.
 struct BarMessage {
+    std::string symbol;
+    Timestamp timestamp{};
+    double open{0.0};
+    double high{0.0};
+    double low{0.0};
+    double close{0.0};
+    std::uint64_t volume{0};
+    std::uint64_t trade_count{0};
+    std::optional<double> vwap{};
+};
+
+/// Near-real-time update to an in-flight minute bar.
+struct UpdatedBarMessage {
+    std::string symbol;
+    Timestamp timestamp{};
+    double open{0.0};
+    double high{0.0};
+    double low{0.0};
+    double close{0.0};
+    std::uint64_t volume{0};
+    std::uint64_t trade_count{0};
+    std::optional<double> vwap{};
+};
+
+/// End-of-day bar aggregated across the full trading session.
+struct DailyBarMessage {
     std::string symbol;
     Timestamp timestamp{};
     double open{0.0};
@@ -166,6 +197,52 @@ struct UnderlyingMessage {
     double price{0.0};
 };
 
+/// Notification emitted when a previously reported trade is cancelled.
+struct TradeCancelMessage {
+    std::string symbol;
+    Timestamp timestamp{};
+    std::string exchange;
+    std::optional<double> price{};
+    std::optional<std::uint64_t> size{};
+    std::optional<std::string> id{};
+    std::optional<std::string> action{};
+    std::optional<std::string> tape{};
+};
+
+/// Notification emitted when a previously reported trade is corrected.
+struct TradeCorrectionMessage {
+    std::string symbol;
+    Timestamp timestamp{};
+    std::string exchange;
+    std::optional<std::string> original_id{};
+    std::optional<double> original_price{};
+    std::optional<std::uint64_t> original_size{};
+    std::vector<std::string> original_conditions{};
+    std::optional<std::string> corrected_id{};
+    std::optional<double> corrected_price{};
+    std::optional<std::uint64_t> corrected_size{};
+    std::vector<std::string> corrected_conditions{};
+    std::optional<std::string> tape{};
+};
+
+/// Order imbalance update typically preceding auction events.
+struct ImbalanceMessage {
+    std::string symbol;
+    Timestamp timestamp{};
+    std::optional<std::string> exchange{};
+    std::optional<std::string> imbalance_side{};
+    std::optional<std::uint64_t> imbalance{};
+    std::optional<std::uint64_t> paired{};
+    std::optional<double> reference_price{};
+    std::optional<double> near_price{};
+    std::optional<double> far_price{};
+    std::optional<double> current_price{};
+    std::optional<double> clearing_price{};
+    std::optional<std::string> auction_type{};
+    std::optional<std::string> tape{};
+    Json raw_payload{};
+};
+
 /// Order update payload delivered from the trading stream.
 struct OrderUpdateMessage {
     std::string event;
@@ -193,20 +270,26 @@ struct ControlMessage {
 
 /// Strongly typed representation of an Alpaca websocket payload.
 using StreamMessage = std::variant<TradeMessage, QuoteMessage, BarMessage, StatusMessage, OrderUpdateMessage,
-                                   OrderBookMessage, LuldMessage, AuctionMessage, GreeksMessage, UnderlyingMessage,
-                                   AccountUpdateMessage, ErrorMessage, ControlMessage>;
+                                   UpdatedBarMessage, DailyBarMessage, OrderBookMessage, LuldMessage, AuctionMessage,
+                                   GreeksMessage, UnderlyingMessage, TradeCancelMessage, TradeCorrectionMessage,
+                                   ImbalanceMessage, AccountUpdateMessage, ErrorMessage, ControlMessage>;
 
 /// Subscription helper for market data feeds.
 struct MarketSubscription {
     std::vector<std::string> trades{};
     std::vector<std::string> quotes{};
     std::vector<std::string> bars{};
+    std::vector<std::string> updated_bars{};
+    std::vector<std::string> daily_bars{};
     std::vector<std::string> statuses{};
     std::vector<std::string> orderbooks{};
     std::vector<std::string> lulds{};
     std::vector<std::string> auctions{};
     std::vector<std::string> greeks{};
     std::vector<std::string> underlyings{};
+    std::vector<std::string> trade_cancels{};
+    std::vector<std::string> trade_corrections{};
+    std::vector<std::string> imbalances{};
 };
 
 /// Callback invoked for every decoded streaming payload.
@@ -226,6 +309,8 @@ struct ReconnectPolicy {
     double multiplier{2.0};
     std::chrono::milliseconds jitter{std::chrono::milliseconds{250}};
 };
+
+class WebSocketClientHarness;
 
 /// Lightweight websocket client capable of connecting to Alpaca's streaming
 /// APIs.
@@ -267,6 +352,8 @@ class WebSocketClient {
     void set_pending_message_limit(std::size_t limit);
 
   private:
+    friend class WebSocketClientHarness;
+
     void authenticate();
     void handle_payload(Json const& payload);
     void handle_control_payload(Json const& payload, std::string const& type);
@@ -303,12 +390,17 @@ class WebSocketClient {
     std::unordered_set<std::string> subscribed_trades_;
     std::unordered_set<std::string> subscribed_quotes_;
     std::unordered_set<std::string> subscribed_bars_;
+    std::unordered_set<std::string> subscribed_updated_bars_;
+    std::unordered_set<std::string> subscribed_daily_bars_;
     std::unordered_set<std::string> subscribed_statuses_;
     std::unordered_set<std::string> subscribed_orderbooks_;
     std::unordered_set<std::string> subscribed_lulds_;
     std::unordered_set<std::string> subscribed_auctions_;
     std::unordered_set<std::string> subscribed_greeks_;
     std::unordered_set<std::string> subscribed_underlyings_;
+    std::unordered_set<std::string> subscribed_trade_cancels_;
+    std::unordered_set<std::string> subscribed_trade_corrections_;
+    std::unordered_set<std::string> subscribed_imbalances_;
     std::unordered_set<std::string> listened_streams_;
 
     ReconnectPolicy reconnect_policy_{};

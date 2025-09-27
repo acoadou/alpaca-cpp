@@ -48,6 +48,73 @@ std::optional<T> parse_optional(Json const& j, char const *key) {
     return field.get<T>();
 }
 
+std::optional<std::uint64_t> parse_optional_uint64(Json const& j, char const *key) {
+    if (!j.contains(key)) {
+        return std::nullopt;
+    }
+    auto const& field = j.at(key);
+    if (field.is_null()) {
+        return std::nullopt;
+    }
+    if (field.is_number_unsigned()) {
+        return field.get<std::uint64_t>();
+    }
+    if (field.is_number_integer()) {
+        auto value = field.get<std::int64_t>();
+        if (value < 0) {
+            return std::nullopt;
+        }
+        return static_cast<std::uint64_t>(value);
+    }
+    if (field.is_number_float()) {
+        auto value = field.get<double>();
+        if (value < 0.0) {
+            return std::nullopt;
+        }
+        return static_cast<std::uint64_t>(std::llround(value));
+    }
+    if (field.is_string()) {
+        auto text = field.get<std::string>();
+        if (text.empty()) {
+            return std::nullopt;
+        }
+        try {
+            std::size_t processed = 0;
+            auto parsed = std::stoll(text, &processed);
+            if (processed != text.size() || parsed < 0) {
+                return std::nullopt;
+            }
+            return static_cast<std::uint64_t>(parsed);
+        } catch (...) {
+            return std::nullopt;
+        }
+    }
+    return std::nullopt;
+}
+
+std::optional<std::string> parse_optional_string_like(Json const& j, char const *key) {
+    if (!j.contains(key)) {
+        return std::nullopt;
+    }
+    auto const& field = j.at(key);
+    if (field.is_null()) {
+        return std::nullopt;
+    }
+    if (field.is_string()) {
+        return field.get<std::string>();
+    }
+    if (field.is_number_unsigned()) {
+        return std::to_string(field.get<std::uint64_t>());
+    }
+    if (field.is_number_integer()) {
+        return std::to_string(field.get<std::int64_t>());
+    }
+    if (field.is_number_float()) {
+        return std::to_string(field.get<double>());
+    }
+    return field.dump();
+}
+
 std::vector<OrderBookLevel> parse_order_book_side(Json const& payload, char const *key) {
     if (!payload.contains(key) || !payload.at(key).is_array()) {
         return {};
@@ -103,11 +170,55 @@ StreamMessage build_bar_message(Json const& payload) {
     message.high = payload.value("h", 0.0);
     message.low = payload.value("l", 0.0);
     message.close = payload.value("c", 0.0);
-    message.volume = payload.value("v", std::uint64_t{0});
-    message.trade_count = payload.value("n", std::uint64_t{0});
-    if (payload.contains("vw") && !payload.at("vw").is_null()) {
-        message.vwap = payload.at("vw").get<double>();
+    if (auto volume = parse_optional_uint64(payload, "v")) {
+        message.volume = *volume;
+    } else {
+        message.volume = payload.value("v", std::uint64_t{0});
     }
+    if (auto count = parse_optional_uint64(payload, "n")) {
+        message.trade_count = *count;
+    } else {
+        message.trade_count = payload.value("n", std::uint64_t{0});
+    }
+    if (auto vwap = parse_optional<double>(payload, "vw")) {
+        message.vwap = vwap;
+    }
+    return message;
+}
+
+StreamMessage build_updated_bar_message(Json const& payload) {
+    UpdatedBarMessage message{};
+    message.symbol = payload.value("S", "");
+    message.timestamp = parse_timestamp_field_or_default(payload, "t");
+    message.open = payload.value("o", 0.0);
+    message.high = payload.value("h", 0.0);
+    message.low = payload.value("l", 0.0);
+    message.close = payload.value("c", 0.0);
+    if (auto volume = parse_optional_uint64(payload, "v")) {
+        message.volume = *volume;
+    }
+    if (auto count = parse_optional_uint64(payload, "n")) {
+        message.trade_count = *count;
+    }
+    message.vwap = parse_optional<double>(payload, "vw");
+    return message;
+}
+
+StreamMessage build_daily_bar_message(Json const& payload) {
+    DailyBarMessage message{};
+    message.symbol = payload.value("S", "");
+    message.timestamp = parse_timestamp_field_or_default(payload, "t");
+    message.open = payload.value("o", 0.0);
+    message.high = payload.value("h", 0.0);
+    message.low = payload.value("l", 0.0);
+    message.close = payload.value("c", 0.0);
+    if (auto volume = parse_optional_uint64(payload, "v")) {
+        message.volume = *volume;
+    }
+    if (auto count = parse_optional_uint64(payload, "n")) {
+        message.trade_count = *count;
+    }
+    message.vwap = parse_optional<double>(payload, "vw");
     return message;
 }
 
@@ -209,6 +320,94 @@ StreamMessage build_underlying_message(Json const& payload) {
     if (message.price == 0.0 && payload.contains("price") && !payload.at("price").is_null()) {
         message.price = payload.at("price").get<double>();
     }
+    return message;
+}
+
+StreamMessage build_trade_cancel_message(Json const& payload) {
+    TradeCancelMessage message{};
+    message.symbol = payload.value("S", "");
+    message.timestamp = parse_timestamp_field_or_default(payload, "t");
+    message.exchange = payload.value("x", "");
+    message.price = parse_optional<double>(payload, "p");
+    message.size = parse_optional_uint64(payload, "s");
+    message.id = parse_optional_string_like(payload, "i");
+    message.action = parse_optional<std::string>(payload, "a");
+    message.tape = parse_optional<std::string>(payload, "z");
+    return message;
+}
+
+StreamMessage build_trade_correction_message(Json const& payload) {
+    TradeCorrectionMessage message{};
+    message.symbol = payload.value("S", "");
+    message.timestamp = parse_timestamp_field_or_default(payload, "t");
+    message.exchange = payload.value("x", "");
+    message.original_id = parse_optional_string_like(payload, "oi");
+    message.original_price = parse_optional<double>(payload, "op");
+    message.original_size = parse_optional_uint64(payload, "os");
+    message.original_conditions = parse_conditions(payload, "oc");
+    message.corrected_id = parse_optional_string_like(payload, "ci");
+    message.corrected_price = parse_optional<double>(payload, "cp");
+    message.corrected_size = parse_optional_uint64(payload, "cs");
+    message.corrected_conditions = parse_conditions(payload, "cc");
+    message.tape = parse_optional<std::string>(payload, "z");
+    return message;
+}
+
+StreamMessage build_imbalance_message(Json const& payload) {
+    ImbalanceMessage message{};
+    message.symbol = payload.value("S", "");
+    message.timestamp = parse_timestamp_field_or_default(payload, "t");
+    message.exchange = parse_optional<std::string>(payload, "x");
+    if (auto imbalance = parse_optional_uint64(payload, "imbalance")) {
+        message.imbalance = imbalance;
+    } else if (auto imbalance = parse_optional_uint64(payload, "im")) {
+        message.imbalance = imbalance;
+    } else if (auto imbalance = parse_optional_uint64(payload, "i")) {
+        message.imbalance = imbalance;
+    }
+    if (auto paired = parse_optional_uint64(payload, "paired")) {
+        message.paired = paired;
+    } else if (auto paired = parse_optional_uint64(payload, "pa")) {
+        message.paired = paired;
+    }
+    if (auto reference_price = parse_optional<double>(payload, "reference_price")) {
+        message.reference_price = reference_price;
+    } else if (auto reference_price = parse_optional<double>(payload, "rp")) {
+        message.reference_price = reference_price;
+    }
+    if (auto near_price = parse_optional<double>(payload, "near_price")) {
+        message.near_price = near_price;
+    } else if (auto near_price = parse_optional<double>(payload, "np")) {
+        message.near_price = near_price;
+    }
+    if (auto far_price = parse_optional<double>(payload, "far_price")) {
+        message.far_price = far_price;
+    } else if (auto far_price = parse_optional<double>(payload, "fp")) {
+        message.far_price = far_price;
+    }
+    if (auto current_price = parse_optional<double>(payload, "current_price")) {
+        message.current_price = current_price;
+    } else if (auto current_price = parse_optional<double>(payload, "cp")) {
+        message.current_price = current_price;
+    }
+    if (auto clearing_price = parse_optional<double>(payload, "clearing_price")) {
+        message.clearing_price = clearing_price;
+    } else if (auto clearing_price = parse_optional<double>(payload, "p")) {
+        message.clearing_price = clearing_price;
+    }
+    message.imbalance_side = parse_optional<std::string>(payload, "imbalance_side");
+    if (!message.imbalance_side) {
+        message.imbalance_side = parse_optional<std::string>(payload, "side");
+    }
+    if (!message.imbalance_side) {
+        message.imbalance_side = parse_optional<std::string>(payload, "zv");
+    }
+    message.auction_type = parse_optional<std::string>(payload, "auction_type");
+    if (!message.auction_type) {
+        message.auction_type = parse_optional<std::string>(payload, "at");
+    }
+    message.tape = parse_optional<std::string>(payload, "z");
+    message.raw_payload = payload;
     return message;
 }
 
@@ -403,6 +602,16 @@ void WebSocketClient::subscribe(MarketSubscription const& subscription) {
                 diff.bars.push_back(symbol);
             }
         }
+        for (auto const& symbol : subscription.updated_bars) {
+            if (subscribed_updated_bars_.insert(symbol).second) {
+                diff.updated_bars.push_back(symbol);
+            }
+        }
+        for (auto const& symbol : subscription.daily_bars) {
+            if (subscribed_daily_bars_.insert(symbol).second) {
+                diff.daily_bars.push_back(symbol);
+            }
+        }
         for (auto const& symbol : subscription.statuses) {
             if (subscribed_statuses_.insert(symbol).second) {
                 diff.statuses.push_back(symbol);
@@ -433,10 +642,27 @@ void WebSocketClient::subscribe(MarketSubscription const& subscription) {
                 diff.underlyings.push_back(symbol);
             }
         }
+        for (auto const& symbol : subscription.trade_cancels) {
+            if (subscribed_trade_cancels_.insert(symbol).second) {
+                diff.trade_cancels.push_back(symbol);
+            }
+        }
+        for (auto const& symbol : subscription.trade_corrections) {
+            if (subscribed_trade_corrections_.insert(symbol).second) {
+                diff.trade_corrections.push_back(symbol);
+            }
+        }
+        for (auto const& symbol : subscription.imbalances) {
+            if (subscribed_imbalances_.insert(symbol).second) {
+                diff.imbalances.push_back(symbol);
+            }
+        }
     }
 
-    if (diff.trades.empty() && diff.quotes.empty() && diff.bars.empty() && diff.statuses.empty() && diff.orderbooks.empty()
-        && diff.lulds.empty() && diff.auctions.empty() && diff.greeks.empty() && diff.underlyings.empty()) {
+    if (diff.trades.empty() && diff.quotes.empty() && diff.bars.empty() && diff.updated_bars.empty() && diff.daily_bars.empty()
+        && diff.statuses.empty() && diff.orderbooks.empty() && diff.lulds.empty() && diff.auctions.empty()
+        && diff.greeks.empty() && diff.underlyings.empty() && diff.trade_cancels.empty() && diff.trade_corrections.empty()
+        && diff.imbalances.empty()) {
         return;
     }
 
@@ -450,6 +676,12 @@ void WebSocketClient::subscribe(MarketSubscription const& subscription) {
     }
     if (!diff.bars.empty()) {
         message["bars"] = diff.bars;
+    }
+    if (!diff.updated_bars.empty()) {
+        message["updatedBars"] = diff.updated_bars;
+    }
+    if (!diff.daily_bars.empty()) {
+        message["dailyBars"] = diff.daily_bars;
     }
     if (!diff.statuses.empty()) {
         message["statuses"] = diff.statuses;
@@ -468,6 +700,15 @@ void WebSocketClient::subscribe(MarketSubscription const& subscription) {
     }
     if (!diff.underlyings.empty()) {
         message["underlyings"] = diff.underlyings;
+    }
+    if (!diff.trade_cancels.empty()) {
+        message["cancelErrors"] = diff.trade_cancels;
+    }
+    if (!diff.trade_corrections.empty()) {
+        message["corrections"] = diff.trade_corrections;
+    }
+    if (!diff.imbalances.empty()) {
+        message["imbalances"] = diff.imbalances;
     }
     send_raw(message);
 }
@@ -489,6 +730,16 @@ void WebSocketClient::unsubscribe(MarketSubscription const& subscription) {
         for (auto const& symbol : subscription.bars) {
             if (subscribed_bars_.erase(symbol) > 0) {
                 diff.bars.push_back(symbol);
+            }
+        }
+        for (auto const& symbol : subscription.updated_bars) {
+            if (subscribed_updated_bars_.erase(symbol) > 0) {
+                diff.updated_bars.push_back(symbol);
+            }
+        }
+        for (auto const& symbol : subscription.daily_bars) {
+            if (subscribed_daily_bars_.erase(symbol) > 0) {
+                diff.daily_bars.push_back(symbol);
             }
         }
         for (auto const& symbol : subscription.statuses) {
@@ -521,10 +772,27 @@ void WebSocketClient::unsubscribe(MarketSubscription const& subscription) {
                 diff.underlyings.push_back(symbol);
             }
         }
+        for (auto const& symbol : subscription.trade_cancels) {
+            if (subscribed_trade_cancels_.erase(symbol) > 0) {
+                diff.trade_cancels.push_back(symbol);
+            }
+        }
+        for (auto const& symbol : subscription.trade_corrections) {
+            if (subscribed_trade_corrections_.erase(symbol) > 0) {
+                diff.trade_corrections.push_back(symbol);
+            }
+        }
+        for (auto const& symbol : subscription.imbalances) {
+            if (subscribed_imbalances_.erase(symbol) > 0) {
+                diff.imbalances.push_back(symbol);
+            }
+        }
     }
 
-    if (diff.trades.empty() && diff.quotes.empty() && diff.bars.empty() && diff.statuses.empty() && diff.orderbooks.empty()
-        && diff.lulds.empty() && diff.auctions.empty() && diff.greeks.empty() && diff.underlyings.empty()) {
+    if (diff.trades.empty() && diff.quotes.empty() && diff.bars.empty() && diff.updated_bars.empty() && diff.daily_bars.empty()
+        && diff.statuses.empty() && diff.orderbooks.empty() && diff.lulds.empty() && diff.auctions.empty()
+        && diff.greeks.empty() && diff.underlyings.empty() && diff.trade_cancels.empty() && diff.trade_corrections.empty()
+        && diff.imbalances.empty()) {
         return;
     }
 
@@ -538,6 +806,12 @@ void WebSocketClient::unsubscribe(MarketSubscription const& subscription) {
     }
     if (!diff.bars.empty()) {
         message["bars"] = diff.bars;
+    }
+    if (!diff.updated_bars.empty()) {
+        message["updatedBars"] = diff.updated_bars;
+    }
+    if (!diff.daily_bars.empty()) {
+        message["dailyBars"] = diff.daily_bars;
     }
     if (!diff.statuses.empty()) {
         message["statuses"] = diff.statuses;
@@ -556,6 +830,15 @@ void WebSocketClient::unsubscribe(MarketSubscription const& subscription) {
     }
     if (!diff.underlyings.empty()) {
         message["underlyings"] = diff.underlyings;
+    }
+    if (!diff.trade_cancels.empty()) {
+        message["cancelErrors"] = diff.trade_cancels;
+    }
+    if (!diff.trade_corrections.empty()) {
+        message["corrections"] = diff.trade_corrections;
+    }
+    if (!diff.imbalances.empty()) {
+        message["imbalances"] = diff.imbalances;
     }
     send_raw(message);
 }
@@ -696,8 +979,20 @@ void WebSocketClient::handle_payload(Json const& payload) {
             message_handler_(build_quote_message(payload), MessageCategory::Quote);
             return;
         }
-        if (type == "b" || type == "d") {
+        if (type == "b") {
             message_handler_(build_bar_message(payload), MessageCategory::Bar);
+            return;
+        }
+        if (type == "u") {
+            if (payload.contains("uS") || payload.contains("underlying_symbol")) {
+                message_handler_(build_underlying_message(payload), MessageCategory::Underlying);
+            } else {
+                message_handler_(build_updated_bar_message(payload), MessageCategory::UpdatedBar);
+            }
+            return;
+        }
+        if (type == "d") {
+            message_handler_(build_daily_bar_message(payload), MessageCategory::DailyBar);
             return;
         }
         if (type == "o") {
@@ -716,8 +1011,16 @@ void WebSocketClient::handle_payload(Json const& payload) {
             message_handler_(build_greeks_message(payload), MessageCategory::Greeks);
             return;
         }
-        if (type == "u") {
-            message_handler_(build_underlying_message(payload), MessageCategory::Underlying);
+        if (type == "x") {
+            message_handler_(build_trade_cancel_message(payload), MessageCategory::TradeCancel);
+            return;
+        }
+        if (type == "c") {
+            message_handler_(build_trade_correction_message(payload), MessageCategory::TradeCorrection);
+            return;
+        }
+        if (type == "i") {
+            message_handler_(build_imbalance_message(payload), MessageCategory::Imbalance);
             return;
         }
         if (type == "s") {
@@ -795,18 +1098,25 @@ void WebSocketClient::replay_subscriptions() {
         snapshot.trades.assign(subscribed_trades_.begin(), subscribed_trades_.end());
         snapshot.quotes.assign(subscribed_quotes_.begin(), subscribed_quotes_.end());
         snapshot.bars.assign(subscribed_bars_.begin(), subscribed_bars_.end());
+        snapshot.updated_bars.assign(subscribed_updated_bars_.begin(), subscribed_updated_bars_.end());
+        snapshot.daily_bars.assign(subscribed_daily_bars_.begin(), subscribed_daily_bars_.end());
         snapshot.statuses.assign(subscribed_statuses_.begin(), subscribed_statuses_.end());
         snapshot.orderbooks.assign(subscribed_orderbooks_.begin(), subscribed_orderbooks_.end());
         snapshot.lulds.assign(subscribed_lulds_.begin(), subscribed_lulds_.end());
         snapshot.auctions.assign(subscribed_auctions_.begin(), subscribed_auctions_.end());
         snapshot.greeks.assign(subscribed_greeks_.begin(), subscribed_greeks_.end());
         snapshot.underlyings.assign(subscribed_underlyings_.begin(), subscribed_underlyings_.end());
+        snapshot.trade_cancels.assign(subscribed_trade_cancels_.begin(), subscribed_trade_cancels_.end());
+        snapshot.trade_corrections.assign(subscribed_trade_corrections_.begin(), subscribed_trade_corrections_.end());
+        snapshot.imbalances.assign(subscribed_imbalances_.begin(), subscribed_imbalances_.end());
         streams.assign(listened_streams_.begin(), listened_streams_.end());
     }
 
-    if (!snapshot.trades.empty() || !snapshot.quotes.empty() || !snapshot.bars.empty() || !snapshot.statuses.empty()
-        || !snapshot.orderbooks.empty() || !snapshot.lulds.empty() || !snapshot.auctions.empty()
-        || !snapshot.greeks.empty() || !snapshot.underlyings.empty()) {
+    if (!snapshot.trades.empty() || !snapshot.quotes.empty() || !snapshot.bars.empty() || !snapshot.updated_bars.empty()
+        || !snapshot.daily_bars.empty() || !snapshot.statuses.empty() || !snapshot.orderbooks.empty()
+        || !snapshot.lulds.empty() || !snapshot.auctions.empty() || !snapshot.greeks.empty()
+        || !snapshot.underlyings.empty() || !snapshot.trade_cancels.empty() || !snapshot.trade_corrections.empty()
+        || !snapshot.imbalances.empty()) {
         Json message;
         message["action"] = "subscribe";
         if (!snapshot.trades.empty()) {
@@ -817,6 +1127,12 @@ void WebSocketClient::replay_subscriptions() {
         }
         if (!snapshot.bars.empty()) {
             message["bars"] = snapshot.bars;
+        }
+        if (!snapshot.updated_bars.empty()) {
+            message["updatedBars"] = snapshot.updated_bars;
+        }
+        if (!snapshot.daily_bars.empty()) {
+            message["dailyBars"] = snapshot.daily_bars;
         }
         if (!snapshot.statuses.empty()) {
             message["statuses"] = snapshot.statuses;
@@ -835,6 +1151,15 @@ void WebSocketClient::replay_subscriptions() {
         }
         if (!snapshot.underlyings.empty()) {
             message["underlyings"] = snapshot.underlyings;
+        }
+        if (!snapshot.trade_cancels.empty()) {
+            message["cancelErrors"] = snapshot.trade_cancels;
+        }
+        if (!snapshot.trade_corrections.empty()) {
+            message["corrections"] = snapshot.trade_corrections;
+        }
+        if (!snapshot.imbalances.empty()) {
+            message["imbalances"] = snapshot.imbalances;
         }
         send_raw(message);
     }
