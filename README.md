@@ -23,6 +23,17 @@ client while embracing contemporary C++ idioms. The codebase builds a compiled l
 - **Robust testing** powered by GoogleTest/GoogleMock and a fake HTTP client that validates headers, query encoding and JSON
   serialization.
 
+## Endpoint coverage
+
+| Domain           | REST | Streaming | Notes |
+|------------------|:----:|:---------:|-------|
+| Trading          | OK   | OK        | Orders, positions, activities, market clock, watchlists, and `trade_updates` / `account_updates` streams. |
+| Market Data      | OK   | OK        | Trades, quotes, stock bars, snapshots, and automatic pagination via `PaginatedVectorRange`. |
+| Broker / Connect | OK   | N/A       | Broker API for accounts, documents, transfers, journals, and banking relationships. |
+| Options          | WIP  | OK        | REST aggregates/quotes/trades and options websocket feed; options trading APIs still outstanding. |
+| News             | OK   | N/A       | REST `get_news` plus the `news_range` paginator; no public streaming endpoint. |
+| Crypto           | OK   | OK        | REST aggregates/quotes/trades and dedicated crypto streaming feed. |
+
 ## Getting started
 
 ### Prerequisites
@@ -118,7 +129,7 @@ include(FetchContent)
 
 FetchContent_Declare(
   alpaca-cpp
-  GIT_REPOSITORY https://github.com/openai/alpaca-cpp.git
+  GIT_REPOSITORY https://github.com/acoadou/alpaca-cpp.git
   GIT_TAG        main
 )
 
@@ -170,7 +181,7 @@ Documenting the retry strategy in your application—backing off and respecting
 within the published limits while keeping the SDK responsive to transient
 outages.
 
-## Usage example
+## Usage examples
 
 ```cpp
 #include <alpaca/AlpacaClient.hpp>
@@ -212,11 +223,92 @@ int main() {
 }
 ```
 
+### Streaming actions: reconnect and resubscribe
+
+A full example is available in [`examples/StreamingResubscribe.cpp`](examples/StreamingResubscribe.cpp). It demonstrates how
+to configure `alpaca::streaming::WebSocketClient` with a reconnect policy, replay subscriptions after reconnecting, and
+receive order updates:
+
+```cpp
+alpaca::Configuration config = alpaca::Configuration::FromEnvironment(
+    alpaca::Environments::Paper(),
+    std::getenv("APCA_API_KEY_ID"),
+    std::getenv("APCA_API_SECRET_KEY"));
+
+alpaca::streaming::WebSocketClient socket(
+    config.trading_stream_url,
+    config.api_key_id,
+    config.api_secret_key,
+    alpaca::streaming::StreamFeed::Trading);
+
+socket.set_reconnect_policy({
+    std::chrono::milliseconds{250},
+    std::chrono::seconds{15},
+    2.0,
+    std::chrono::milliseconds{250}});
+
+socket.set_message_handler([](auto const& message, auto category) {
+    if (category == alpaca::streaming::MessageCategory::OrderUpdate) {
+        auto const& update = std::get<alpaca::streaming::OrderUpdateMessage>(message);
+        std::cout << "event " << update.event << " for order "
+                  << update.order.id << std::endl;
+    }
+});
+
+socket.set_open_handler([&]() {
+    socket.listen({"trade_updates", "account_updates"});
+});
+
+socket.connect();
+```
+
+### Intraday bars, limit order and `Retry-After` handling
+
+[`examples/IntradayLimitOrder.cpp`](examples/IntradayLimitOrder.cpp) combines fetching intraday bars, placing a limit order,
+and handling 429 responses using `retry_after()`:
+
+```cpp
+alpaca::MarketDataClient market(config);
+alpaca::TradingClient trading(config);
+
+alpaca::StockBarsRequest request;
+request.timeframe = "1Min";
+request.start = alpaca::since(std::chrono::hours{2});
+
+for (auto const& bar : market.stock_bars_range("AAPL", request)) {
+    std::cout << bar.timestamp << " close=" << bar.close << std::endl;
+}
+
+alpaca::NewOrderRequest order;
+order.symbol = "AAPL";
+order.side = alpaca::OrderSide::BUY;
+order.type = alpaca::OrderType::LIMIT;
+order.time_in_force = alpaca::TimeInForce::DAY;
+order.quantity = "1";
+order.limit_price = "150";
+
+bool submitted = false;
+while (!submitted) {
+    try {
+        trading.submit_order(order);
+        submitted = true;
+    } catch (alpaca::ApiException const& ex) {
+        if (ex.status_code() == 429) {
+            if (auto delay = ex.retry_after()) {
+                std::this_thread::sleep_for(*delay);
+                continue;
+            }
+        }
+        throw;
+    }
+}
+```
+
 ## Extensibility
 
 Additional end-to-end samples are available under [`examples/`](examples), including
-[`SimulatedOrderFlow.cpp`](examples/SimulatedOrderFlow.cpp) which demonstrates how to inject a
-custom HTTP client to exercise the API surface without issuing real network calls.
+[`StreamingResubscribe.cpp`](examples/StreamingResubscribe.cpp) for trading stream management and
+[`IntradayLimitOrder.cpp`](examples/IntradayLimitOrder.cpp) for intraday bars, limit orders, and `Retry-After` handling.
 
 All REST operations are issued through the `alpaca::HttpClient` interface. The default implementation uses libcurl, but you can
 provide any custom transport (Boost.Beast, cpp-httplib, proprietary stacks, …) by supplying your own implementation when
