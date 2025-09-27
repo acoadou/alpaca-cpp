@@ -22,6 +22,17 @@ void parse_symbol_collection(Json const& j, char const *key, std::map<std::strin
         out.emplace(symbol, value.template get<std::vector<Item>>());
     }
 }
+
+template <typename Item>
+void parse_symbol_objects(Json const& j, char const *key, std::map<std::string, Item>& out) {
+    out.clear();
+    if (!j.contains(key) || !j.at(key).is_object()) {
+        return;
+    }
+    for (auto const& [symbol, value] : j.at(key).items()) {
+        out.emplace(symbol, value.template get<Item>());
+    }
+}
 } // namespace
 
 void from_json(Json const& j, StockTrade& trade) {
@@ -98,6 +109,10 @@ void from_json(Json const& j, StockSnapshot& snapshot) {
     snapshot.previous_daily_bar = optional_field<StockBar>(j, "prevDailyBar");
 }
 
+void from_json(Json const& j, MultiStockSnapshots& response) {
+    parse_symbol_objects(j, "snapshots", response.snapshots);
+}
+
 void from_json(Json const& j, MultiStockBars& response) {
     parse_symbol_collection(j, "bars", response.bars);
     response.next_page_token = optional_field<std::string>(j, "next_page_token");
@@ -125,6 +140,113 @@ void from_json(Json const& j, MultiOptionQuotes& response) {
 
 void from_json(Json const& j, MultiOptionTrades& response) {
     parse_symbol_collection(j, "trades", response.trades);
+    response.next_page_token = optional_field<std::string>(j, "next_page_token");
+}
+
+void from_json(Json const& j, OptionSnapshotDaySummary& summary) {
+    summary.open = optional_field<double>(j, "open");
+    summary.high = optional_field<double>(j, "high");
+    summary.low = optional_field<double>(j, "low");
+    summary.close = optional_field<double>(j, "close");
+    summary.volume = optional_field<double>(j, "volume");
+    summary.change = optional_field<double>(j, "change");
+    summary.change_percent = optional_field<double>(j, "changePercent");
+}
+
+void from_json(Json const& j, OptionSnapshot& snapshot) {
+    if (j.contains("symbol")) {
+        snapshot.symbol = j.at("symbol").get<std::string>();
+    } else if (j.contains("contract")) {
+        snapshot.symbol = j.at("contract").get<std::string>();
+    } else {
+        snapshot.symbol.clear();
+    }
+    snapshot.latest_trade = optional_field<OptionTrade>(j, "latestTrade");
+    snapshot.latest_quote = optional_field<OptionQuote>(j, "latestQuote");
+    snapshot.minute_bar = optional_field<OptionBar>(j, "minuteBar");
+    snapshot.daily_bar = optional_field<OptionBar>(j, "dailyBar");
+    snapshot.previous_daily_bar = optional_field<OptionBar>(j, "prevDailyBar");
+    snapshot.day = optional_field<OptionSnapshotDaySummary>(j, "day");
+    snapshot.greeks = optional_field<OptionGreeks>(j, "greeks");
+    snapshot.risk_parameters = optional_field<OptionRiskParameters>(j, "riskParameters");
+    snapshot.open_interest = optional_field<double>(j, "openInterest");
+    snapshot.implied_volatility = optional_field<double>(j, "impliedVolatility");
+}
+
+void from_json(Json const& j, MultiOptionSnapshots& response) {
+    parse_symbol_objects(j, "snapshots", response.snapshots);
+}
+
+void from_json(Json const& j, LatestOptionTrade& response) {
+    j.at("symbol").get_to(response.symbol);
+    j.at("trade").get_to(response.trade);
+}
+
+void from_json(Json const& j, LatestOptionQuote& response) {
+    j.at("symbol").get_to(response.symbol);
+    j.at("quote").get_to(response.quote);
+}
+
+void from_json(Json const& j, OptionChainEntry& entry) {
+    if (j.contains("symbol")) {
+        entry.symbol = j.at("symbol").get<std::string>();
+    } else if (j.contains("contract")) {
+        entry.symbol = j.at("contract").get<std::string>();
+    } else {
+        entry.symbol.clear();
+    }
+    if (j.contains("underlying_symbol")) {
+        entry.underlying_symbol = j.at("underlying_symbol").get<std::string>();
+    } else if (j.contains("underlyingSymbol")) {
+        entry.underlying_symbol = j.at("underlyingSymbol").get<std::string>();
+    } else {
+        entry.underlying_symbol.clear();
+    }
+    if (j.contains("expiration")) {
+        entry.expiration_date = j.at("expiration").get<std::string>();
+    } else if (j.contains("expiration_date")) {
+        entry.expiration_date = j.at("expiration_date").get<std::string>();
+    } else {
+        entry.expiration_date.clear();
+    }
+    if (j.contains("strike")) {
+        entry.strike_price = j.at("strike").get<std::string>();
+    } else if (j.contains("strike_price")) {
+        entry.strike_price = j.at("strike_price").get<std::string>();
+    } else {
+        entry.strike_price.clear();
+    }
+    if (j.contains("option_type")) {
+        entry.option_type = j.at("option_type").get<std::string>();
+    } else if (j.contains("type")) {
+        entry.option_type = j.at("type").get<std::string>();
+    } else {
+        entry.option_type.clear();
+    }
+    entry.greeks = optional_field<OptionGreeks>(j, "greeks");
+    entry.risk_parameters = optional_field<OptionRiskParameters>(j, "riskParameters");
+    entry.latest_quote = optional_field<OptionQuote>(j, "latestQuote");
+    entry.latest_trade = optional_field<OptionTrade>(j, "latestTrade");
+    entry.open_interest = optional_field<double>(j, "openInterest");
+}
+
+void from_json(Json const& j, OptionChain& response) {
+    if (j.contains("symbol")) {
+        response.symbol = j.at("symbol").get<std::string>();
+    } else if (j.contains("underlying_symbol")) {
+        response.symbol = j.at("underlying_symbol").get<std::string>();
+    } else if (j.contains("underlyingSymbol")) {
+        response.symbol = j.at("underlyingSymbol").get<std::string>();
+    } else {
+        response.symbol.clear();
+    }
+    if (j.contains("contracts")) {
+        response.contracts = j.at("contracts").get<std::vector<OptionChainEntry>>();
+    } else if (j.contains("items")) {
+        response.contracts = j.at("items").get<std::vector<OptionChainEntry>>();
+    } else {
+        response.contracts.clear();
+    }
     response.next_page_token = optional_field<std::string>(j, "next_page_token");
 }
 
@@ -321,6 +443,83 @@ QueryParams MultiTradesRequest::to_query_params() const {
     if (page_token.has_value()) {
         params.emplace_back("page_token", *page_token);
     }
+    if (feed.has_value()) {
+        params.emplace_back("feed", *feed);
+    }
+    return params;
+}
+
+QueryParams MultiStockSnapshotsRequest::to_query_params() const {
+    validate_symbols(symbols);
+    QueryParams params;
+    append_csv(params, "symbols", symbols);
+    if (feed.has_value()) {
+        params.emplace_back("feed", *feed);
+    }
+    return params;
+}
+
+QueryParams OptionSnapshotRequest::to_query_params() const {
+    QueryParams params;
+    if (feed.has_value()) {
+        params.emplace_back("feed", *feed);
+    }
+    return params;
+}
+
+QueryParams MultiOptionSnapshotsRequest::to_query_params() const {
+    validate_symbols(symbols);
+    QueryParams params;
+    append_csv(params, "symbols", symbols);
+    if (feed.has_value()) {
+        params.emplace_back("feed", *feed);
+    }
+    return params;
+}
+
+QueryParams OptionChainRequest::to_query_params() const {
+    QueryParams params;
+    if (expiration.has_value()) {
+        params.emplace_back("expiration", *expiration);
+    }
+    if (expiration_gte.has_value()) {
+        params.emplace_back("expiration_gte", *expiration_gte);
+    }
+    if (expiration_lte.has_value()) {
+        params.emplace_back("expiration_lte", *expiration_lte);
+    }
+    if (strike.has_value()) {
+        params.emplace_back("strike", *strike);
+    }
+    if (strike_gte.has_value()) {
+        params.emplace_back("strike_gte", *strike_gte);
+    }
+    if (strike_lte.has_value()) {
+        params.emplace_back("strike_lte", *strike_lte);
+    }
+    if (option_type.has_value()) {
+        params.emplace_back("type", *option_type);
+    }
+    append_limit(params, limit);
+    if (page_token.has_value()) {
+        params.emplace_back("page_token", *page_token);
+    }
+    if (feed.has_value()) {
+        params.emplace_back("feed", *feed);
+    }
+    return params;
+}
+
+QueryParams LatestOptionTradeRequest::to_query_params() const {
+    QueryParams params;
+    if (feed.has_value()) {
+        params.emplace_back("feed", *feed);
+    }
+    return params;
+}
+
+QueryParams LatestOptionQuoteRequest::to_query_params() const {
+    QueryParams params;
     if (feed.has_value()) {
         params.emplace_back("feed", *feed);
     }

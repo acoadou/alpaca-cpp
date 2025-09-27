@@ -9,6 +9,7 @@
 #include "alpaca/Json.hpp"
 #include "alpaca/RestClient.hpp"
 #include "alpaca/models/Common.hpp"
+#include "alpaca/models/Option.hpp"
 
 namespace alpaca {
 
@@ -105,6 +106,13 @@ struct StockSnapshot {
 
 void from_json(Json const& j, StockSnapshot& snapshot);
 
+/// Response wrapper containing multi-symbol stock snapshots keyed by symbol.
+struct MultiStockSnapshots {
+    std::map<std::string, StockSnapshot> snapshots;
+};
+
+void from_json(Json const& j, MultiStockSnapshots& response);
+
 /// Response wrapper containing multi-symbol stock aggregates.
 struct MultiStockBars {
     std::map<std::string, std::vector<StockBar>> bars;
@@ -161,6 +169,84 @@ struct MultiOptionTrades {
 };
 
 void from_json(Json const& j, MultiOptionTrades& response);
+
+/// Collection of intraday metrics exposed via the options snapshot endpoint.
+struct OptionSnapshotDaySummary {
+    std::optional<double> open{};
+    std::optional<double> high{};
+    std::optional<double> low{};
+    std::optional<double> close{};
+    std::optional<double> volume{};
+    std::optional<double> change{};
+    std::optional<double> change_percent{};
+};
+
+void from_json(Json const& j, OptionSnapshotDaySummary& summary);
+
+/// Snapshot payload exposing the latest aggregates for an option contract.
+struct OptionSnapshot {
+    std::string symbol;
+    std::optional<OptionTrade> latest_trade{};
+    std::optional<OptionQuote> latest_quote{};
+    std::optional<OptionBar> minute_bar{};
+    std::optional<OptionBar> daily_bar{};
+    std::optional<OptionBar> previous_daily_bar{};
+    std::optional<OptionSnapshotDaySummary> day{};
+    std::optional<OptionGreeks> greeks{};
+    std::optional<OptionRiskParameters> risk_parameters{};
+    std::optional<double> open_interest{};
+    std::optional<double> implied_volatility{};
+};
+
+void from_json(Json const& j, OptionSnapshot& snapshot);
+
+/// Response wrapper containing multi-symbol option snapshots keyed by contract symbol.
+struct MultiOptionSnapshots {
+    std::map<std::string, OptionSnapshot> snapshots;
+};
+
+void from_json(Json const& j, MultiOptionSnapshots& response);
+
+/// Per-contract latest trade envelope mirroring the stock variant.
+struct LatestOptionTrade {
+    std::string symbol;
+    OptionTrade trade;
+};
+
+void from_json(Json const& j, LatestOptionTrade& response);
+
+/// Per-contract latest quote envelope mirroring the stock variant.
+struct LatestOptionQuote {
+    std::string symbol;
+    OptionQuote quote;
+};
+
+void from_json(Json const& j, LatestOptionQuote& response);
+
+/// Historic option chain record describing a single contract observation.
+struct OptionChainEntry {
+    std::string symbol;
+    std::string underlying_symbol;
+    std::string expiration_date;
+    std::string strike_price;
+    std::string option_type;
+    std::optional<OptionGreeks> greeks{};
+    std::optional<OptionRiskParameters> risk_parameters{};
+    std::optional<OptionQuote> latest_quote{};
+    std::optional<OptionTrade> latest_trade{};
+    std::optional<double> open_interest{};
+};
+
+void from_json(Json const& j, OptionChainEntry& entry);
+
+/// Historical option chain response payload.
+struct OptionChain {
+    std::string symbol;
+    std::vector<OptionChainEntry> contracts;
+    std::optional<std::string> next_page_token{};
+};
+
+void from_json(Json const& j, OptionChain& response);
 
 /// Response wrapper containing multi-symbol crypto aggregates.
 struct MultiCryptoBars {
@@ -276,5 +362,58 @@ using MultiCryptoQuotesRequest = MultiQuotesRequest;
 using MultiStockTradesRequest = MultiTradesRequest;
 using MultiOptionTradesRequest = MultiTradesRequest;
 using MultiCryptoTradesRequest = MultiTradesRequest;
+
+/// Request payload for the multi-symbol stock snapshots endpoint.
+struct MultiStockSnapshotsRequest {
+    std::vector<std::string> symbols{};
+    std::optional<std::string> feed{};
+
+    [[nodiscard]] QueryParams to_query_params() const;
+};
+
+/// Request payload for single contract option snapshot lookups.
+struct OptionSnapshotRequest {
+    std::optional<std::string> feed{};
+
+    [[nodiscard]] QueryParams to_query_params() const;
+};
+
+/// Request payload for the multi-contract option snapshot endpoint.
+struct MultiOptionSnapshotsRequest {
+    std::vector<std::string> symbols{};
+    std::optional<std::string> feed{};
+
+    [[nodiscard]] QueryParams to_query_params() const;
+};
+
+/// Query parameters accepted by the historical option chain endpoint.
+struct OptionChainRequest {
+    std::optional<std::string> expiration{};
+    std::optional<std::string> expiration_gte{};
+    std::optional<std::string> expiration_lte{};
+    std::optional<std::string> strike{};
+    std::optional<std::string> strike_gte{};
+    std::optional<std::string> strike_lte{};
+    std::optional<std::string> option_type{};
+    std::optional<int> limit{};
+    std::optional<std::string> page_token{};
+    std::optional<std::string> feed{};
+
+    [[nodiscard]] QueryParams to_query_params() const;
+};
+
+/// Optional feed override supported by latest option trade lookups.
+struct LatestOptionTradeRequest {
+    std::optional<std::string> feed{};
+
+    [[nodiscard]] QueryParams to_query_params() const;
+};
+
+/// Optional feed override supported by latest option quote lookups.
+struct LatestOptionQuoteRequest {
+    std::optional<std::string> feed{};
+
+    [[nodiscard]] QueryParams to_query_params() const;
+};
 
 } // namespace alpaca

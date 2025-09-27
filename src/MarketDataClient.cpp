@@ -46,6 +46,16 @@ LatestStockQuote MarketDataClient::get_latest_stock_quote(std::string const& sym
     return v2_client_.get<LatestStockQuote>("stocks/" + symbol + "/quotes/latest");
 }
 
+LatestOptionTrade MarketDataClient::get_latest_option_trade(std::string const& symbol,
+                                                            LatestOptionTradeRequest const& request) const {
+    return beta_client_.get<LatestOptionTrade>("options/" + symbol + "/trades/latest", request.to_query_params());
+}
+
+LatestOptionQuote MarketDataClient::get_latest_option_quote(std::string const& symbol,
+                                                            LatestOptionQuoteRequest const& request) const {
+    return beta_client_.get<LatestOptionQuote>("options/" + symbol + "/quotes/latest", request.to_query_params());
+}
+
 StockBars MarketDataClient::get_stock_bars(std::string const& symbol, StockBarsRequest const& request) const {
     return v2_client_.get<StockBars>("stocks/" + symbol + "/bars", request.to_query_params());
 }
@@ -60,6 +70,10 @@ std::vector<StockBar> MarketDataClient::get_all_stock_bars(std::string const& sy
 
 StockSnapshot MarketDataClient::get_stock_snapshot(std::string const& symbol) const {
     return v2_client_.get<StockSnapshot>("stocks/" + symbol + "/snapshot");
+}
+
+MultiStockSnapshots MarketDataClient::get_stock_snapshots(MultiStockSnapshotsRequest const& request) const {
+    return v2_client_.get<MultiStockSnapshots>("stocks/snapshots", request.to_query_params());
 }
 
 PaginatedVectorRange<StockBarsRequest, StockBars, StockBar>
@@ -134,6 +148,20 @@ MultiOptionQuotes MarketDataClient::get_option_quotes(MultiOptionQuotesRequest c
 
 MultiOptionTrades MarketDataClient::get_option_trades(MultiOptionTradesRequest const& request) const {
     return beta_client_.get<MultiOptionTrades>("options/trades", request.to_query_params());
+}
+
+OptionSnapshot MarketDataClient::get_option_snapshot(std::string const& symbol,
+                                                     OptionSnapshotRequest const& request) const {
+    return beta_client_.get<OptionSnapshot>("options/" + symbol + "/snapshot", request.to_query_params());
+}
+
+MultiOptionSnapshots MarketDataClient::get_option_snapshots(MultiOptionSnapshotsRequest const& request) const {
+    return beta_client_.get<MultiOptionSnapshots>("options/snapshots", request.to_query_params());
+}
+
+OptionChain MarketDataClient::get_option_chain(std::string const& symbol,
+                                               OptionChainRequest const& request) const {
+    return beta_client_.get<OptionChain>("options/" + symbol + "/chain", request.to_query_params());
 }
 
 MultiCryptoBars MarketDataClient::get_crypto_aggregates(MultiCryptoBarsRequest const& request) const {

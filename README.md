@@ -11,8 +11,8 @@ client while embracing contemporary C++ idioms. The codebase builds a compiled l
   classes), positions, assets, calendar/clock data, portfolio history and watchlists.
 - **Domain specific clients** for trading, market data, and broker operations mirroring the layout of the official
   Alpaca SDKs, with environment presets for paper and live trading.
-- **Market data helpers** for fetching latest trades/quotes, historical bars and per-symbol snapshots from Alpaca Market
-  Data v2.
+- **Market data helpers** for fetching latest trades/quotes, historical bars, single and multi-symbol snapshots,
+  plus options snapshots and chains from Alpaca Market Data APIs.
 - **Typed request models** that perform lightweight validation before hitting the API and cursor ranges that iterate
   paginated endpoints while honouring `Retry-After` headers and applying exponential backoff with jitter.
 - **Extensible transport** abstraction with a libcurl-based implementation bundled by default.
@@ -30,7 +30,7 @@ client while embracing contemporary C++ idioms. The codebase builds a compiled l
 | Domain           | REST | Streaming | Notes |
 |------------------|:----:|:---------:|-------|
 | Trading          | OK   | OK        | Orders, positions, activities, market clock, watchlists, and `trade_updates` / `account_updates` streams. |
-| Market Data      | OK   | OK        | Trades, quotes, stock bars, snapshots, and automatic pagination via `PaginatedVectorRange`. |
+| Market Data      | OK   | OK        | Trades, quotes, stock bars, single/multi snapshots, options snapshots/chains, and automatic pagination via `PaginatedVectorRange`. |
 | Broker / Connect | OK   | N/A       | Broker API for accounts, documents, transfers, journals, and banking relationships. |
 | Options          | OK   | OK        | REST aggregates/quotes/trades and trading endpoints for submitting, replacing, and cancelling options orders. |
 | News             | OK   | N/A       | REST `get_news` plus the `news_range` paginator; no public streaming endpoint. |
