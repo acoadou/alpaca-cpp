@@ -205,6 +205,8 @@ std::string to_string(AssetClass asset_class) {
         return "forex";
     case AssetClass::FUTURES:
         return "futures";
+    case AssetClass::OPTION:
+        return "option";
     }
     throw std::invalid_argument("Unknown AssetClass");
 }
@@ -314,6 +316,9 @@ AssetClass asset_class_from_string(std::string const& value) {
     }
     if (lower == "futures") {
         return AssetClass::FUTURES;
+    }
+    if (lower == "option") {
+        return AssetClass::OPTION;
     }
     throw std::invalid_argument("Unknown asset class: " + value);
 }

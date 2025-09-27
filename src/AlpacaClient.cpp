@@ -73,6 +73,19 @@ Position AlpacaClient::close_position(std::string const& symbol, ClosePositionRe
     return trading().close_position(symbol, request);
 }
 
+std::vector<OptionPosition> AlpacaClient::list_option_positions() {
+    return trading().list_option_positions();
+}
+
+OptionPosition AlpacaClient::get_option_position(std::string const& symbol) {
+    return trading().get_option_position(symbol);
+}
+
+OptionPosition AlpacaClient::close_option_position(std::string const& symbol,
+                                                   CloseOptionPositionRequest const& request) {
+    return trading().close_option_position(symbol, request);
+}
+
 std::vector<Order> AlpacaClient::list_orders(ListOrdersRequest const& request) {
     return trading().list_orders(request);
 }
@@ -99,6 +112,108 @@ Order AlpacaClient::submit_order(NewOrderRequest const& request) {
 
 Order AlpacaClient::replace_order(std::string const& order_id, ReplaceOrderRequest const& request) {
     return trading().replace_order(order_id, request);
+}
+
+std::vector<OptionOrder> AlpacaClient::list_option_orders(ListOptionOrdersRequest const& request) {
+    return trading().list_option_orders(request);
+}
+
+OptionOrder AlpacaClient::get_option_order(std::string const& order_id) {
+    return trading().get_option_order(order_id);
+}
+
+OptionOrder AlpacaClient::get_option_order_by_client_order_id(std::string const& client_order_id) {
+    return trading().get_option_order_by_client_order_id(client_order_id);
+}
+
+void AlpacaClient::cancel_option_order(std::string const& order_id) {
+    trading().cancel_option_order(order_id);
+}
+
+std::vector<OptionCancelledOrderId> AlpacaClient::cancel_all_option_orders() {
+    return trading().cancel_all_option_orders();
+}
+
+OptionOrder AlpacaClient::submit_option_order(NewOptionOrderRequest const& request) {
+    return trading().submit_option_order(request);
+}
+
+OptionOrder AlpacaClient::replace_option_order(std::string const& order_id,
+                                               ReplaceOptionOrderRequest const& request) {
+    return trading().replace_option_order(order_id, request);
+}
+
+std::vector<CryptoOrder> AlpacaClient::list_crypto_orders(ListCryptoOrdersRequest request) {
+    return trading().list_crypto_orders(std::move(request));
+}
+
+CryptoOrder AlpacaClient::get_crypto_order(std::string const& order_id) {
+    return trading().get_crypto_order(order_id);
+}
+
+CryptoOrder AlpacaClient::get_crypto_order_by_client_order_id(std::string const& client_order_id) {
+    return trading().get_crypto_order_by_client_order_id(client_order_id);
+}
+
+void AlpacaClient::cancel_crypto_order(std::string const& order_id) {
+    trading().cancel_crypto_order(order_id);
+}
+
+std::vector<CryptoCancelledOrderId> AlpacaClient::cancel_all_crypto_orders() {
+    return trading().cancel_all_crypto_orders();
+}
+
+CryptoOrder AlpacaClient::submit_crypto_order(NewCryptoOrderRequest const& request) {
+    return trading().submit_crypto_order(request);
+}
+
+CryptoOrder AlpacaClient::replace_crypto_order(std::string const& order_id,
+                                               ReplaceCryptoOrderRequest const& request) {
+    return trading().replace_crypto_order(order_id, request);
+}
+
+std::vector<OtcOrder> AlpacaClient::list_otc_orders(ListOtcOrdersRequest request) {
+    return trading().list_otc_orders(std::move(request));
+}
+
+OtcOrder AlpacaClient::get_otc_order(std::string const& order_id) {
+    return trading().get_otc_order(order_id);
+}
+
+OtcOrder AlpacaClient::get_otc_order_by_client_order_id(std::string const& client_order_id) {
+    return trading().get_otc_order_by_client_order_id(client_order_id);
+}
+
+void AlpacaClient::cancel_otc_order(std::string const& order_id) {
+    trading().cancel_otc_order(order_id);
+}
+
+std::vector<OtcCancelledOrderId> AlpacaClient::cancel_all_otc_orders() {
+    return trading().cancel_all_otc_orders();
+}
+
+OtcOrder AlpacaClient::submit_otc_order(NewOtcOrderRequest const& request) {
+    return trading().submit_otc_order(request);
+}
+
+OtcOrder AlpacaClient::replace_otc_order(std::string const& order_id, ReplaceOtcOrderRequest const& request) {
+    return trading().replace_otc_order(order_id, request);
+}
+
+OptionContractsResponse AlpacaClient::list_option_contracts(ListOptionContractsRequest const& request) {
+    return trading().list_option_contracts(request);
+}
+
+OptionContract AlpacaClient::get_option_contract(std::string const& symbol) {
+    return trading().get_option_contract(symbol);
+}
+
+OptionAnalyticsResponse AlpacaClient::list_option_analytics(ListOptionAnalyticsRequest const& request) {
+    return trading().list_option_analytics(request);
+}
+
+OptionAnalytics AlpacaClient::get_option_analytics(std::string const& symbol) {
+    return trading().get_option_analytics(symbol);
 }
 
 Clock AlpacaClient::get_clock() {

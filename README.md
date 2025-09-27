@@ -32,7 +32,7 @@ client while embracing contemporary C++ idioms. The codebase builds a compiled l
 | Trading          | OK   | OK        | Orders, positions, activities, market clock, watchlists, and `trade_updates` / `account_updates` streams. |
 | Market Data      | OK   | OK        | Trades, quotes, stock bars, snapshots, and automatic pagination via `PaginatedVectorRange`. |
 | Broker / Connect | OK   | N/A       | Broker API for accounts, documents, transfers, journals, and banking relationships. |
-| Options          | WIP  | OK        | REST aggregates/quotes/trades and options websocket feed; options trading APIs still outstanding. |
+| Options          | OK   | OK        | REST aggregates/quotes/trades and trading endpoints for submitting, replacing, and cancelling options orders. |
 | News             | OK   | N/A       | REST `get_news` plus the `news_range` paginator; no public streaming endpoint. |
 | Crypto           | OK   | OK        | REST aggregates/quotes/trades and dedicated crypto streaming feed. |
 

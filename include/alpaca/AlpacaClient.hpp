@@ -20,6 +20,7 @@
 #include "alpaca/models/CorporateActions.hpp"
 #include "alpaca/models/MarketData.hpp"
 #include "alpaca/models/News.hpp"
+#include "alpaca/models/Option.hpp"
 #include "alpaca/models/Order.hpp"
 #include "alpaca/models/PortfolioHistory.hpp"
 #include "alpaca/models/Position.hpp"
@@ -66,6 +67,17 @@ class AlpacaClient {
     /// parameters.
     [[nodiscard]] Position close_position(std::string const& symbol, ClosePositionRequest const& request = {});
 
+    /// Returns options positions currently held in the authenticated account.
+    [[nodiscard]] std::vector<OptionPosition> list_option_positions();
+
+    /// Returns a single open options position by option symbol.
+    [[nodiscard]] OptionPosition get_option_position(std::string const& symbol);
+
+    /// Closes the options position identified by \p symbol with optional close
+    /// parameters.
+    [[nodiscard]] OptionPosition close_option_position(std::string const& symbol,
+                                                       CloseOptionPositionRequest const& request = {});
+
     /// Returns all orders that match the supplied filters.
     [[nodiscard]] std::vector<Order> list_orders(ListOrdersRequest const& request = {});
 
@@ -86,6 +98,84 @@ class AlpacaClient {
 
     /// Replaces an existing order using the Alpaca replace endpoint.
     [[nodiscard]] Order replace_order(std::string const& order_id, ReplaceOrderRequest const& request);
+
+    /// Returns all options orders that match the supplied filters.
+    [[nodiscard]] std::vector<OptionOrder> list_option_orders(ListOptionOrdersRequest const& request = {});
+
+    /// Returns details for a single options order.
+    [[nodiscard]] OptionOrder get_option_order(std::string const& order_id);
+
+    /// Returns an options order using the provided client order identifier.
+    [[nodiscard]] OptionOrder get_option_order_by_client_order_id(std::string const& client_order_id);
+
+    /// Cancels the options order identified by \p order_id.
+    void cancel_option_order(std::string const& order_id);
+
+    /// Cancels all open options orders and returns the identifiers that were cancelled.
+    [[nodiscard]] std::vector<OptionCancelledOrderId> cancel_all_option_orders();
+
+    /// Submits a new options order and returns the created representation.
+    [[nodiscard]] OptionOrder submit_option_order(NewOptionOrderRequest const& request);
+
+    /// Replaces an existing options order using the Alpaca replace endpoint.
+    [[nodiscard]] OptionOrder replace_option_order(std::string const& order_id,
+                                                   ReplaceOptionOrderRequest const& request);
+
+    /// Returns crypto orders that match the supplied filters.
+    [[nodiscard]] std::vector<CryptoOrder> list_crypto_orders(ListCryptoOrdersRequest request = {});
+
+    /// Returns details for a single crypto order.
+    [[nodiscard]] CryptoOrder get_crypto_order(std::string const& order_id);
+
+    /// Returns a crypto order using the provided client order identifier.
+    [[nodiscard]] CryptoOrder get_crypto_order_by_client_order_id(std::string const& client_order_id);
+
+    /// Cancels the crypto order identified by \p order_id.
+    void cancel_crypto_order(std::string const& order_id);
+
+    /// Cancels all open crypto orders and returns the identifiers that were cancelled.
+    [[nodiscard]] std::vector<CryptoCancelledOrderId> cancel_all_crypto_orders();
+
+    /// Submits a new crypto order and returns the created representation.
+    [[nodiscard]] CryptoOrder submit_crypto_order(NewCryptoOrderRequest const& request);
+
+    /// Replaces an existing crypto order using the Alpaca replace endpoint.
+    [[nodiscard]] CryptoOrder replace_crypto_order(std::string const& order_id,
+                                                  ReplaceCryptoOrderRequest const& request);
+
+    /// Returns OTC orders that match the supplied filters.
+    [[nodiscard]] std::vector<OtcOrder> list_otc_orders(ListOtcOrdersRequest request = {});
+
+    /// Returns details for a single OTC order.
+    [[nodiscard]] OtcOrder get_otc_order(std::string const& order_id);
+
+    /// Returns an OTC order using the provided client order identifier.
+    [[nodiscard]] OtcOrder get_otc_order_by_client_order_id(std::string const& client_order_id);
+
+    /// Cancels the OTC order identified by \p order_id.
+    void cancel_otc_order(std::string const& order_id);
+
+    /// Cancels all open OTC orders and returns the identifiers that were cancelled.
+    [[nodiscard]] std::vector<OtcCancelledOrderId> cancel_all_otc_orders();
+
+    /// Submits a new OTC order and returns the created representation.
+    [[nodiscard]] OtcOrder submit_otc_order(NewOtcOrderRequest const& request);
+
+    /// Replaces an existing OTC order using the Alpaca replace endpoint.
+    [[nodiscard]] OtcOrder replace_otc_order(std::string const& order_id,
+                                            ReplaceOtcOrderRequest const& request);
+
+    /// Returns option contracts that match the supplied discovery filters.
+    [[nodiscard]] OptionContractsResponse list_option_contracts(ListOptionContractsRequest const& request = {});
+
+    /// Returns details for a single option contract.
+    [[nodiscard]] OptionContract get_option_contract(std::string const& symbol);
+
+    /// Returns option analytics for the supplied filters.
+    [[nodiscard]] OptionAnalyticsResponse list_option_analytics(ListOptionAnalyticsRequest const& request = {});
+
+    /// Returns analytics for a single option contract.
+    [[nodiscard]] OptionAnalytics get_option_analytics(std::string const& symbol);
 
     /// Returns the current trading clock.
     [[nodiscard]] Clock get_clock();

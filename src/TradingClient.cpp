@@ -32,6 +32,30 @@ Json to_json_payload(ReplaceOrderRequest const& request) {
     return payload;
 }
 
+Json to_json_payload(NewCryptoOrderRequest const& request) {
+    Json payload;
+    to_json(payload, request);
+    return payload;
+}
+
+Json to_json_payload(NewOtcOrderRequest const& request) {
+    Json payload;
+    to_json(payload, request);
+    return payload;
+}
+
+Json to_json_payload(ReplaceCryptoOrderRequest const& request) {
+    Json payload;
+    to_json(payload, request);
+    return payload;
+}
+
+Json to_json_payload(ReplaceOtcOrderRequest const& request) {
+    Json payload;
+    to_json(payload, request);
+    return payload;
+}
+
 Json to_json_payload(CreateWatchlistRequest const& request) {
     Json payload;
     to_json(payload, request);
@@ -85,6 +109,19 @@ Position TradingClient::close_position(std::string const& symbol, ClosePositionR
     return rest_client_.del<Position>("/v2/positions/" + symbol, request.to_query_params());
 }
 
+std::vector<OptionPosition> TradingClient::list_option_positions() {
+    return rest_client_.get<std::vector<OptionPosition>>("/v2/options/positions");
+}
+
+OptionPosition TradingClient::get_option_position(std::string const& symbol) {
+    return rest_client_.get<OptionPosition>("/v2/options/positions/" + symbol);
+}
+
+OptionPosition TradingClient::close_option_position(std::string const& symbol,
+                                                    CloseOptionPositionRequest const& request) {
+    return rest_client_.del<OptionPosition>("/v2/options/positions/" + symbol, request.to_query_params());
+}
+
 std::vector<Order> TradingClient::list_orders(ListOrdersRequest const& request) {
     return rest_client_.get<std::vector<Order>>("/v2/orders", request.to_query_params());
 }
@@ -113,6 +150,112 @@ Order TradingClient::submit_order(NewOrderRequest const& request) {
 
 Order TradingClient::replace_order(std::string const& order_id, ReplaceOrderRequest const& request) {
     return rest_client_.patch<Order>("/v2/orders/" + order_id, to_json_payload(request));
+}
+
+std::vector<OptionOrder> TradingClient::list_option_orders(ListOptionOrdersRequest const& request) {
+    return rest_client_.get<std::vector<OptionOrder>>("/v2/options/orders", request.to_query_params());
+}
+
+OptionOrder TradingClient::get_option_order(std::string const& order_id) {
+    return rest_client_.get<OptionOrder>("/v2/options/orders/" + order_id);
+}
+
+OptionOrder TradingClient::get_option_order_by_client_order_id(std::string const& client_order_id) {
+    return rest_client_.get<OptionOrder>("/v2/options/orders:by_client_order_id",
+                                         {{"client_order_id", client_order_id}});
+}
+
+void TradingClient::cancel_option_order(std::string const& order_id) {
+    rest_client_.del<void>("/v2/options/orders/" + order_id);
+}
+
+std::vector<OptionCancelledOrderId> TradingClient::cancel_all_option_orders() {
+    return rest_client_.del<std::vector<OptionCancelledOrderId>>("/v2/options/orders");
+}
+
+OptionOrder TradingClient::submit_option_order(NewOptionOrderRequest const& request) {
+    return rest_client_.post<OptionOrder>("/v2/options/orders", to_json_payload(request));
+}
+
+OptionOrder TradingClient::replace_option_order(std::string const& order_id,
+                                                ReplaceOptionOrderRequest const& request) {
+    return rest_client_.patch<OptionOrder>("/v2/options/orders/" + order_id, to_json_payload(request));
+}
+
+std::vector<CryptoOrder> TradingClient::list_crypto_orders(ListCryptoOrdersRequest request) {
+    request.asset_class = AssetClass::CRYPTO;
+    return rest_client_.get<std::vector<CryptoOrder>>("/v2/crypto/orders", request.to_query_params());
+}
+
+CryptoOrder TradingClient::get_crypto_order(std::string const& order_id) {
+    return rest_client_.get<CryptoOrder>("/v2/crypto/orders/" + order_id);
+}
+
+CryptoOrder TradingClient::get_crypto_order_by_client_order_id(std::string const& client_order_id) {
+    return rest_client_.get<CryptoOrder>("/v2/crypto/orders:by_client_order_id",
+                                         {{"client_order_id", client_order_id}});
+}
+
+void TradingClient::cancel_crypto_order(std::string const& order_id) {
+    rest_client_.del<void>("/v2/crypto/orders/" + order_id);
+}
+
+std::vector<CryptoCancelledOrderId> TradingClient::cancel_all_crypto_orders() {
+    return rest_client_.del<std::vector<CryptoCancelledOrderId>>("/v2/crypto/orders");
+}
+
+CryptoOrder TradingClient::submit_crypto_order(NewCryptoOrderRequest const& request) {
+    return rest_client_.post<CryptoOrder>("/v2/crypto/orders", to_json_payload(request));
+}
+
+CryptoOrder TradingClient::replace_crypto_order(std::string const& order_id,
+                                               ReplaceCryptoOrderRequest const& request) {
+    return rest_client_.patch<CryptoOrder>("/v2/crypto/orders/" + order_id, to_json_payload(request));
+}
+
+std::vector<OtcOrder> TradingClient::list_otc_orders(ListOtcOrdersRequest request) {
+    return rest_client_.get<std::vector<OtcOrder>>("/v2/otc/orders", request.to_query_params());
+}
+
+OtcOrder TradingClient::get_otc_order(std::string const& order_id) {
+    return rest_client_.get<OtcOrder>("/v2/otc/orders/" + order_id);
+}
+
+OtcOrder TradingClient::get_otc_order_by_client_order_id(std::string const& client_order_id) {
+    return rest_client_.get<OtcOrder>("/v2/otc/orders:by_client_order_id",
+                                      {{"client_order_id", client_order_id}});
+}
+
+void TradingClient::cancel_otc_order(std::string const& order_id) {
+    rest_client_.del<void>("/v2/otc/orders/" + order_id);
+}
+
+std::vector<OtcCancelledOrderId> TradingClient::cancel_all_otc_orders() {
+    return rest_client_.del<std::vector<OtcCancelledOrderId>>("/v2/otc/orders");
+}
+
+OtcOrder TradingClient::submit_otc_order(NewOtcOrderRequest const& request) {
+    return rest_client_.post<OtcOrder>("/v2/otc/orders", to_json_payload(request));
+}
+
+OtcOrder TradingClient::replace_otc_order(std::string const& order_id, ReplaceOtcOrderRequest const& request) {
+    return rest_client_.patch<OtcOrder>("/v2/otc/orders/" + order_id, to_json_payload(request));
+}
+
+OptionContractsResponse TradingClient::list_option_contracts(ListOptionContractsRequest const& request) {
+    return rest_client_.get<OptionContractsResponse>("/v2/options/contracts", request.to_query_params());
+}
+
+OptionContract TradingClient::get_option_contract(std::string const& symbol) {
+    return rest_client_.get<OptionContract>("/v2/options/contracts/" + symbol);
+}
+
+OptionAnalyticsResponse TradingClient::list_option_analytics(ListOptionAnalyticsRequest const& request) {
+    return rest_client_.get<OptionAnalyticsResponse>("/v2/options/analytics", request.to_query_params());
+}
+
+OptionAnalytics TradingClient::get_option_analytics(std::string const& symbol) {
+    return rest_client_.get<OptionAnalytics>("/v2/options/analytics/" + symbol);
 }
 
 Clock TradingClient::get_clock() {

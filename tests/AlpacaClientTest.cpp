@@ -88,6 +88,279 @@ TEST(AlpacaClientTest, SubmitOrderSerializesAdvancedFields) {
     EXPECT_EQ(json.at("stop_loss").at("stop_price"), "110");
 }
 
+TEST(AlpacaClientTest, SubmitOptionOrderTargetsOptionsEndpoint) {
+    auto stub = std::make_shared<StubHttpClient>();
+    stub->enqueue_response(alpaca::HttpResponse{
+        200,
+        R"({"id":"opt-order-1","symbol":"AAPL240119C00195000","side":"buy","type":"market",
+             "created_at":"2023-01-01T00:00:00Z","time_in_force":"day","status":"accepted"})",
+        {}});
+
+    alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
+    alpaca::AlpacaClient client(config, stub);
+
+    alpaca::NewOptionOrderRequest request;
+    request.symbol = "AAPL240119C00195000";
+    request.side = alpaca::OrderSide::BUY;
+    request.type = alpaca::OrderType::MARKET;
+    request.time_in_force = alpaca::TimeInForce::DAY;
+    request.quantity = "1";
+
+    alpaca::OptionOrder const order = client.submit_option_order(request);
+    EXPECT_EQ(order.id, "opt-order-1");
+    EXPECT_EQ(order.symbol, "AAPL240119C00195000");
+
+    ASSERT_EQ(stub->requests().size(), 1U);
+    auto const& http_request = stub->requests().front();
+    EXPECT_EQ(http_request.method, alpaca::HttpMethod::POST);
+    EXPECT_EQ(http_request.url, config.trading_base_url + "/v2/options/orders");
+
+    alpaca::Json const json = alpaca::Json::parse(http_request.body);
+    EXPECT_EQ(json.at("symbol"), "AAPL240119C00195000");
+    EXPECT_EQ(json.at("qty"), "1");
+}
+
+TEST(AlpacaClientTest, SubmitCryptoOrderSerializesVenueExtensions) {
+    auto stub = std::make_shared<StubHttpClient>();
+    stub->enqueue_response(alpaca::HttpResponse{
+        200,
+        R"({"id":"crypto-order-1","symbol":"BTCUSD","side":"buy","type":"limit",
+             "created_at":"2023-01-01T00:00:00Z","time_in_force":"ioc","status":"accepted"})",
+        {}});
+
+    alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
+    alpaca::AlpacaClient client(config, stub);
+
+    alpaca::NewCryptoOrderRequest request;
+    request.symbol = "BTCUSD";
+    request.side = alpaca::OrderSide::BUY;
+    request.type = alpaca::OrderType::LIMIT;
+    request.time_in_force = alpaca::TimeInForce::IOC;
+    request.quantity = "0.5";
+    request.limit_price = "26000";
+    request.quote_symbol = "USD";
+    request.venue = "CBSE";
+    request.routing_strategy = "smart";
+    request.post_only = true;
+
+    alpaca::CryptoOrder const order = client.submit_crypto_order(request);
+    EXPECT_EQ(order.id, "crypto-order-1");
+    EXPECT_EQ(order.symbol, "BTCUSD");
+
+    ASSERT_EQ(stub->requests().size(), 1U);
+    auto const& http_request = stub->requests().front();
+    EXPECT_EQ(http_request.method, alpaca::HttpMethod::POST);
+    EXPECT_EQ(http_request.url, config.trading_base_url + "/v2/crypto/orders");
+
+    alpaca::Json const json = alpaca::Json::parse(http_request.body);
+    EXPECT_EQ(json.at("symbol"), "BTCUSD");
+    EXPECT_EQ(json.at("quote_symbol"), "USD");
+    EXPECT_EQ(json.at("venue"), "CBSE");
+    EXPECT_EQ(json.at("routing_strategy"), "smart");
+    EXPECT_TRUE(json.at("post_only").get<bool>());
+}
+
+TEST(AlpacaClientTest, ListCryptoOrdersTargetsCryptoEndpoint) {
+    auto stub = std::make_shared<StubHttpClient>();
+    stub->enqueue_response(alpaca::HttpResponse{200, R"([])", {}});
+
+    alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
+    alpaca::AlpacaClient client(config, stub);
+
+    alpaca::ListCryptoOrdersRequest request;
+    request.limit = 25;
+
+    auto const orders = client.list_crypto_orders(request);
+    EXPECT_TRUE(orders.empty());
+
+    ASSERT_EQ(stub->requests().size(), 1U);
+    auto const& http_request = stub->requests().front();
+    EXPECT_EQ(http_request.method, alpaca::HttpMethod::GET);
+    EXPECT_TRUE(http_request.url.find("/v2/crypto/orders") != std::string::npos);
+    EXPECT_TRUE(http_request.url.find("asset_class=crypto") != std::string::npos);
+    EXPECT_TRUE(http_request.url.find("limit=25") != std::string::npos);
+}
+
+TEST(AlpacaClientTest, SubmitOtcOrderSerializesCounterpartyFields) {
+    auto stub = std::make_shared<StubHttpClient>();
+    stub->enqueue_response(alpaca::HttpResponse{
+        200,
+        R"({"id":"otc-1","symbol":"AAPL","side":"sell","type":"limit",
+             "created_at":"2023-01-01T00:00:00Z","time_in_force":"gtc","status":"accepted"})",
+        {}});
+
+    alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
+    alpaca::AlpacaClient client(config, stub);
+
+    alpaca::NewOtcOrderRequest request;
+    request.symbol = "AAPL";
+    request.side = alpaca::OrderSide::SELL;
+    request.type = alpaca::OrderType::LIMIT;
+    request.time_in_force = alpaca::TimeInForce::GTC;
+    request.quantity = "1000";
+    request.limit_price = "175";
+    request.counterparty = "desk-42";
+    request.quote_id = "qt-1";
+    request.settlement_date = "2023-09-15";
+
+    alpaca::OtcOrder const order = client.submit_otc_order(request);
+    EXPECT_EQ(order.id, "otc-1");
+
+    ASSERT_EQ(stub->requests().size(), 1U);
+    auto const& http_request = stub->requests().front();
+    EXPECT_EQ(http_request.method, alpaca::HttpMethod::POST);
+    EXPECT_EQ(http_request.url, config.trading_base_url + "/v2/otc/orders");
+
+    alpaca::Json const json = alpaca::Json::parse(http_request.body);
+    EXPECT_EQ(json.at("counterparty"), "desk-42");
+    EXPECT_EQ(json.at("quote_id"), "qt-1");
+    EXPECT_EQ(json.at("settlement_date"), "2023-09-15");
+}
+
+TEST(AlpacaClientTest, ListOptionContractsParsesResponse) {
+    auto stub = std::make_shared<StubHttpClient>();
+    stub->enqueue_response(alpaca::HttpResponse{
+        200,
+        R"({
+            "contracts": [
+                {
+                    "id": "contract-1",
+                    "symbol": "AAPL240119C00195000",
+                    "status": "active",
+                    "tradable": true,
+                    "underlying_symbol": "AAPL",
+                    "expiration_date": "2024-01-19",
+                    "strike_price": "195",
+                    "type": "call",
+                    "style": "american",
+                    "root_symbol": "AAPL",
+                    "exchange": "OPRA",
+                    "exercise_style": "american",
+                    "multiplier": "100"
+                }
+            ],
+            "next_page_token": "cursor"
+        })",
+        {}});
+
+    alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
+    alpaca::AlpacaClient client(config, stub);
+
+    alpaca::ListOptionContractsRequest request;
+    request.underlying_symbols = {"AAPL"};
+    request.limit = 1;
+
+    alpaca::OptionContractsResponse const response = client.list_option_contracts(request);
+    ASSERT_EQ(response.contracts.size(), 1U);
+    EXPECT_EQ(response.next_page_token, std::make_optional<std::string>("cursor"));
+    alpaca::OptionContract const& contract = response.contracts.front();
+    EXPECT_EQ(contract.symbol, "AAPL240119C00195000");
+    EXPECT_TRUE(contract.tradable);
+    EXPECT_EQ(contract.multiplier, std::make_optional<std::string>("100"));
+
+    ASSERT_EQ(stub->requests().size(), 1U);
+    auto const& http_request = stub->requests().front();
+    EXPECT_TRUE(http_request.url.find("underlying_symbols=AAPL") != std::string::npos);
+    EXPECT_TRUE(http_request.url.find("limit=1") != std::string::npos);
+}
+
+TEST(AlpacaClientTest, GetOptionAnalyticsParsesGreeksAndLegs) {
+    auto stub = std::make_shared<StubHttpClient>();
+    stub->enqueue_response(alpaca::HttpResponse{
+        200,
+        R"({
+            "symbol": "AAPL240119C00195000",
+            "greeks": {
+                "delta": 0.55,
+                "gamma": 0.01,
+                "theta": -0.02,
+                "vega": 0.05,
+                "rho": 0.1
+            },
+            "risk_parameters": {
+                "implied_volatility": 0.25,
+                "theoretical_price": 5.23,
+                "underlying_price": 190.5,
+                "breakeven_price": 200.0
+            },
+            "implied_volatility": 0.25,
+            "legs": [
+                {"symbol": "AAPL240119C00195000", "side": "buy", "ratio": 1}
+            ]
+        })",
+        {}});
+
+    alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
+    alpaca::AlpacaClient client(config, stub);
+
+    alpaca::OptionAnalytics const analytics = client.get_option_analytics("AAPL240119C00195000");
+    EXPECT_EQ(analytics.symbol, "AAPL240119C00195000");
+    ASSERT_TRUE(analytics.greeks.has_value());
+    EXPECT_NEAR(*analytics.greeks->delta, 0.55, 1e-9);
+    ASSERT_TRUE(analytics.risk_parameters.has_value());
+    EXPECT_NEAR(*analytics.risk_parameters->theoretical_price, 5.23, 1e-9);
+    ASSERT_EQ(analytics.legs.size(), 1U);
+    EXPECT_EQ(analytics.legs.front().side, alpaca::OrderSide::BUY);
+
+    ASSERT_EQ(stub->requests().size(), 1U);
+    auto const& http_request = stub->requests().front();
+    EXPECT_EQ(http_request.url, config.trading_base_url + "/v2/options/analytics/AAPL240119C00195000");
+}
+
+TEST(AlpacaClientTest, ListOptionPositionsParsesExtendedFields) {
+    auto stub = std::make_shared<StubHttpClient>();
+    stub->enqueue_response(alpaca::HttpResponse{
+        200,
+        R"([
+            {
+                "asset_id":"asset-1",
+                "account_id":"account-1",
+                "symbol":"AAPL240119C00195000",
+                "exchange":"OPRA",
+                "asset_class":"option",
+                "qty":"1",
+                "qty_available":"1",
+                "avg_entry_price":"1.25",
+                "market_value":"125",
+                "cost_basis":"125",
+                "unrealized_pl":"0",
+                "unrealized_plpc":"0",
+                "unrealized_intraday_pl":"0",
+                "unrealized_intraday_plpc":"0",
+                "current_price":"1.25",
+                "lastday_price":"1.00",
+                "change_today":"0.20",
+                "side":"long",
+                "contract_multiplier":100,
+                "expiry":"2024-01-19",
+                "strike_price":"195",
+                "style":"american",
+                "type":"call",
+                "underlying_symbol":"AAPL"
+            }
+        ])",
+        {}});
+
+    alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
+    alpaca::AlpacaClient client(config, stub);
+
+    auto const positions = client.list_option_positions();
+    ASSERT_EQ(positions.size(), 1U);
+    alpaca::OptionPosition const& position = positions.front();
+    EXPECT_EQ(position.symbol, "AAPL240119C00195000");
+    EXPECT_EQ(position.account_id, "account-1");
+    EXPECT_EQ(position.contract_multiplier, std::make_optional<std::string>("100"));
+    EXPECT_EQ(position.expiry, std::make_optional<std::string>("2024-01-19"));
+    EXPECT_EQ(position.strike_price, std::make_optional<std::string>("195"));
+    EXPECT_EQ(position.type, std::make_optional<std::string>("call"));
+    EXPECT_EQ(position.underlying_symbol, std::make_optional<std::string>("AAPL"));
+
+    ASSERT_EQ(stub->requests().size(), 1U);
+    auto const& http_request = stub->requests().front();
+    EXPECT_EQ(http_request.method, alpaca::HttpMethod::GET);
+    EXPECT_EQ(http_request.url, config.trading_base_url + "/v2/options/positions");
+}
+
 TEST(AlpacaClientTest, NewsRangeRespectsRetryAfterAndPagination) {
     auto stub = std::make_shared<StubHttpClient>();
     stub->enqueue_response(alpaca::HttpResponse{429, R"({"message":"rate limit"})", {{"Retry-After", "0"}}});

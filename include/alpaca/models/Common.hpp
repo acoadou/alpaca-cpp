@@ -56,7 +56,8 @@ enum class AssetClass {
     US_EQUITY,
     CRYPTO,
     FOREX,
-    FUTURES
+    FUTURES,
+    OPTION
 };
 
 /// Sort direction used by list endpoints.

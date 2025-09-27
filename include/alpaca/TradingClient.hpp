@@ -14,6 +14,7 @@
 #include "alpaca/models/Asset.hpp"
 #include "alpaca/models/CalendarDay.hpp"
 #include "alpaca/models/Clock.hpp"
+#include "alpaca/models/Option.hpp"
 #include "alpaca/models/Order.hpp"
 #include "alpaca/models/PortfolioHistory.hpp"
 #include "alpaca/models/Position.hpp"
@@ -36,6 +37,11 @@ class TradingClient {
     [[nodiscard]] Position get_position(std::string const& symbol);
     [[nodiscard]] Position close_position(std::string const& symbol, ClosePositionRequest const& request = {});
 
+    [[nodiscard]] std::vector<OptionPosition> list_option_positions();
+    [[nodiscard]] OptionPosition get_option_position(std::string const& symbol);
+    [[nodiscard]] OptionPosition close_option_position(std::string const& symbol,
+                                                       CloseOptionPositionRequest const& request = {});
+
     [[nodiscard]] std::vector<Order> list_orders(ListOrdersRequest const& request = {});
     [[nodiscard]] Order get_order(std::string const& order_id);
     [[nodiscard]] Order get_order_by_client_order_id(std::string const& client_order_id);
@@ -43,6 +49,38 @@ class TradingClient {
     [[nodiscard]] std::vector<CancelledOrderId> cancel_all_orders();
     [[nodiscard]] Order submit_order(NewOrderRequest const& request);
     [[nodiscard]] Order replace_order(std::string const& order_id, ReplaceOrderRequest const& request);
+
+    [[nodiscard]] std::vector<OptionOrder> list_option_orders(ListOptionOrdersRequest const& request = {});
+    [[nodiscard]] OptionOrder get_option_order(std::string const& order_id);
+    [[nodiscard]] OptionOrder get_option_order_by_client_order_id(std::string const& client_order_id);
+    void cancel_option_order(std::string const& order_id);
+    [[nodiscard]] std::vector<OptionCancelledOrderId> cancel_all_option_orders();
+    [[nodiscard]] OptionOrder submit_option_order(NewOptionOrderRequest const& request);
+    [[nodiscard]] OptionOrder replace_option_order(std::string const& order_id,
+                                                   ReplaceOptionOrderRequest const& request);
+
+    [[nodiscard]] std::vector<CryptoOrder> list_crypto_orders(ListCryptoOrdersRequest request = {});
+    [[nodiscard]] CryptoOrder get_crypto_order(std::string const& order_id);
+    [[nodiscard]] CryptoOrder get_crypto_order_by_client_order_id(std::string const& client_order_id);
+    void cancel_crypto_order(std::string const& order_id);
+    [[nodiscard]] std::vector<CryptoCancelledOrderId> cancel_all_crypto_orders();
+    [[nodiscard]] CryptoOrder submit_crypto_order(NewCryptoOrderRequest const& request);
+    [[nodiscard]] CryptoOrder replace_crypto_order(std::string const& order_id,
+                                                   ReplaceCryptoOrderRequest const& request);
+
+    [[nodiscard]] std::vector<OtcOrder> list_otc_orders(ListOtcOrdersRequest request = {});
+    [[nodiscard]] OtcOrder get_otc_order(std::string const& order_id);
+    [[nodiscard]] OtcOrder get_otc_order_by_client_order_id(std::string const& client_order_id);
+    void cancel_otc_order(std::string const& order_id);
+    [[nodiscard]] std::vector<OtcCancelledOrderId> cancel_all_otc_orders();
+    [[nodiscard]] OtcOrder submit_otc_order(NewOtcOrderRequest const& request);
+    [[nodiscard]] OtcOrder replace_otc_order(std::string const& order_id,
+                                             ReplaceOtcOrderRequest const& request);
+
+    [[nodiscard]] OptionContractsResponse list_option_contracts(ListOptionContractsRequest const& request = {});
+    [[nodiscard]] OptionContract get_option_contract(std::string const& symbol);
+    [[nodiscard]] OptionAnalyticsResponse list_option_analytics(ListOptionAnalyticsRequest const& request = {});
+    [[nodiscard]] OptionAnalytics get_option_analytics(std::string const& symbol);
 
     [[nodiscard]] Clock get_clock();
     [[nodiscard]] std::vector<CalendarDay> get_calendar(CalendarRequest const& request = {});
