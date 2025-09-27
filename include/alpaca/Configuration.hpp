@@ -9,6 +9,13 @@
 
 namespace alpaca {
 
+/// Market data plans supported by Alpaca.
+enum class MarketDataPlan {
+    Auto,
+    IEX,
+    SIP,
+};
+
 /// Represents configuration options for communicating with the Alpaca REST API.
 struct Configuration {
     /// API key identifier assigned by Alpaca.
@@ -58,6 +65,11 @@ struct Configuration {
 
     /// Optional directory containing trusted CA certificates.
     std::string ca_bundle_dir{};
+
+    /// Declares the desired equities market data plan (IEX or SIP).  When left
+    /// in the default Auto mode, the client will attempt to infer the plan from
+    /// configured URLs and fall back to IEX when no hint is available.
+    MarketDataPlan market_data_plan{MarketDataPlan::Auto};
 
     /// Creates a configuration targeting the live trading environment.
     static Configuration Live(std::string api_key_id, std::string api_secret_key);

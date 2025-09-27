@@ -111,6 +111,8 @@ class MarketDataClient {
     RestClient v2_client_;
     RestClient beta_client_;
     RestClient beta_v3_client_;
+    MarketDataPlan stock_data_plan_{MarketDataPlan::Auto};
+    std::string stock_data_feed_{};
 };
 
 } // namespace alpaca

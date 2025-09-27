@@ -565,7 +565,8 @@ TEST(AlpacaClientTest, LatestStockTradeUsesMarketDataEndpoint) {
     ASSERT_EQ(stub->requests().size(), 1U);
     auto const& http_request = stub->requests().front();
     EXPECT_EQ(http_request.method, alpaca::HttpMethod::GET);
-    EXPECT_EQ(http_request.url, config.data_base_url + "/stocks/AAPL/trades/latest");
+    EXPECT_NE(http_request.url.find("/stocks/AAPL/trades/latest"), std::string::npos);
+    EXPECT_NE(http_request.url.find("feed=iex"), std::string::npos);
 }
 
 TEST(AlpacaClientTest, LatestCryptoTradeUsesBetaV3Endpoint) {

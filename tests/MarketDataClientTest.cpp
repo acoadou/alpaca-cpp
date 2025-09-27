@@ -27,6 +27,7 @@ TEST(MarketDataClientTest, MultiLatestStockTradesSerializesSymbols) {
     })"));
 
     alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
+    config.market_data_plan = alpaca::MarketDataPlan::SIP;
     alpaca::MarketDataClient client(config, fake);
 
     alpaca::LatestStocksRequest request;
@@ -44,6 +45,66 @@ TEST(MarketDataClientTest, MultiLatestStockTradesSerializesSymbols) {
     EXPECT_TRUE(http_request.url.find("symbols=AAPL%2CMSFT") != std::string::npos ||
                 http_request.url.find("symbols=AAPL,MSFT") != std::string::npos);
     EXPECT_TRUE(http_request.url.find("feed=sip") != std::string::npos);
+}
+
+TEST(MarketDataClientTest, DefaultIexFeedAppliedWhenMissing) {
+    auto fake = std::make_shared<FakeHttpClient>();
+    fake->push_response(MakeHttpResponse(R"({
+        "trades": {
+            "AAPL": {"i": "t1", "x": "P", "p": 150.25, "s": 100, "t": "2023-01-01T00:00:00Z", "c": ["@"], "z": "C"}
+        }
+    })"));
+
+    alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
+    alpaca::MarketDataClient client(config, fake);
+
+    alpaca::LatestStocksRequest request;
+    request.symbols = {"AAPL"};
+
+    (void)client.get_latest_stock_trades(request);
+
+    ASSERT_EQ(fake->requests().size(), 1U);
+    auto const& http_request = fake->requests().front().request;
+    EXPECT_NE(http_request.url.find("feed=iex"), std::string::npos);
+}
+
+TEST(MarketDataClientTest, SipPlanOverridesDefaultFeed) {
+    auto fake = std::make_shared<FakeHttpClient>();
+    fake->push_response(MakeHttpResponse(R"({
+        "symbol": "AAPL",
+        "trade": {"i": "t1", "x": "P", "p": 150.25, "s": 100, "t": "2023-01-01T00:00:00Z", "c": ["@"], "z": "C"}
+    })"));
+
+    alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
+    config.market_data_plan = alpaca::MarketDataPlan::SIP;
+    alpaca::MarketDataClient client(config, fake);
+
+    (void)client.get_latest_stock_trade("AAPL");
+
+    ASSERT_EQ(fake->requests().size(), 1U);
+    auto const& http_request = fake->requests().front().request;
+    EXPECT_NE(http_request.url.find("feed=sip"), std::string::npos);
+}
+
+TEST(MarketDataClientTest, RejectsSipFeedWithoutSipPlan) {
+    auto fake = std::make_shared<FakeHttpClient>();
+    fake->push_response(MakeHttpResponse(R"({
+        "trades": {}
+    })"));
+
+    alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
+    alpaca::MarketDataClient client(config, fake);
+
+    alpaca::LatestStocksRequest request;
+    request.symbols = {"AAPL"};
+    request.feed = "sip";
+
+    EXPECT_THROW(
+        {
+            auto result = client.get_latest_stock_trades(request);
+            (void)result;
+        },
+        std::invalid_argument);
 }
 
 TEST(MarketDataClientTest, MultiLatestOptionQuotesTargetsBetaEndpoint) {

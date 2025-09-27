@@ -375,6 +375,32 @@ int main() {
 }
 ```
 
+### Selecting an equities market data plan
+
+The Market Data API exposes different equities feeds depending on your data plan.
+By default `alpaca::MarketDataClient` works in auto-detection mode: it inspects
+the configured URLs to decide whether to call the IEX (free) or SIP (consolidated)
+feed and falls back to IEX when no hints are present. The chosen plan is applied
+consistently to every equities request so the generated URLs always include an
+explicit `feed` query parameter.
+
+You can lock the plan explicitly through `alpaca::Configuration::market_data_plan`.
+When an IEX-only configuration attempts to use the SIP feed, the client throws an
+exception with a clear message before issuing any HTTP request.
+
+```cpp
+alpaca::Configuration config = alpaca::Configuration::Paper("KEY", "SECRET");
+config.market_data_plan = alpaca::MarketDataPlan::SIP; // opt into consolidated SIP data
+
+alpaca::MarketDataClient market(config);
+alpaca::LatestStockTrade trade = market.get_latest_stock_trade("AAPL");
+// -> requests https://data.sip.alpaca.markets/...&feed=sip (or your custom base URL)
+```
+
+If your Alpaca environment uses a proxy or custom hostname, include `sip` or
+`iex` in the URL to help the auto-detector pick the correct plan, or set the
+plan explicitly as shown above.
+
 ### Streaming actions: reconnect and resubscribe
 
 A full example is available in [`examples/StreamingResubscribe.cpp`](examples/StreamingResubscribe.cpp). It demonstrates how
