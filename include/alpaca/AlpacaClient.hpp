@@ -67,6 +67,10 @@ class AlpacaClient {
     /// parameters.
     [[nodiscard]] Position close_position(std::string const& symbol, ClosePositionRequest const& request = {});
 
+    /// Closes all open positions using optional request modifiers.
+    [[nodiscard]] std::vector<ClosePositionResponse>
+    close_all_positions(CloseAllPositionsRequest const& request = {});
+
     /// Returns options positions currently held in the authenticated account.
     [[nodiscard]] std::vector<OptionPosition> list_option_positions();
 
@@ -77,6 +81,9 @@ class AlpacaClient {
     /// parameters.
     [[nodiscard]] OptionPosition close_option_position(std::string const& symbol,
                                                        CloseOptionPositionRequest const& request = {});
+
+    /// Exercises the options position identified by \p symbol_or_contract_id.
+    void exercise_options_position(std::string const& symbol_or_contract_id);
 
     /// Returns all orders that match the supplied filters.
     [[nodiscard]] std::vector<Order> list_orders(ListOrdersRequest const& request = {});

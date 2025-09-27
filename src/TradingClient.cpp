@@ -109,6 +109,10 @@ Position TradingClient::close_position(std::string const& symbol, ClosePositionR
     return rest_client_.del<Position>("/v2/positions/" + symbol, request.to_query_params());
 }
 
+std::vector<ClosePositionResponse> TradingClient::close_all_positions(CloseAllPositionsRequest const& request) {
+    return rest_client_.del<std::vector<ClosePositionResponse>>("/v2/positions", request.to_query_params());
+}
+
 std::vector<OptionPosition> TradingClient::list_option_positions() {
     return rest_client_.get<std::vector<OptionPosition>>("/v2/options/positions");
 }
@@ -120,6 +124,10 @@ OptionPosition TradingClient::get_option_position(std::string const& symbol) {
 OptionPosition TradingClient::close_option_position(std::string const& symbol,
                                                     CloseOptionPositionRequest const& request) {
     return rest_client_.del<OptionPosition>("/v2/options/positions/" + symbol, request.to_query_params());
+}
+
+void TradingClient::exercise_options_position(std::string const& symbol_or_contract_id) {
+    rest_client_.post<void>("/v2/positions/" + symbol_or_contract_id + "/exercise", Json::object());
 }
 
 std::vector<Order> TradingClient::list_orders(ListOrdersRequest const& request) {

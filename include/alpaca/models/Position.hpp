@@ -2,10 +2,12 @@
 
 #include <optional>
 #include <string>
+#include <variant>
 
 #include "alpaca/Json.hpp"
 #include "alpaca/RestClient.hpp"
 #include "alpaca/models/Common.hpp"
+#include "alpaca/models/Order.hpp"
 
 namespace alpaca {
 
@@ -29,8 +31,6 @@ struct Position {
     std::string change_today;
 };
 
-void from_json(Json const& j, Position& position);
-
 /// Request parameters accepted by the close position endpoint.
 struct ClosePositionRequest {
     std::optional<std::string> quantity{};
@@ -42,4 +42,36 @@ struct ClosePositionRequest {
     [[nodiscard]] QueryParams to_query_params() const;
 };
 
+/// Request parameters accepted by the close all positions endpoint.
+struct CloseAllPositionsRequest {
+    std::optional<bool> cancel_orders{};
+
+    [[nodiscard]] QueryParams to_query_params() const;
+};
+
+/// Additional information returned when a close position request fails.
+struct FailedClosePositionDetails {
+    std::optional<int> code{};
+    std::optional<std::string> message{};
+    std::optional<double> available{};
+    std::optional<double> existing_qty{};
+    std::optional<double> held_for_orders{};
+    std::optional<std::string> symbol{};
+};
+
+using ClosePositionBody = std::variant<std::monostate, Order, FailedClosePositionDetails>;
+
+/// Response returned by close position requests.
+struct ClosePositionResponse {
+    std::optional<std::string> order_id{};
+    std::optional<int> status{};
+    std::optional<std::string> symbol{};
+    ClosePositionBody body{};
+};
+
+void from_json(Json const& j, Position& position);
+void from_json(Json const& j, FailedClosePositionDetails& details);
+void from_json(Json const& j, ClosePositionResponse& response);
+
 } // namespace alpaca
+

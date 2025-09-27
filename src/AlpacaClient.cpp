@@ -73,6 +73,10 @@ Position AlpacaClient::close_position(std::string const& symbol, ClosePositionRe
     return trading().close_position(symbol, request);
 }
 
+std::vector<ClosePositionResponse> AlpacaClient::close_all_positions(CloseAllPositionsRequest const& request) {
+    return trading().close_all_positions(request);
+}
+
 std::vector<OptionPosition> AlpacaClient::list_option_positions() {
     return trading().list_option_positions();
 }
@@ -84,6 +88,10 @@ OptionPosition AlpacaClient::get_option_position(std::string const& symbol) {
 OptionPosition AlpacaClient::close_option_position(std::string const& symbol,
                                                    CloseOptionPositionRequest const& request) {
     return trading().close_option_position(symbol, request);
+}
+
+void AlpacaClient::exercise_options_position(std::string const& symbol_or_contract_id) {
+    trading().exercise_options_position(symbol_or_contract_id);
 }
 
 std::vector<Order> AlpacaClient::list_orders(ListOrdersRequest const& request) {

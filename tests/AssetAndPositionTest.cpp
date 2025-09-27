@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <variant>
+
 #include "alpaca/models/Asset.hpp"
 #include "alpaca/models/Clock.hpp"
 #include "alpaca/models/Position.hpp"
@@ -155,6 +157,85 @@ TEST(PositionModelTest, ClosePositionRequestSkipsUnsetFields) {
     auto const params = request.to_query_params();
 
     EXPECT_TRUE(params.empty());
+}
+
+TEST(PositionModelTest, CloseAllPositionsRequestBuildsQueryParams) {
+    alpaca::CloseAllPositionsRequest request;
+    request.cancel_orders = true;
+
+    auto const params = request.to_query_params();
+
+    ASSERT_EQ(params.size(), 1U);
+    EXPECT_EQ(params.front().first, "cancel_orders");
+    EXPECT_EQ(params.front().second, "true");
+}
+
+TEST(PositionModelTest, CloseAllPositionsRequestSkipsUnsetFields) {
+    alpaca::CloseAllPositionsRequest const request;
+
+    auto const params = request.to_query_params();
+
+    EXPECT_TRUE(params.empty());
+}
+
+TEST(PositionModelTest, ClosePositionResponseParsesOrderBody) {
+    alpaca::Json const json = {
+        {"order_id", "order-1"},
+        {"status", 200},
+        {"symbol", "AAPL"},
+        {"body",
+         {
+             {"id", "order-1"},
+             {"asset_id", "asset-1"},
+             {"client_order_id", "client"},
+             {"account_id", "acct"},
+             {"created_at", "2023-01-01T00:00:00Z"},
+             {"symbol", "AAPL"},
+             {"asset_class", "us_equity"},
+             {"side", "sell"},
+             {"type", "market"},
+             {"time_in_force", "day"},
+             {"status", "accepted"}
+         }}
+    };
+
+    auto const response = json.get<alpaca::ClosePositionResponse>();
+
+    ASSERT_TRUE(response.order_id.has_value());
+    EXPECT_EQ(*response.order_id, "order-1");
+    ASSERT_TRUE(std::holds_alternative<alpaca::Order>(response.body));
+    auto const& order = std::get<alpaca::Order>(response.body);
+    EXPECT_EQ(order.id, "order-1");
+    EXPECT_EQ(order.symbol, "AAPL");
+    EXPECT_EQ(order.side, alpaca::OrderSide::SELL);
+}
+
+TEST(PositionModelTest, ClosePositionResponseParsesFailureBody) {
+    alpaca::Json const json = {
+        {"order_id", nullptr},
+        {"status", 400},
+        {"symbol", "AAPL"},
+        {"body",
+         {
+             {"code", 12345},
+             {"message", "insufficient shares"},
+             {"available", 1.0},
+             {"existing_qty", 2.0},
+             {"held_for_orders", 1.0},
+             {"symbol", "AAPL"}
+         }}
+    };
+
+    auto const response = json.get<alpaca::ClosePositionResponse>();
+
+    ASSERT_TRUE(std::holds_alternative<alpaca::FailedClosePositionDetails>(response.body));
+    auto const& details = std::get<alpaca::FailedClosePositionDetails>(response.body);
+    ASSERT_TRUE(details.code.has_value());
+    EXPECT_EQ(*details.code, 12345);
+    ASSERT_TRUE(details.message.has_value());
+    EXPECT_EQ(*details.message, "insufficient shares");
+    ASSERT_TRUE(details.available.has_value());
+    EXPECT_DOUBLE_EQ(*details.available, 1.0);
 }
 
 TEST(ClockModelTest, FromJsonParsesFields) {

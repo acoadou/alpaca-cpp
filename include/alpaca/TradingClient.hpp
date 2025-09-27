@@ -36,11 +36,14 @@ class TradingClient {
     [[nodiscard]] std::vector<Position> list_positions();
     [[nodiscard]] Position get_position(std::string const& symbol);
     [[nodiscard]] Position close_position(std::string const& symbol, ClosePositionRequest const& request = {});
+    [[nodiscard]] std::vector<ClosePositionResponse>
+    close_all_positions(CloseAllPositionsRequest const& request = {});
 
     [[nodiscard]] std::vector<OptionPosition> list_option_positions();
     [[nodiscard]] OptionPosition get_option_position(std::string const& symbol);
     [[nodiscard]] OptionPosition close_option_position(std::string const& symbol,
                                                        CloseOptionPositionRequest const& request = {});
+    void exercise_options_position(std::string const& symbol_or_contract_id);
 
     [[nodiscard]] std::vector<Order> list_orders(ListOrdersRequest const& request = {});
     [[nodiscard]] Order get_order(std::string const& order_id);
