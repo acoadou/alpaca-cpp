@@ -2,7 +2,11 @@
 
 #include <gtest/gtest.h>
 
+#include <chrono>
 #include <optional>
+#include <tuple>
+#include <utility>
+#include <vector>
 
 #include "alpaca/Json.hpp"
 #include "alpaca/models/Common.hpp"
@@ -325,6 +329,113 @@ TEST(StreamingTest, RoutesUnderlyingWhenPayloadIncludesUnderlyingSymbol) {
     EXPECT_EQ(message->underlying_symbol, "AAPL");
     EXPECT_DOUBLE_EQ(message->price, 150.0);
     EXPECT_EQ(message->timestamp, parse_timestamp("2024-05-01T16:00:00Z"));
+}
+
+TEST(StreamingTest, DetectsSequenceGapsAndRequestsReplay) {
+    auto client = make_client();
+    client.set_message_handler([](StreamMessage const&, MessageCategory) {});
+
+    std::vector<std::tuple<std::string, std::uint64_t, std::uint64_t>> gaps;
+    std::vector<std::tuple<std::string, std::uint64_t, std::uint64_t>> replays;
+
+    alpaca::streaming::SequenceGapPolicy policy{};
+    policy.stream_identifier = [](alpaca::Json const& payload) {
+        if (payload.contains("S")) {
+            return payload.at("S").get<std::string>();
+        }
+        return std::string{};
+    };
+    policy.sequence_extractor = [](alpaca::Json const& payload) -> std::optional<std::uint64_t> {
+        if (!payload.contains("i")) {
+            return std::nullopt;
+        }
+        auto const& field = payload.at("i");
+        if (field.is_number_unsigned()) {
+            return field.get<std::uint64_t>();
+        }
+        if (field.is_string()) {
+            try {
+                return static_cast<std::uint64_t>(std::stoull(field.get<std::string>()));
+            } catch (...) {
+                return std::nullopt;
+            }
+        }
+        return std::nullopt;
+    };
+    policy.gap_handler = [&gaps](std::string const& stream, std::uint64_t expected, std::uint64_t observed, alpaca::Json const&) {
+        gaps.emplace_back(stream, expected, observed);
+    };
+    policy.replay_request = [&replays](std::string const& stream, std::uint64_t from_seq, std::uint64_t to_seq, alpaca::Json const&) {
+        replays.emplace_back(stream, from_seq, to_seq);
+    };
+
+    client.set_sequence_gap_policy(std::move(policy));
+
+    alpaca::Json base{{"T", "t"}, {"S", "AAPL"}, {"p", 100.0}, {"s", 10}, {"x", "XNAS"}, {"t", "2024-05-01T12:00:00Z"}};
+
+    auto first = base;
+    first["i"] = "1";
+    WebSocketClientHarness::feed(client, first);
+
+    auto second = base;
+    second["i"] = "2";
+    WebSocketClientHarness::feed(client, second);
+
+    auto third = base;
+    third["i"] = "5";
+    WebSocketClientHarness::feed(client, third);
+
+    ASSERT_EQ(gaps.size(), 1U);
+    EXPECT_EQ(std::get<0>(gaps.front()), "AAPL");
+    EXPECT_EQ(std::get<1>(gaps.front()), 3U);
+    EXPECT_EQ(std::get<2>(gaps.front()), 5U);
+
+    ASSERT_EQ(replays.size(), 1U);
+    EXPECT_EQ(std::get<0>(replays.front()), "AAPL");
+    EXPECT_EQ(std::get<1>(replays.front()), 3U);
+    EXPECT_EQ(std::get<2>(replays.front()), 4U);
+}
+
+TEST(StreamingTest, ReportsLatencyWhenThresholdExceeded) {
+    auto client = make_client();
+    client.set_message_handler([](StreamMessage const&, MessageCategory) {});
+
+    std::vector<std::pair<std::string, std::chrono::nanoseconds>> latency_events;
+
+    alpaca::streaming::LatencyMonitor monitor{};
+    monitor.max_latency = std::chrono::milliseconds{10};
+    monitor.timestamp_extractor = [](alpaca::Json const& payload) -> std::optional<alpaca::Timestamp> {
+        if (!payload.contains("t")) {
+            return std::nullopt;
+        }
+        return parse_timestamp(payload.at("t").get<std::string>());
+    };
+    monitor.stream_identifier = [](alpaca::Json const& payload) {
+        if (payload.contains("S")) {
+            return payload.at("S").get<std::string>();
+        }
+        return std::string{};
+    };
+    monitor.latency_handler = [&latency_events](std::string const& stream, std::chrono::nanoseconds latency, alpaca::Json const&) {
+        latency_events.emplace_back(stream, latency);
+    };
+
+    client.set_latency_monitor(std::move(monitor));
+
+    auto event_time = std::chrono::time_point_cast<alpaca::Timestamp::duration>(std::chrono::system_clock::now() - std::chrono::seconds(2));
+    alpaca::Json payload{{"T", "t"},
+                         {"S", "MSFT"},
+                         {"i", "10"},
+                         {"p", 350.0},
+                         {"s", 5},
+                         {"x", "XNAS"},
+                         {"t", alpaca::format_timestamp(event_time)}};
+
+    WebSocketClientHarness::feed(client, payload);
+
+    ASSERT_EQ(latency_events.size(), 1U);
+    EXPECT_EQ(latency_events.front().first, "MSFT");
+    EXPECT_GT(latency_events.front().second, std::chrono::milliseconds{10});
 }
 
 } // namespace

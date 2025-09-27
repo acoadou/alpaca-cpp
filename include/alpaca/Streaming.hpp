@@ -3,6 +3,8 @@
 #include <atomic>
 #include <chrono>
 #include <cstdint>
+#include <condition_variable>
+#include <deque>
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -10,6 +12,7 @@
 #include <random>
 #include <string>
 #include <thread>
+#include <unordered_map>
 #include <unordered_set>
 #include <variant>
 #include <vector>
@@ -25,6 +28,7 @@
 
 #include "alpaca/Json.hpp"
 #include "alpaca/models/Account.hpp"
+#include "alpaca/models/Common.hpp"
 #include "alpaca/models/MarketData.hpp"
 #include "alpaca/models/News.hpp"
 #include "alpaca/models/Order.hpp"
@@ -308,6 +312,41 @@ using LifecycleHandler = std::function<void()>;
 /// Callback invoked when the websocket stack reports an error.
 using ErrorHandler = std::function<void(std::string const&)>;
 
+/// Policy describing how to detect gaps in streaming sequence identifiers and
+/// how to request replays when they are observed.
+struct SequenceGapPolicy {
+    /// Returns a stable identifier (e.g. symbol or channel) used to track
+    /// sequence continuity.
+    std::function<std::string(Json const&)> stream_identifier;
+    /// Extracts the sequence number from a raw websocket payload. Returning an
+    /// empty optional skips tracking for the given payload.
+    std::function<std::optional<std::uint64_t>(Json const&)> sequence_extractor;
+    /// Invoked when a gap is detected. Receives the stream identifier, the
+    /// expected sequence number and the observed sequence number for the
+    /// current payload.
+    std::function<void(std::string const&, std::uint64_t, std::uint64_t, Json const&)> gap_handler;
+    /// Invoked when a gap is detected to request a replay for a specific
+    /// sequence range. The range is inclusive of the starting sequence and
+    /// inclusive of the ending sequence, enabling callers to bridge the gap.
+    std::function<void(std::string const&, std::uint64_t, std::uint64_t, Json const&)> replay_request;
+};
+
+/// Configuration describing latency monitoring behaviour for inbound
+/// streaming payloads.
+struct LatencyMonitor {
+    /// Maximum acceptable latency between the event timestamp and the moment it
+    /// is processed locally. Values less than or equal to zero disable
+    /// monitoring.
+    std::chrono::nanoseconds max_latency{std::chrono::nanoseconds::zero()};
+    /// Extracts the logical event timestamp from a raw websocket payload.
+    std::function<std::optional<Timestamp>(Json const&)> timestamp_extractor;
+    /// Produces a stable identifier (e.g. symbol) for reporting purposes.
+    std::function<std::string(Json const&)> stream_identifier;
+    /// Invoked when latency exceeds the configured threshold. Receives the
+    /// stream identifier, the measured latency and the original payload.
+    std::function<void(std::string const&, std::chrono::nanoseconds, Json const&)> latency_handler;
+};
+
 /// Configuration describing the exponential backoff strategy for reconnects.
 struct ReconnectPolicy {
     std::chrono::milliseconds initial_delay{std::chrono::milliseconds{500}};
@@ -352,10 +391,25 @@ class WebSocketClient {
     void set_tls_options(ix::SocketTLSOptions options);
     void set_reconnect_policy(ReconnectPolicy policy);
     void set_ping_interval(std::chrono::seconds interval);
+    void set_heartbeat_timeout(std::chrono::milliseconds timeout);
 
     /// Sets the maximum number of buffered outbound messages while disconnected.
     /// A value of 0 disables the limit.
     void set_pending_message_limit(std::size_t limit);
+    /// Sets the maximum number of buffered inbound messages awaiting
+    /// application processing. A value of 0 disables the limit, allowing the
+    /// queue to grow without bound.
+    void set_incoming_message_limit(std::size_t limit);
+
+    /// Configures sequence gap detection and replay behaviour.
+    void set_sequence_gap_policy(SequenceGapPolicy policy);
+    /// Disables sequence gap tracking and clears accumulated state.
+    void clear_sequence_gap_policy();
+
+    /// Configures latency monitoring for inbound payloads.
+    void set_latency_monitor(LatencyMonitor monitor);
+    /// Disables latency monitoring.
+    void clear_latency_monitor();
 
   private:
     friend class WebSocketClientHarness;
@@ -368,6 +422,17 @@ class WebSocketClient {
     void start_socket();
     void start_socket_locked();
     std::chrono::milliseconds compute_backoff_delay(std::size_t attempt);
+    void enqueue_incoming_message(Json payload);
+    void dispatcher_loop();
+    void start_dispatcher();
+    void stop_dispatcher();
+    void heartbeat_loop();
+    void start_heartbeat();
+    void stop_heartbeat();
+    void handle_heartbeat_timeout();
+    void record_activity();
+    void evaluate_sequence_gap(Json const& payload);
+    void evaluate_latency(Json const& payload);
 
     std::string url_;
     std::string key_;
@@ -393,6 +458,20 @@ class WebSocketClient {
 
     ix::WebSocket socket_{};
 
+    std::mutex dispatcher_mutex_;
+    std::condition_variable dispatcher_cv_;
+    std::deque<Json> inbound_queue_;
+    bool dispatcher_running_{false};
+    std::thread dispatcher_thread_{};
+    std::size_t incoming_message_limit_{4096};
+
+    std::mutex heartbeat_mutex_;
+    std::condition_variable heartbeat_cv_;
+    bool heartbeat_running_{false};
+    std::thread heartbeat_thread_{};
+    std::chrono::milliseconds heartbeat_timeout_{std::chrono::milliseconds::zero()};
+    std::atomic<std::int64_t> last_message_time_ns_{0};
+
     std::unordered_set<std::string> subscribed_trades_;
     std::unordered_set<std::string> subscribed_quotes_;
     std::unordered_set<std::string> subscribed_bars_;
@@ -409,6 +488,13 @@ class WebSocketClient {
     std::unordered_set<std::string> subscribed_imbalances_;
     std::unordered_set<std::string> subscribed_news_;
     std::unordered_set<std::string> listened_streams_;
+
+    std::mutex sequence_mutex_;
+    std::optional<SequenceGapPolicy> sequence_policy_{};
+    std::unordered_map<std::string, std::uint64_t> last_sequence_ids_{};
+
+    std::mutex latency_mutex_;
+    std::optional<LatencyMonitor> latency_monitor_{};
 
     ReconnectPolicy reconnect_policy_{};
     std::mt19937_64 rng_;

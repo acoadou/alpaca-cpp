@@ -11,13 +11,6 @@
 
 namespace alpaca {
 namespace {
-HttpClientPtr ensure_http_client(HttpClientPtr& client) {
-    if (!client) {
-        client = create_default_http_client();
-    }
-    return client;
-}
-
 std::string make_data_beta_base_url(std::string const& data_base_url, std::string_view version) {
     constexpr std::string_view v2_suffix{"/v2"};
     if (data_base_url.ends_with(v2_suffix)) {

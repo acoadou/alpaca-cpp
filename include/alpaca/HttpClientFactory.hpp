@@ -11,4 +11,7 @@ HttpClientPtr create_default_http_client();
 /// Creates a libcurl-backed HTTP client using the provided options.
 HttpClientPtr create_default_http_client(CurlHttpClientOptions const& options);
 
+/// Ensures an HTTP client instance exists, creating the default client if needed.
+HttpClientPtr ensure_http_client(HttpClientPtr& client);
+
 } // namespace alpaca

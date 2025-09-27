@@ -5,15 +5,6 @@
 #include "alpaca/HttpClientFactory.hpp"
 
 namespace alpaca {
-namespace {
-HttpClientPtr ensure_http_client(HttpClientPtr& client) {
-    if (!client) {
-        client = create_default_http_client();
-    }
-    return client;
-}
-} // namespace
-
 AlpacaClient::AlpacaClient(Configuration config, HttpClientPtr http_client)
   : config_(std::move(config)), http_client_(ensure_http_client(http_client)), trading_client_(config_, http_client_),
     market_data_client_(config_, http_client_), broker_client_(config_, http_client_) {

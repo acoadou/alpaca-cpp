@@ -6,6 +6,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <random>
 #include <stdexcept>
 #include <thread>
@@ -17,6 +18,10 @@
 
 namespace alpaca::streaming {
 namespace {
+
+std::int64_t steady_now_ns() {
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+}
 
 Timestamp parse_timestamp_field_or_default(Json const& j, char const *key) {
     if (!j.contains(key)) {
@@ -459,6 +464,10 @@ WebSocketClient::WebSocketClient(std::string url, std::string key, std::string s
         tls_options_.caFile = "SYSTEM";
     }
 
+    last_message_time_ns_.store(steady_now_ns());
+    start_dispatcher();
+    start_heartbeat();
+
     socket_.disableAutomaticReconnection();
     socket_.setPingInterval(static_cast<uint32_t>(ping_interval_.count()));
     socket_.setOnMessageCallback([this](ix::WebSocketMessagePtr const& msg) {
@@ -470,6 +479,8 @@ WebSocketClient::WebSocketClient(std::string url, std::string key, std::string s
                 manual_disconnect_ = false;
                 reconnect_attempt_ = 0;
             }
+
+            record_activity();
 
             authenticate();
             replay_subscriptions();
@@ -527,12 +538,13 @@ WebSocketClient::WebSocketClient(std::string url, std::string key, std::string s
 
         try {
             auto payload = Json::parse(msg->str);
+            record_activity();
             if (payload.is_array()) {
                 for (auto const& entry : payload) {
-                    handle_payload(entry);
+                    enqueue_incoming_message(entry);
                 }
             } else {
-                handle_payload(payload);
+                enqueue_incoming_message(payload);
             }
         } catch (std::exception const& ex) {
             if (error_handler_) {
@@ -554,6 +566,9 @@ WebSocketClient::~WebSocketClient() {
     if (thread_to_join.joinable()) {
         thread_to_join.join();
     }
+
+    stop_heartbeat();
+    stop_dispatcher();
 }
 
 void WebSocketClient::connect() {
@@ -584,6 +599,10 @@ void WebSocketClient::disconnect() {
     {
         std::lock_guard<std::mutex> lock(connection_mutex_);
         pending_messages_.clear();
+    }
+    {
+        std::lock_guard<std::mutex> lock(dispatcher_mutex_);
+        inbound_queue_.clear();
     }
 }
 
@@ -942,6 +961,14 @@ void WebSocketClient::set_ping_interval(std::chrono::seconds interval) {
     socket_.setPingInterval(static_cast<uint32_t>(ping_interval_.count()));
 }
 
+void WebSocketClient::set_heartbeat_timeout(std::chrono::milliseconds timeout) {
+    {
+        std::lock_guard<std::mutex> lock(heartbeat_mutex_);
+        heartbeat_timeout_ = timeout;
+    }
+    heartbeat_cv_.notify_all();
+}
+
 void WebSocketClient::set_pending_message_limit(std::size_t limit) {
     std::lock_guard<std::mutex> lock(connection_mutex_);
     pending_message_limit_ = limit;
@@ -953,6 +980,39 @@ void WebSocketClient::set_pending_message_limit(std::size_t limit) {
             error_handler_("websocket send queue trimmed to respect pending message limit");
         }
     }
+}
+
+void WebSocketClient::set_incoming_message_limit(std::size_t limit) {
+    std::lock_guard<std::mutex> lock(dispatcher_mutex_);
+    incoming_message_limit_ = limit;
+    if (incoming_message_limit_ > 0 && inbound_queue_.size() > incoming_message_limit_) {
+        auto const overflow = inbound_queue_.size() - incoming_message_limit_;
+        for (std::size_t i = 0; i < overflow; ++i) {
+            inbound_queue_.pop_front();
+        }
+    }
+}
+
+void WebSocketClient::set_sequence_gap_policy(SequenceGapPolicy policy) {
+    std::lock_guard<std::mutex> lock(sequence_mutex_);
+    sequence_policy_ = std::move(policy);
+    last_sequence_ids_.clear();
+}
+
+void WebSocketClient::clear_sequence_gap_policy() {
+    std::lock_guard<std::mutex> lock(sequence_mutex_);
+    sequence_policy_.reset();
+    last_sequence_ids_.clear();
+}
+
+void WebSocketClient::set_latency_monitor(LatencyMonitor monitor) {
+    std::lock_guard<std::mutex> lock(latency_mutex_);
+    latency_monitor_ = std::move(monitor);
+}
+
+void WebSocketClient::clear_latency_monitor() {
+    std::lock_guard<std::mutex> lock(latency_mutex_);
+    latency_monitor_.reset();
 }
 
 bool WebSocketClient::is_connected() const {
@@ -984,6 +1044,9 @@ void WebSocketClient::authenticate() {
 }
 
 void WebSocketClient::handle_payload(Json const& payload) {
+    evaluate_sequence_gap(payload);
+    evaluate_latency(payload);
+
     if (!message_handler_) {
         return;
     }
@@ -1290,6 +1353,248 @@ void WebSocketClient::start_socket_locked() {
     socket_.setTLSOptions(tls_options_);
     socket_.setPingInterval(static_cast<uint32_t>(ping_interval_.count()));
     socket_.start();
+}
+
+void WebSocketClient::enqueue_incoming_message(Json payload) {
+    std::unique_lock<std::mutex> lock(dispatcher_mutex_);
+    if (!dispatcher_running_) {
+        lock.unlock();
+        handle_payload(payload);
+        return;
+    }
+
+    if (incoming_message_limit_ > 0 && inbound_queue_.size() >= incoming_message_limit_) {
+        inbound_queue_.pop_front();
+        if (error_handler_) {
+            auto handler = error_handler_;
+            lock.unlock();
+            handler("Inbound message queue overflow; dropping oldest payload");
+            lock.lock();
+        }
+    }
+    inbound_queue_.push_back(std::move(payload));
+    lock.unlock();
+    dispatcher_cv_.notify_one();
+}
+
+void WebSocketClient::dispatcher_loop() {
+    std::unique_lock<std::mutex> lock(dispatcher_mutex_);
+    while (dispatcher_running_) {
+        dispatcher_cv_.wait(lock, [this]() { return !dispatcher_running_ || !inbound_queue_.empty(); });
+        if (!dispatcher_running_) {
+            break;
+        }
+        auto payload = std::move(inbound_queue_.front());
+        inbound_queue_.pop_front();
+        lock.unlock();
+        try {
+            handle_payload(payload);
+        } catch (std::exception const& ex) {
+            if (error_handler_) {
+                error_handler_(ex.what());
+            }
+        }
+        lock.lock();
+    }
+}
+
+void WebSocketClient::start_dispatcher() {
+    std::lock_guard<std::mutex> lock(dispatcher_mutex_);
+    if (dispatcher_running_) {
+        return;
+    }
+    dispatcher_running_ = true;
+    dispatcher_thread_ = std::thread([this]() { dispatcher_loop(); });
+}
+
+void WebSocketClient::stop_dispatcher() {
+    {
+        std::lock_guard<std::mutex> lock(dispatcher_mutex_);
+        if (!dispatcher_running_) {
+            return;
+        }
+        dispatcher_running_ = false;
+    }
+    dispatcher_cv_.notify_all();
+    if (dispatcher_thread_.joinable()) {
+        dispatcher_thread_.join();
+    }
+}
+
+void WebSocketClient::heartbeat_loop() {
+    std::unique_lock<std::mutex> lock(heartbeat_mutex_);
+    while (heartbeat_running_) {
+        heartbeat_cv_.wait(lock, [this]() { return !heartbeat_running_ || heartbeat_timeout_.count() > 0; });
+        if (!heartbeat_running_) {
+            break;
+        }
+
+        auto const timeout = heartbeat_timeout_;
+        if (timeout.count() <= 0) {
+            continue;
+        }
+
+        auto const last_ns = last_message_time_ns_.load();
+        auto const now_ns = steady_now_ns();
+        auto const elapsed_ns = now_ns - last_ns;
+        auto const timeout_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(timeout).count();
+        if (elapsed_ns >= timeout_ns) {
+            lock.unlock();
+            handle_heartbeat_timeout();
+            last_message_time_ns_.store(now_ns);
+            lock.lock();
+            continue;
+        }
+
+        auto remaining = timeout_ns - elapsed_ns;
+        heartbeat_cv_.wait_for(lock, std::chrono::nanoseconds{remaining});
+    }
+}
+
+void WebSocketClient::start_heartbeat() {
+    std::lock_guard<std::mutex> lock(heartbeat_mutex_);
+    if (heartbeat_running_) {
+        return;
+    }
+    heartbeat_running_ = true;
+    heartbeat_thread_ = std::thread([this]() { heartbeat_loop(); });
+}
+
+void WebSocketClient::stop_heartbeat() {
+    {
+        std::lock_guard<std::mutex> lock(heartbeat_mutex_);
+        if (!heartbeat_running_) {
+            return;
+        }
+        heartbeat_running_ = false;
+    }
+    heartbeat_cv_.notify_all();
+    if (heartbeat_thread_.joinable()) {
+        heartbeat_thread_.join();
+    }
+}
+
+void WebSocketClient::handle_heartbeat_timeout() {
+    bool should_retry = false;
+    {
+        std::lock_guard<std::mutex> lock(connection_mutex_);
+        if (!connected_) {
+            return;
+        }
+        connected_ = false;
+        should_retry = should_reconnect_ && !manual_disconnect_;
+    }
+
+    if (error_handler_) {
+        error_handler_("Heartbeat timeout detected");
+    }
+
+    socket_.stop();
+
+    if (should_retry) {
+        schedule_reconnect();
+    }
+}
+
+void WebSocketClient::record_activity() {
+    last_message_time_ns_.store(steady_now_ns());
+    heartbeat_cv_.notify_all();
+}
+
+void WebSocketClient::evaluate_sequence_gap(Json const& payload) {
+    std::function<void(std::string const&, std::uint64_t, std::uint64_t, Json const&)> gap_handler;
+    std::function<void(std::string const&, std::uint64_t, std::uint64_t, Json const&)> replay_handler;
+    std::string stream_id;
+    std::uint64_t expected = 0;
+    std::uint64_t observed = 0;
+    bool gap_detected = false;
+
+    {
+        std::lock_guard<std::mutex> lock(sequence_mutex_);
+        if (!sequence_policy_) {
+            return;
+        }
+
+        if (sequence_policy_->stream_identifier) {
+            stream_id = sequence_policy_->stream_identifier(payload);
+        }
+        if (stream_id.empty()) {
+            return;
+        }
+
+        if (!sequence_policy_->sequence_extractor) {
+            return;
+        }
+        auto seq = sequence_policy_->sequence_extractor(payload);
+        if (!seq.has_value()) {
+            return;
+        }
+
+        auto const current = *seq;
+        auto const it = last_sequence_ids_.find(stream_id);
+        if (it == last_sequence_ids_.end()) {
+            last_sequence_ids_.emplace(stream_id, current);
+            return;
+        }
+
+        auto const previous = it->second;
+        expected = previous + 1;
+        observed = current;
+        if (observed > expected) {
+            gap_detected = true;
+        }
+        if (observed > previous) {
+            it->second = observed;
+        }
+
+        gap_handler = sequence_policy_->gap_handler;
+        replay_handler = sequence_policy_->replay_request;
+    }
+
+    if (gap_detected) {
+        if (gap_handler) {
+            gap_handler(stream_id, expected, observed, payload);
+        }
+        if (replay_handler && observed > expected) {
+            replay_handler(stream_id, expected, observed - 1, payload);
+        }
+    }
+}
+
+void WebSocketClient::evaluate_latency(Json const& payload) {
+    std::optional<LatencyMonitor> monitor;
+    {
+        std::lock_guard<std::mutex> lock(latency_mutex_);
+        if (!latency_monitor_) {
+            return;
+        }
+        monitor = latency_monitor_;
+    }
+
+    if (!monitor->latency_handler || monitor->max_latency <= std::chrono::nanoseconds::zero()) {
+        return;
+    }
+
+    if (!monitor->timestamp_extractor) {
+        return;
+    }
+    auto event_ts = monitor->timestamp_extractor(payload);
+    if (!event_ts.has_value()) {
+        return;
+    }
+
+    auto now = std::chrono::time_point_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now());
+    auto latency = now - *event_ts;
+    if (latency <= monitor->max_latency) {
+        return;
+    }
+
+    std::string stream_id;
+    if (monitor->stream_identifier) {
+        stream_id = monitor->stream_identifier(payload);
+    }
+
+    monitor->latency_handler(stream_id, latency, payload);
 }
 
 } // namespace alpaca::streaming

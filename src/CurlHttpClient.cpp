@@ -287,4 +287,11 @@ HttpClientPtr create_default_http_client(CurlHttpClientOptions const& options) {
     return std::make_shared<CurlHttpClient>(options);
 }
 
+HttpClientPtr ensure_http_client(HttpClientPtr& client) {
+    if (!client) {
+        client = create_default_http_client();
+    }
+    return client;
+}
+
 } // namespace alpaca

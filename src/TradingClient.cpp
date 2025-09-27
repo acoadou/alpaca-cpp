@@ -7,67 +7,6 @@
 
 namespace alpaca {
 namespace {
-HttpClientPtr ensure_http_client(HttpClientPtr& client) {
-    if (!client) {
-        client = create_default_http_client();
-    }
-    return client;
-}
-
-Json to_json_payload(AccountConfigurationUpdateRequest const& request) {
-    Json payload;
-    to_json(payload, request);
-    return payload;
-}
-
-Json to_json_payload(NewOrderRequest const& request) {
-    Json payload;
-    to_json(payload, request);
-    return payload;
-}
-
-Json to_json_payload(ReplaceOrderRequest const& request) {
-    Json payload;
-    to_json(payload, request);
-    return payload;
-}
-
-Json to_json_payload(NewCryptoOrderRequest const& request) {
-    Json payload;
-    to_json(payload, request);
-    return payload;
-}
-
-Json to_json_payload(NewOtcOrderRequest const& request) {
-    Json payload;
-    to_json(payload, request);
-    return payload;
-}
-
-Json to_json_payload(ReplaceCryptoOrderRequest const& request) {
-    Json payload;
-    to_json(payload, request);
-    return payload;
-}
-
-Json to_json_payload(ReplaceOtcOrderRequest const& request) {
-    Json payload;
-    to_json(payload, request);
-    return payload;
-}
-
-Json to_json_payload(CreateWatchlistRequest const& request) {
-    Json payload;
-    to_json(payload, request);
-    return payload;
-}
-
-Json to_json_payload(UpdateWatchlistRequest const& request) {
-    Json payload;
-    to_json(payload, request);
-    return payload;
-}
-
 Json symbol_payload(std::string const& symbol) {
     return Json{
         {"symbol", symbol}
@@ -76,14 +15,12 @@ Json symbol_payload(std::string const& symbol) {
 } // namespace
 
 TradingClient::TradingClient(Configuration const& config, HttpClientPtr http_client)
-  : rest_client_(config, ensure_http_client(http_client), config.trading_base_url) {
-}
+    : rest_client_(config, ensure_http_client(http_client), config.trading_base_url) {}
 
 TradingClient::TradingClient(Environment const& environment, std::string api_key_id, std::string api_secret_key,
                              HttpClientPtr http_client)
-  : TradingClient(Configuration::FromEnvironment(environment, std::move(api_key_id), std::move(api_secret_key)),
-                  std::move(http_client)) {
-}
+    : TradingClient(Configuration::FromEnvironment(environment, std::move(api_key_id), std::move(api_secret_key)),
+                    std::move(http_client)) {}
 
 Account TradingClient::get_account() {
     return rest_client_.get<Account>("/v2/account");
@@ -141,7 +78,7 @@ Order TradingClient::get_order(std::string const& order_id) {
 Order TradingClient::get_order_by_client_order_id(std::string const& client_order_id) {
     return rest_client_.get<Order>("/v2/orders:by_client_order_id", {
                                                                         {"client_order_id", client_order_id}
-    });
+                                   });
 }
 
 void TradingClient::cancel_order(std::string const& order_id) {
@@ -172,7 +109,7 @@ OptionOrder TradingClient::get_option_order_by_client_order_id(std::string const
     return rest_client_.get<OptionOrder>("/v2/options/orders:by_client_order_id",
                                          {
                                              {"client_order_id", client_order_id}
-    });
+                                         });
 }
 
 void TradingClient::cancel_option_order(std::string const& order_id) {
@@ -204,7 +141,7 @@ CryptoOrder TradingClient::get_crypto_order_by_client_order_id(std::string const
     return rest_client_.get<CryptoOrder>("/v2/crypto/orders:by_client_order_id",
                                          {
                                              {"client_order_id", client_order_id}
-    });
+                                         });
 }
 
 void TradingClient::cancel_crypto_order(std::string const& order_id) {
@@ -234,7 +171,7 @@ OtcOrder TradingClient::get_otc_order(std::string const& order_id) {
 OtcOrder TradingClient::get_otc_order_by_client_order_id(std::string const& client_order_id) {
     return rest_client_.get<OtcOrder>("/v2/otc/orders:by_client_order_id", {
                                                                                {"client_order_id", client_order_id}
-    });
+                                      });
 }
 
 void TradingClient::cancel_otc_order(std::string const& order_id) {
@@ -304,7 +241,7 @@ Watchlist TradingClient::get_watchlist(std::string const& id) {
 Watchlist TradingClient::get_watchlist_by_name(std::string const& name) {
     return rest_client_.get<Watchlist>("/v2/watchlists:by_name", {
                                                                      {"name", name}
-    });
+                                       });
 }
 
 Watchlist TradingClient::create_watchlist(CreateWatchlistRequest const& request) {
