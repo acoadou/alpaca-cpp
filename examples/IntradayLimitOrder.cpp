@@ -22,8 +22,8 @@ std::string format_price(double value) {
 } // namespace
 
 int main() {
-    auto const *key = std::getenv("APCA_API_KEY_ID");
-    auto const *secret = std::getenv("APCA_API_SECRET_KEY");
+    auto const* key = std::getenv("APCA_API_KEY_ID");
+    auto const* secret = std::getenv("APCA_API_SECRET_KEY");
     if (key == nullptr || secret == nullptr) {
         std::cerr << "Please set APCA_API_KEY_ID and APCA_API_SECRET_KEY in the environment." << std::endl;
         return 1;
@@ -35,7 +35,7 @@ int main() {
     alpaca::TradingClient trading(config);
 
     alpaca::StockBarsRequest bars_request;
-    bars_request.timeframe = "1Min";
+    bars_request.timeframe = alpaca::TimeFrame::Min1;
     bars_request.start = alpaca::since(std::chrono::hours{2});
     bars_request.limit = 50;
 
@@ -70,7 +70,7 @@ int main() {
             ++attempt;
             auto placed = trading.submit_order(order);
             std::cout << "Order " << placed.id << " accepted at limit price " << *order.limit_price << " after "
-                      << attempt << " attempt(s)." << std::endl;
+                << attempt << " attempt(s)." << std::endl;
             submitted = true;
         } catch (alpaca::ApiException const& ex) {
             std::cerr << "Attempt " << attempt << " failed (" << ex.status_code() << "): " << ex.what() << std::endl;

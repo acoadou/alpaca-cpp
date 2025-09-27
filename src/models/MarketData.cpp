@@ -1,5 +1,7 @@
 #include "alpaca/models/MarketData.hpp"
 
+#include <algorithm>
+#include <cctype>
 #include <stdexcept>
 
 namespace alpaca {
@@ -699,11 +701,73 @@ std::optional<std::string> parse_optional_string(Json const& j, char const *key)
 }
 } // namespace
 
+std::string to_string(TimeFrame timeframe) {
+    switch (timeframe) {
+    case TimeFrame::Min1:
+        return "1Min";
+    case TimeFrame::Min5:
+        return "5Min";
+    case TimeFrame::Min15:
+        return "15Min";
+    case TimeFrame::Min30:
+        return "30Min";
+    case TimeFrame::Hour1:
+        return "1Hour";
+    case TimeFrame::Hour2:
+        return "2Hour";
+    case TimeFrame::Hour4:
+        return "4Hour";
+    case TimeFrame::Day1:
+        return "1Day";
+    case TimeFrame::Week1:
+        return "1Week";
+    case TimeFrame::Month1:
+        return "1Month";
+    }
+    throw std::invalid_argument("Unknown timeframe value");
+}
+
+TimeFrame time_frame_from_string(std::string const& value) {
+    std::string normalized = value;
+    std::transform(normalized.begin(), normalized.end(), normalized.begin(), [](unsigned char c) {
+        return static_cast<char>(std::tolower(c));
+    });
+    if (normalized == "1min") {
+        return TimeFrame::Min1;
+    }
+    if (normalized == "5min") {
+        return TimeFrame::Min5;
+    }
+    if (normalized == "15min") {
+        return TimeFrame::Min15;
+    }
+    if (normalized == "30min") {
+        return TimeFrame::Min30;
+    }
+    if (normalized == "1hour" || normalized == "1hr") {
+        return TimeFrame::Hour1;
+    }
+    if (normalized == "2hour" || normalized == "2hr") {
+        return TimeFrame::Hour2;
+    }
+    if (normalized == "4hour" || normalized == "4hr") {
+        return TimeFrame::Hour4;
+    }
+    if (normalized == "1day") {
+        return TimeFrame::Day1;
+    }
+    if (normalized == "1week") {
+        return TimeFrame::Week1;
+    }
+    if (normalized == "1month") {
+        return TimeFrame::Month1;
+    }
+    throw std::invalid_argument("Unknown timeframe string: " + value);
+}
+
 QueryParams StockBarsRequest::to_query_params() const {
     QueryParams params;
-    if (!timeframe.empty()) {
-        params.emplace_back("timeframe", timeframe);
-    }
+    params.emplace_back("timeframe", to_string(timeframe));
     append_timestamp(params, "start", start);
     append_timestamp(params, "end", end);
     if (limit.has_value()) {
@@ -806,11 +870,8 @@ QueryParams MultiBarsRequest::to_query_params() const {
     validate_symbols(symbols);
     QueryParams params;
     append_csv(params, "symbols", symbols);
-    if (timeframe.has_value() && timeframe->empty()) {
-        throw std::invalid_argument("timeframe cannot be empty when provided");
-    }
     if (timeframe.has_value()) {
-        params.emplace_back("timeframe", *timeframe);
+        params.emplace_back("timeframe", to_string(*timeframe));
     }
     append_timestamp(params, "start", start);
     append_timestamp(params, "end", end);

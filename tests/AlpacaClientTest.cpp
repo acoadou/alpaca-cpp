@@ -15,7 +15,7 @@
 namespace {
 
 class StubHttpClient : public alpaca::HttpClient {
-  public:
+public:
     StubHttpClient() = default;
 
     void enqueue_response(alpaca::HttpResponse response) {
@@ -36,7 +36,7 @@ class StubHttpClient : public alpaca::HttpClient {
         return response;
     }
 
-  private:
+private:
     std::queue<alpaca::HttpResponse> responses_{};
     std::vector<alpaca::HttpRequest> requests_{};
 };
@@ -109,8 +109,8 @@ TEST(AlpacaClientTest, SubmitOrderSerializesAdvancedFields) {
 TEST(AlpacaClientTest, SubmitOptionOrderTargetsOptionsEndpoint) {
     auto stub = std::make_shared<StubHttpClient>();
     stub->enqueue_response(
-    alpaca::HttpResponse{200,
-                         R"({"id":"opt-order-1","symbol":"AAPL240119C00195000","side":"buy","type":"market",
+        alpaca::HttpResponse{200,
+                             R"({"id":"opt-order-1","symbol":"AAPL240119C00195000","side":"buy","type":"market",
              "created_at":"2023-01-01T00:00:00Z","time_in_force":"day","status":"accepted"})",
                          {}});
 
@@ -594,7 +594,7 @@ TEST(AlpacaClientTest, StockBarsForwardQueryParameters) {
     alpaca::AlpacaClient client(config, stub);
 
     alpaca::StockBarsRequest request;
-    request.timeframe = "1Min";
+    request.timeframe = alpaca::TimeFrame::Min1;
     request.limit = 1;
 
     auto const bars = client.get_stock_bars("AAPL", request);
@@ -624,7 +624,7 @@ TEST(AlpacaClientTest, GetAllStockBarsTraversesPagination) {
     alpaca::AlpacaClient client(config, stub);
 
     alpaca::StockBarsRequest request;
-    request.timeframe = "1Min";
+    request.timeframe = alpaca::TimeFrame::Min1;
 
     auto const bars = client.get_all_stock_bars("AAPL", request);
     ASSERT_EQ(bars.size(), 2U);

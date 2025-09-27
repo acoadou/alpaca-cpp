@@ -13,6 +13,23 @@
 
 namespace alpaca {
 
+/// Supported aggregation intervals for market data requests.
+enum class TimeFrame {
+    Min1,
+    Min5,
+    Min15,
+    Min30,
+    Hour1,
+    Hour2,
+    Hour4,
+    Day1,
+    Week1,
+    Month1
+};
+
+std::string to_string(TimeFrame timeframe);
+TimeFrame time_frame_from_string(std::string const& value);
+
 /// Represents an individual trade returned by Alpaca Market Data.
 struct StockTrade {
     std::string id;
@@ -82,7 +99,7 @@ void from_json(Json const& j, StockBars& response);
 
 /// Request parameters for the per-symbol bars endpoint.
 struct StockBarsRequest {
-    std::string timeframe;
+    TimeFrame timeframe{TimeFrame::Min1};
     std::optional<Timestamp> start{};
     std::optional<Timestamp> end{};
     std::optional<int> limit{};
@@ -496,7 +513,7 @@ struct CorporateActionEventsRequest {
 /// Shared request structure for multi-symbol bar endpoints.
 struct MultiBarsRequest {
     std::vector<std::string> symbols{};
-    std::optional<std::string> timeframe{};
+    std::optional<TimeFrame> timeframe{};
     std::optional<Timestamp> start{};
     std::optional<Timestamp> end{};
     std::optional<int> limit{};

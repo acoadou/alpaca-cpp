@@ -185,28 +185,28 @@ TEST(ModelSerializationTest, NewsRequestValidationAndQueryParams) {
     auto params = request.to_query_params();
     EXPECT_NE(std::find_if(params.begin(), params.end(),
                            [](auto const& pair) {
-                               return pair.first == "symbols" && pair.second.find("AAPL") != std::string::npos;
-                           }),
+        return pair.first == "symbols" && pair.second.find("AAPL") != std::string::npos;
+    }),
               params.end());
     EXPECT_NE(std::find_if(params.begin(), params.end(),
                            [](auto const& pair) {
-                               return pair.first == "limit" && pair.second == "5";
-                           }),
+        return pair.first == "limit" && pair.second == "5";
+    }),
               params.end());
     EXPECT_NE(std::find_if(params.begin(), params.end(),
                            [](auto const& pair) {
-                               return pair.first == "page_token" && pair.second == "cursor";
-                           }),
+        return pair.first == "page_token" && pair.second == "cursor";
+    }),
               params.end());
     EXPECT_NE(std::find_if(params.begin(), params.end(),
                            [](auto const& pair) {
-                               return pair.first == "include_content" && pair.second == "true";
-                           }),
+        return pair.first == "include_content" && pair.second == "true";
+    }),
               params.end());
     EXPECT_NE(std::find_if(params.begin(), params.end(),
                            [](auto const& pair) {
-                               return pair.first == "exclude_contentless" && pair.second == "true";
-                           }),
+        return pair.first == "exclude_contentless" && pair.second == "true";
+    }),
               params.end());
 
     request.limit = 0;
@@ -260,23 +260,23 @@ TEST(ModelSerializationTest, HistoricalAuctionsRequestValidatesRange) {
     auto params = request.to_query_params();
     EXPECT_NE(std::find_if(params.begin(), params.end(),
                            [](auto const& entry) {
-                               return entry.first == "symbols" && entry.second.find("AAPL") != std::string::npos;
-                           }),
+        return entry.first == "symbols" && entry.second.find("AAPL") != std::string::npos;
+    }),
               params.end());
     EXPECT_NE(std::find_if(params.begin(), params.end(),
                            [](auto const& entry) {
-                               return entry.first == "limit" && entry.second == "50";
-                           }),
+        return entry.first == "limit" && entry.second == "50";
+    }),
               params.end());
     EXPECT_NE(std::find_if(params.begin(), params.end(),
                            [](auto const& entry) {
-                               return entry.first == "sort" && entry.second == "desc";
-                           }),
+        return entry.first == "sort" && entry.second == "desc";
+    }),
               params.end());
     EXPECT_NE(std::find_if(params.begin(), params.end(),
                            [](auto const& entry) {
-                               return entry.first == "page_token" && entry.second == "cursor";
-                           }),
+        return entry.first == "page_token" && entry.second == "cursor";
+    }),
               params.end());
 
     request.end = request.start;
@@ -373,8 +373,8 @@ TEST(ModelSerializationTest, MultiBarsRequestRequiresSymbols) {
     auto params = request.to_query_params();
     EXPECT_NE(std::find_if(params.begin(), params.end(),
                            [](auto const& pair) {
-                               return pair.first == "symbols" && pair.second == "AAPL";
-                           }),
+        return pair.first == "symbols" && pair.second == "AAPL";
+    }),
               params.end());
 }
 
