@@ -367,6 +367,67 @@ struct ManagedPortfolioHistoryRequest {
     [[nodiscard]] QueryParams to_query_params() const;
 };
 
+struct BrokerEvent {
+    std::string id;
+    std::string type;
+    std::string account_id;
+    std::string created_at;
+    std::optional<std::string> status;
+    std::optional<Json> payload;
+};
+
+struct ListBrokerEventsRequest {
+    std::optional<std::string> since;
+    std::optional<std::string> until;
+    std::optional<std::string> type;
+    std::optional<std::string> status;
+    std::optional<std::string> account_id;
+    std::optional<int> page_size;
+    std::optional<std::string> page_token;
+
+    [[nodiscard]] QueryParams to_query_params() const;
+};
+
+struct BrokerEventsPage {
+    std::vector<BrokerEvent> events;
+    std::optional<std::string> next_page_token;
+};
+
+struct BrokerWebhookSubscription {
+    std::string id;
+    std::string url;
+    bool active{true};
+    std::string created_at;
+    std::optional<std::string> description{};
+    std::vector<std::string> event_types{};
+};
+
+struct CreateBrokerWebhookSubscriptionRequest {
+    std::string url;
+    std::vector<std::string> event_types{};
+    std::optional<std::string> description{};
+    std::optional<bool> active{};
+};
+
+struct UpdateBrokerWebhookSubscriptionRequest {
+    std::optional<std::string> url{};
+    std::optional<std::vector<std::string>> event_types{};
+    std::optional<std::string> description{};
+    std::optional<bool> active{};
+};
+
+struct ListBrokerWebhookSubscriptionsRequest {
+    std::optional<int> page_size{};
+    std::optional<std::string> page_token{};
+
+    [[nodiscard]] QueryParams to_query_params() const;
+};
+
+struct BrokerWebhookSubscriptionsPage {
+    std::vector<BrokerWebhookSubscription> subscriptions;
+    std::optional<std::string> next_page_token;
+};
+
 void to_json(Json& j, Address const& value);
 void from_json(Json const& j, Address& value);
 
@@ -429,5 +490,13 @@ void to_json(Json& j, CreateRebalancingSubscriptionRequest const& value);
 void from_json(Json const& j, RebalancingSubscriptionsPage& value);
 
 void from_json(Json const& j, ManagedPortfolioHistory& value);
+
+void from_json(Json const& j, BrokerEvent& value);
+void from_json(Json const& j, BrokerEventsPage& value);
+
+void from_json(Json const& j, BrokerWebhookSubscription& value);
+void from_json(Json const& j, BrokerWebhookSubscriptionsPage& value);
+void to_json(Json& j, CreateBrokerWebhookSubscriptionRequest const& value);
+void to_json(Json& j, UpdateBrokerWebhookSubscriptionRequest const& value);
 
 } // namespace alpaca

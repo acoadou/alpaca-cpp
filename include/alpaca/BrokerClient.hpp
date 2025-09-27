@@ -94,6 +94,19 @@ class BrokerClient {
     get_managed_portfolio_history(std::string const& account_id,
                                   ManagedPortfolioHistoryRequest const& request = {}) const;
 
+    [[nodiscard]] BrokerEventsPage list_events(ListBrokerEventsRequest const& request = {}) const;
+    [[nodiscard]] PaginatedVectorRange<ListBrokerEventsRequest, BrokerEventsPage, BrokerEvent>
+    list_events_range(ListBrokerEventsRequest request = {}) const;
+
+    [[nodiscard]] BrokerWebhookSubscriptionsPage
+    list_webhook_subscriptions(ListBrokerWebhookSubscriptionsRequest const& request = {}) const;
+    [[nodiscard]] BrokerWebhookSubscription
+    create_webhook_subscription(CreateBrokerWebhookSubscriptionRequest const& request) const;
+    [[nodiscard]] BrokerWebhookSubscription
+    update_webhook_subscription(std::string const& subscription_id,
+                                UpdateBrokerWebhookSubscriptionRequest const& request) const;
+    void delete_webhook_subscription(std::string const& subscription_id) const;
+
   private:
     RestClient rest_client_;
 };

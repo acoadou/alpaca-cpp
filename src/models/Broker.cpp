@@ -653,4 +653,138 @@ QueryParams ManagedPortfolioHistoryRequest::to_query_params() const {
     return params;
 }
 
+void from_json(Json const& j, BrokerEvent& value) {
+    j.at("id").get_to(value.id);
+    if (j.contains("account_id") && !j.at("account_id").is_null()) {
+        value.account_id = j.at("account_id").get<std::string>();
+    } else if (j.contains("accountId") && !j.at("accountId").is_null()) {
+        value.account_id = j.at("accountId").get<std::string>();
+    } else {
+        value.account_id.clear();
+    }
+    if (j.contains("type")) {
+        value.type = j.at("type").get<std::string>();
+    } else if (j.contains("event_type")) {
+        value.type = j.at("event_type").get<std::string>();
+    } else {
+        value.type.clear();
+    }
+    if (j.contains("created_at")) {
+        value.created_at = j.at("created_at").get<std::string>();
+    } else if (j.contains("occurred_at")) {
+        value.created_at = j.at("occurred_at").get<std::string>();
+    } else {
+        value.created_at.clear();
+    }
+    assign_optional(j, "status", value.status);
+    if (j.contains("payload") && !j.at("payload").is_null()) {
+        value.payload = j.at("payload");
+    } else if (j.contains("data") && !j.at("data").is_null()) {
+        value.payload = j.at("data");
+    } else {
+        value.payload.reset();
+    }
+}
+
+void from_json(Json const& j, BrokerEventsPage& value) {
+    if (j.contains("events")) {
+        value.events = j.at("events").get<std::vector<BrokerEvent>>();
+    } else if (j.is_array()) {
+        value.events = j.get<std::vector<BrokerEvent>>();
+    }
+    assign_optional(j, "next_page_token", value.next_page_token);
+}
+
+QueryParams ListBrokerEventsRequest::to_query_params() const {
+    QueryParams params;
+    if (since.has_value()) {
+        params.emplace_back("since", *since);
+    }
+    if (until.has_value()) {
+        params.emplace_back("until", *until);
+    }
+    if (type.has_value()) {
+        params.emplace_back("event_type", *type);
+    }
+    if (status.has_value()) {
+        params.emplace_back("status", *status);
+    }
+    if (account_id.has_value()) {
+        params.emplace_back("account_id", *account_id);
+    }
+    if (page_size.has_value()) {
+        params.emplace_back("page_size", std::to_string(*page_size));
+    }
+    if (page_token.has_value()) {
+        params.emplace_back("page_token", *page_token);
+    }
+    return params;
+}
+
+QueryParams ListBrokerWebhookSubscriptionsRequest::to_query_params() const {
+    QueryParams params;
+    if (page_size.has_value()) {
+        params.emplace_back("page_size", std::to_string(*page_size));
+    }
+    if (page_token.has_value()) {
+        params.emplace_back("page_token", *page_token);
+    }
+    return params;
+}
+
+void from_json(Json const& j, BrokerWebhookSubscription& value) {
+    j.at("id").get_to(value.id);
+    j.at("url").get_to(value.url);
+    if (j.contains("active")) {
+        value.active = j.at("active").get<bool>();
+    } else {
+        value.active = true;
+    }
+    if (j.contains("created_at")) {
+        value.created_at = j.at("created_at").get<std::string>();
+    } else {
+        value.created_at.clear();
+    }
+    assign_optional(j, "description", value.description);
+    if (j.contains("event_types") && j.at("event_types").is_array()) {
+        value.event_types = j.at("event_types").get<std::vector<std::string>>();
+    } else if (j.contains("events") && j.at("events").is_array()) {
+        value.event_types = j.at("events").get<std::vector<std::string>>();
+    } else {
+        value.event_types.clear();
+    }
+}
+
+void from_json(Json const& j, BrokerWebhookSubscriptionsPage& value) {
+    if (j.contains("subscriptions")) {
+        value.subscriptions = j.at("subscriptions").get<std::vector<BrokerWebhookSubscription>>();
+    } else if (j.is_array()) {
+        value.subscriptions = j.get<std::vector<BrokerWebhookSubscription>>();
+    }
+    assign_optional(j, "next_page_token", value.next_page_token);
+}
+
+void to_json(Json& j, CreateBrokerWebhookSubscriptionRequest const& value) {
+    j = Json{
+        {"url",         value.url        },
+        {"event_types", value.event_types}
+    };
+    add_optional_string(j, "description", value.description);
+    if (value.active.has_value()) {
+        j["active"] = *value.active;
+    }
+}
+
+void to_json(Json& j, UpdateBrokerWebhookSubscriptionRequest const& value) {
+    j = Json{};
+    add_optional_string(j, "url", value.url);
+    add_optional_string(j, "description", value.description);
+    if (value.event_types.has_value()) {
+        j["event_types"] = *value.event_types;
+    }
+    if (value.active.has_value()) {
+        j["active"] = *value.active;
+    }
+}
+
 } // namespace alpaca

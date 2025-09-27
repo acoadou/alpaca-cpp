@@ -158,6 +158,24 @@ MultiStockSnapshots MarketDataClient::get_stock_snapshots(MultiStockSnapshotsReq
     return v2_client_.get<MultiStockSnapshots>("stocks/snapshots", request.to_query_params());
 }
 
+CryptoSnapshot MarketDataClient::get_crypto_snapshot(std::string const& feed, std::string const& symbol,
+                                                     CryptoSnapshotRequest const& request) const {
+    if (feed.empty()) {
+        throw std::invalid_argument("feed must not be empty");
+    }
+    return beta_v3_client_.get<CryptoSnapshot>("crypto/" + to_lower_copy(feed) + "/snapshots/" + symbol,
+                                               request.to_query_params());
+}
+
+MultiCryptoSnapshots MarketDataClient::get_crypto_snapshots(std::string const& feed,
+                                                            MultiCryptoSnapshotsRequest const& request) const {
+    if (feed.empty()) {
+        throw std::invalid_argument("feed must not be empty");
+    }
+    return beta_v3_client_.get<MultiCryptoSnapshots>("crypto/" + to_lower_copy(feed) + "/snapshots",
+                                                     request.to_query_params());
+}
+
 PaginatedVectorRange<StockBarsRequest, StockBars, StockBar>
 MarketDataClient::stock_bars_range(std::string const& symbol, StockBarsRequest request) const {
     return PaginatedVectorRange<StockBarsRequest, StockBars, StockBar>(

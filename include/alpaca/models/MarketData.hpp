@@ -161,6 +161,27 @@ struct CryptoOrderBook {
 
 void from_json(Json const& j, CryptoOrderBook& book);
 
+/// Snapshot payload exposing the latest aggregates for a crypto symbol.
+struct CryptoSnapshot {
+    std::string symbol;
+    std::optional<CryptoTrade> latest_trade{};
+    std::optional<CryptoQuote> latest_quote{};
+    std::optional<CryptoBar> minute_bar{};
+    std::optional<CryptoBar> daily_bar{};
+    std::optional<CryptoBar> previous_daily_bar{};
+    std::optional<CryptoOrderBook> orderbook{};
+};
+
+void from_json(Json const& j, CryptoSnapshot& snapshot);
+
+/// Response wrapper containing multi-symbol crypto snapshots keyed by symbol.
+struct MultiCryptoSnapshots {
+    std::map<std::string, CryptoSnapshot> snapshots;
+};
+
+void from_json(Json const& j, MultiCryptoSnapshots& response);
+
+
 struct LatestCryptoTrades {
     std::map<std::string, CryptoTrade> trades;
 };
@@ -542,6 +563,21 @@ struct LatestCryptoOrderbookRequest {
 struct MultiStockSnapshotsRequest {
     std::vector<std::string> symbols{};
     std::optional<std::string> feed{};
+
+    [[nodiscard]] QueryParams to_query_params() const;
+};
+
+/// Request payload for single-symbol crypto snapshot lookups.
+struct CryptoSnapshotRequest {
+    std::optional<std::string> currency{};
+
+    [[nodiscard]] QueryParams to_query_params() const;
+};
+
+/// Request payload for the multi-symbol crypto snapshot endpoint.
+struct MultiCryptoSnapshotsRequest {
+    std::vector<std::string> symbols{};
+    std::optional<std::string> currency{};
 
     [[nodiscard]] QueryParams to_query_params() const;
 };

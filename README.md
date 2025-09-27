@@ -25,6 +25,8 @@ client while embracing contemporary C++ idioms. The codebase builds a compiled l
   serialization.
 - **Synchronous by design** REST and streaming clients that you can wrap in your preferred executor, coroutine, or
   future abstraction when integrating with asynchronous pipelines.
+- **First-class OAuth2 support** with helpers for PKCE generation, authorization URL construction, and token exchange for
+  Alpaca Connect applications.
 
 ## Endpoint coverage
 
@@ -145,6 +147,50 @@ target_link_libraries(my_trader PRIVATE alpaca::alpaca-cpp)
 This approach keeps dependency management within CMake, ensures the correct
 transitive include directories and compiler options are propagated, and allows
 you to track a specific release or commit through the `GIT_TAG` field.
+
+## OAuth / Connect authorization
+
+Applications integrating with [Alpaca Connect](https://alpaca.markets/docs/connect/) can use the
+`alpaca::OAuthClient` utilities bundled with the SDK to drive the OAuth 2.0
+authorization code flow with PKCE. The helpers produce a compliant verifier,
+construct the authorization URL, and exchange authorization/refresh tokens using
+the bundled HTTP transport:
+
+```cpp
+#include "alpaca/HttpClientFactory.hpp"
+#include "alpaca/OAuth.hpp"
+
+alpaca::PkcePair pkce = alpaca::GeneratePkcePair();
+
+alpaca::AuthorizationUrlRequest auth{};
+auth.authorize_endpoint = "https://app.alpaca.markets/oauth/authorize";
+auth.client_id = "YOUR_CLIENT_ID";
+auth.redirect_uri = "https://example.com/callback";
+auth.code_challenge = pkce.challenge;
+auth.scope = "account trading";
+
+std::cout << "Open this URL: " << alpaca::BuildAuthorizationUrl(auth) << '\n';
+
+auto http = alpaca::create_default_http_client({});
+alpaca::OAuthClient oauth{"https://broker-api.alpaca.markets/oauth/token", http};
+
+alpaca::AuthorizationCodeTokenRequest request{};
+request.client_id = "YOUR_CLIENT_ID";
+request.redirect_uri = "https://example.com/callback";
+request.code = "CODE_FROM_REDIRECT";
+request.code_verifier = pkce.verifier;
+
+alpaca::OAuthTokenResponse tokens = oauth.ExchangeAuthorizationCode(request);
+
+// Use bearer authentication for subsequent requests.
+alpaca::Configuration config;
+config.broker_base_url = "https://broker-api.alpaca.markets";
+tokens.apply(config);
+```
+
+Refer to [`examples/oauth_pkce.cpp`](examples/oauth_pkce.cpp) for an
+end-to-end console sample that guides the user through the flow and stores the
+resulting bearer token on an `alpaca::Configuration` instance.
 
 ## Handling empty REST responses
 

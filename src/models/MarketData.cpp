@@ -112,6 +112,26 @@ void from_json(Json const& j, MultiStockSnapshots& response) {
     parse_symbol_objects(j, "snapshots", response.snapshots);
 }
 
+void from_json(Json const& j, CryptoSnapshot& snapshot) {
+    if (j.contains("symbol")) {
+        snapshot.symbol = j.at("symbol").get<std::string>();
+    } else if (j.contains("pair")) {
+        snapshot.symbol = j.at("pair").get<std::string>();
+    } else {
+        snapshot.symbol.clear();
+    }
+    snapshot.latest_trade = optional_field<CryptoTrade>(j, "latestTrade");
+    snapshot.latest_quote = optional_field<CryptoQuote>(j, "latestQuote");
+    snapshot.minute_bar = optional_field<CryptoBar>(j, "minuteBar");
+    snapshot.daily_bar = optional_field<CryptoBar>(j, "dailyBar");
+    snapshot.previous_daily_bar = optional_field<CryptoBar>(j, "prevDailyBar");
+    snapshot.orderbook = optional_field<CryptoOrderBook>(j, "orderbook");
+}
+
+void from_json(Json const& j, MultiCryptoSnapshots& response) {
+    parse_symbol_objects(j, "snapshots", response.snapshots);
+}
+
 void from_json(Json const& j, MultiStockBars& response) {
     parse_symbol_collection(j, "bars", response.bars);
     response.next_page_token = optional_field<std::string>(j, "next_page_token");
@@ -876,6 +896,24 @@ QueryParams MultiStockSnapshotsRequest::to_query_params() const {
     append_csv(params, "symbols", symbols);
     if (feed.has_value()) {
         params.emplace_back("feed", *feed);
+    }
+    return params;
+}
+
+QueryParams CryptoSnapshotRequest::to_query_params() const {
+    QueryParams params;
+    if (currency.has_value()) {
+        params.emplace_back("currency", *currency);
+    }
+    return params;
+}
+
+QueryParams MultiCryptoSnapshotsRequest::to_query_params() const {
+    validate_symbols(symbols);
+    QueryParams params;
+    append_csv(params, "symbols", symbols);
+    if (currency.has_value()) {
+        params.emplace_back("currency", *currency);
     }
     return params;
 }

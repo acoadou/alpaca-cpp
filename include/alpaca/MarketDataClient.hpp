@@ -48,6 +48,10 @@ class MarketDataClient {
                                                            StockBarsRequest request = {}) const;
     [[nodiscard]] StockSnapshot get_stock_snapshot(std::string const& symbol) const;
     [[nodiscard]] MultiStockSnapshots get_stock_snapshots(MultiStockSnapshotsRequest const& request) const;
+    [[nodiscard]] CryptoSnapshot get_crypto_snapshot(std::string const& feed, std::string const& symbol,
+                                                     CryptoSnapshotRequest const& request = {}) const;
+    [[nodiscard]] MultiCryptoSnapshots get_crypto_snapshots(std::string const& feed,
+                                                            MultiCryptoSnapshotsRequest const& request) const;
 
     [[nodiscard]] PaginatedVectorRange<StockBarsRequest, StockBars, StockBar>
     stock_bars_range(std::string const& symbol, StockBarsRequest request = {}) const;

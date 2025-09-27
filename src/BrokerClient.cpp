@@ -86,6 +86,18 @@ Json to_json_payload(CreateRebalancingSubscriptionRequest const& request) {
     return payload;
 }
 
+Json to_json_payload(CreateBrokerWebhookSubscriptionRequest const& request) {
+    Json payload;
+    to_json(payload, request);
+    return payload;
+}
+
+Json to_json_payload(UpdateBrokerWebhookSubscriptionRequest const& request) {
+    Json payload;
+    to_json(payload, request);
+    return payload;
+}
+
 } // namespace
 
 BrokerClient::BrokerClient(Configuration const& config, HttpClientPtr http_client)
@@ -351,6 +363,49 @@ BrokerClient::get_managed_portfolio_history(std::string const& account_id,
                                             ManagedPortfolioHistoryRequest const& request) const {
     return rest_client_.get<ManagedPortfolioHistory>("/trading/accounts/" + account_id + "/account/portfolio/history",
                                                      request.to_query_params());
+}
+
+BrokerEventsPage BrokerClient::list_events(ListBrokerEventsRequest const& request) const {
+    return rest_client_.get<BrokerEventsPage>("/v1/events", request.to_query_params());
+}
+
+PaginatedVectorRange<ListBrokerEventsRequest, BrokerEventsPage, BrokerEvent>
+BrokerClient::list_events_range(ListBrokerEventsRequest request) const {
+    return PaginatedVectorRange<ListBrokerEventsRequest, BrokerEventsPage, BrokerEvent>(
+    std::move(request),
+    [this](ListBrokerEventsRequest const& req) {
+        return list_events(req);
+    },
+    [](BrokerEventsPage const& page) -> std::vector<BrokerEvent> const& {
+        return page.events;
+    },
+    [](BrokerEventsPage const& page) {
+        return page.next_page_token;
+    },
+    [](ListBrokerEventsRequest& req, std::optional<std::string> const& token) {
+        req.page_token = token;
+    });
+}
+
+BrokerWebhookSubscriptionsPage
+BrokerClient::list_webhook_subscriptions(ListBrokerWebhookSubscriptionsRequest const& request) const {
+    return rest_client_.get<BrokerWebhookSubscriptionsPage>("/v1/events/subscriptions", request.to_query_params());
+}
+
+BrokerWebhookSubscription
+BrokerClient::create_webhook_subscription(CreateBrokerWebhookSubscriptionRequest const& request) const {
+    return rest_client_.post<BrokerWebhookSubscription>("/v1/events/subscriptions", to_json_payload(request));
+}
+
+BrokerWebhookSubscription
+BrokerClient::update_webhook_subscription(std::string const& subscription_id,
+                                          UpdateBrokerWebhookSubscriptionRequest const& request) const {
+    return rest_client_.patch<BrokerWebhookSubscription>("/v1/events/subscriptions/" + subscription_id,
+                                                         to_json_payload(request));
+}
+
+void BrokerClient::delete_webhook_subscription(std::string const& subscription_id) const {
+    rest_client_.del<void>("/v1/events/subscriptions/" + subscription_id);
 }
 
 } // namespace alpaca
