@@ -170,7 +170,9 @@ OptionOrder TradingClient::get_option_order(std::string const& order_id) {
 
 OptionOrder TradingClient::get_option_order_by_client_order_id(std::string const& client_order_id) {
     return rest_client_.get<OptionOrder>("/v2/options/orders:by_client_order_id",
-                                         {{"client_order_id", client_order_id}});
+                                         {
+                                             {"client_order_id", client_order_id}
+    });
 }
 
 void TradingClient::cancel_option_order(std::string const& order_id) {
@@ -185,8 +187,7 @@ OptionOrder TradingClient::submit_option_order(NewOptionOrderRequest const& requ
     return rest_client_.post<OptionOrder>("/v2/options/orders", to_json_payload(request));
 }
 
-OptionOrder TradingClient::replace_option_order(std::string const& order_id,
-                                                ReplaceOptionOrderRequest const& request) {
+OptionOrder TradingClient::replace_option_order(std::string const& order_id, ReplaceOptionOrderRequest const& request) {
     return rest_client_.patch<OptionOrder>("/v2/options/orders/" + order_id, to_json_payload(request));
 }
 
@@ -201,7 +202,9 @@ CryptoOrder TradingClient::get_crypto_order(std::string const& order_id) {
 
 CryptoOrder TradingClient::get_crypto_order_by_client_order_id(std::string const& client_order_id) {
     return rest_client_.get<CryptoOrder>("/v2/crypto/orders:by_client_order_id",
-                                         {{"client_order_id", client_order_id}});
+                                         {
+                                             {"client_order_id", client_order_id}
+    });
 }
 
 void TradingClient::cancel_crypto_order(std::string const& order_id) {
@@ -216,8 +219,7 @@ CryptoOrder TradingClient::submit_crypto_order(NewCryptoOrderRequest const& requ
     return rest_client_.post<CryptoOrder>("/v2/crypto/orders", to_json_payload(request));
 }
 
-CryptoOrder TradingClient::replace_crypto_order(std::string const& order_id,
-                                               ReplaceCryptoOrderRequest const& request) {
+CryptoOrder TradingClient::replace_crypto_order(std::string const& order_id, ReplaceCryptoOrderRequest const& request) {
     return rest_client_.patch<CryptoOrder>("/v2/crypto/orders/" + order_id, to_json_payload(request));
 }
 
@@ -230,8 +232,9 @@ OtcOrder TradingClient::get_otc_order(std::string const& order_id) {
 }
 
 OtcOrder TradingClient::get_otc_order_by_client_order_id(std::string const& client_order_id) {
-    return rest_client_.get<OtcOrder>("/v2/otc/orders:by_client_order_id",
-                                      {{"client_order_id", client_order_id}});
+    return rest_client_.get<OtcOrder>("/v2/otc/orders:by_client_order_id", {
+                                                                               {"client_order_id", client_order_id}
+    });
 }
 
 void TradingClient::cancel_otc_order(std::string const& order_id) {

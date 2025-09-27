@@ -439,7 +439,10 @@ void from_json(Json const& j, BrokerWatchlist& value) {
 }
 
 void to_json(Json& j, CreateBrokerWatchlistRequest const& value) {
-    j = Json{{"name", value.name}, {"symbols", value.symbols}};
+    j = Json{
+        {"name",    value.name   },
+        {"symbols", value.symbols}
+    };
 }
 
 void to_json(Json& j, UpdateBrokerWatchlistRequest const& value) {
@@ -451,7 +454,10 @@ void to_json(Json& j, UpdateBrokerWatchlistRequest const& value) {
 }
 
 void to_json(Json& j, RebalancingWeight const& value) {
-    j = Json{{"type", value.type}, {"percent", value.percent}};
+    j = Json{
+        {"type",    value.type   },
+        {"percent", value.percent}
+    };
     add_optional_string(j, "symbol", value.symbol);
 }
 
@@ -463,7 +469,7 @@ void from_json(Json const& j, RebalancingWeight& value) {
 
 void to_json(Json& j, RebalancingCondition const& value) {
     j = Json{
-        {"type", value.type},
+        {"type",     value.type    },
         {"sub_type", value.sub_type},
     };
     if (value.percent.has_value()) {
@@ -491,16 +497,15 @@ void from_json(Json const& j, RebalancingPortfolio& value) {
         value.weights = j.at("weights").get<std::vector<RebalancingWeight>>();
     }
     if (j.contains("rebalance_conditions") && !j.at("rebalance_conditions").is_null()) {
-        value.rebalance_conditions =
-            j.at("rebalance_conditions").get<std::vector<RebalancingCondition>>();
+        value.rebalance_conditions = j.at("rebalance_conditions").get<std::vector<RebalancingCondition>>();
     }
 }
 
 void to_json(Json& j, CreateRebalancingPortfolioRequest const& value) {
     j = Json{
-        {"name", value.name},
-        {"description", value.description},
-        {"weights", value.weights},
+        {"name",          value.name         },
+        {"description",   value.description  },
+        {"weights",       value.weights      },
         {"cooldown_days", value.cooldown_days},
     };
     if (value.rebalance_conditions.has_value()) {
@@ -552,7 +557,10 @@ void from_json(Json const& j, RebalancingSubscription& value) {
 }
 
 void to_json(Json& j, CreateRebalancingSubscriptionRequest const& value) {
-    j = Json{{"account_id", value.account_id}, {"portfolio_id", value.portfolio_id}};
+    j = Json{
+        {"account_id",   value.account_id  },
+        {"portfolio_id", value.portfolio_id}
+    };
 }
 
 QueryParams ListRebalancingSubscriptionsRequest::to_query_params() const {

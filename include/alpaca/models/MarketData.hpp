@@ -146,6 +146,45 @@ using CryptoBar = StockBar;
 using CryptoQuote = StockQuote;
 using CryptoTrade = StockTrade;
 
+struct CryptoOrderBookEntry {
+    double price{0.0};
+    double size{0.0};
+};
+
+void from_json(Json const& j, CryptoOrderBookEntry& entry);
+
+struct CryptoOrderBook {
+    Timestamp timestamp{};
+    std::vector<CryptoOrderBookEntry> bids{};
+    std::vector<CryptoOrderBookEntry> asks{};
+};
+
+void from_json(Json const& j, CryptoOrderBook& book);
+
+struct LatestCryptoTrades {
+    std::map<std::string, CryptoTrade> trades;
+};
+
+void from_json(Json const& j, LatestCryptoTrades& response);
+
+struct LatestCryptoQuotes {
+    std::map<std::string, CryptoQuote> quotes;
+};
+
+void from_json(Json const& j, LatestCryptoQuotes& response);
+
+struct LatestCryptoBars {
+    std::map<std::string, CryptoBar> bars;
+};
+
+void from_json(Json const& j, LatestCryptoBars& response);
+
+struct LatestCryptoOrderbooks {
+    std::map<std::string, CryptoOrderBook> orderbooks;
+};
+
+void from_json(Json const& j, LatestCryptoOrderbooks& response);
+
 /// Response wrapper containing multi-symbol option aggregates.
 struct MultiOptionBars {
     std::map<std::string, std::vector<OptionBar>> bars;
@@ -334,27 +373,6 @@ struct LatestOptionBars {
 
 void from_json(Json const& j, LatestOptionBars& response);
 
-/// Response wrapper containing latest crypto trades keyed by symbol.
-struct LatestCryptoTrades {
-    std::map<std::string, CryptoTrade> trades;
-};
-
-void from_json(Json const& j, LatestCryptoTrades& response);
-
-/// Response wrapper containing latest crypto quotes keyed by symbol.
-struct LatestCryptoQuotes {
-    std::map<std::string, CryptoQuote> quotes;
-};
-
-void from_json(Json const& j, LatestCryptoQuotes& response);
-
-/// Response wrapper containing latest crypto bars keyed by symbol.
-struct LatestCryptoBars {
-    std::map<std::string, CryptoBar> bars;
-};
-
-void from_json(Json const& j, LatestCryptoBars& response);
-
 /// Response wrapper containing stock orderbook snapshots keyed by symbol.
 struct MultiStockOrderbooks {
     std::map<std::string, OrderbookSnapshot> orderbooks;
@@ -466,6 +484,20 @@ using MultiCryptoQuotesRequest = MultiQuotesRequest;
 using MultiStockTradesRequest = MultiTradesRequest;
 using MultiOptionTradesRequest = MultiTradesRequest;
 using MultiCryptoTradesRequest = MultiTradesRequest;
+
+struct LatestCryptoDataRequest {
+    std::vector<std::string> symbols{};
+    std::optional<std::string> currency{};
+
+    [[nodiscard]] QueryParams to_query_params() const;
+};
+
+struct LatestCryptoOrderbookRequest {
+    std::vector<std::string> symbols{};
+    std::vector<std::string> exchanges{};
+
+    [[nodiscard]] QueryParams to_query_params() const;
+};
 
 /// Request payload for the multi-symbol stock snapshots endpoint.
 struct MultiStockSnapshotsRequest {

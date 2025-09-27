@@ -180,23 +180,21 @@ TEST(PositionModelTest, CloseAllPositionsRequestSkipsUnsetFields) {
 
 TEST(PositionModelTest, ClosePositionResponseParsesOrderBody) {
     alpaca::Json const json = {
-        {"order_id", "order-1"},
-        {"status", 200},
-        {"symbol", "AAPL"},
+        {"order_id", "order-1"   },
+        {"status",   200         },
+        {"symbol",   "AAPL"      },
         {"body",
-         {
-             {"id", "order-1"},
-             {"asset_id", "asset-1"},
-             {"client_order_id", "client"},
-             {"account_id", "acct"},
-             {"created_at", "2023-01-01T00:00:00Z"},
-             {"symbol", "AAPL"},
-             {"asset_class", "us_equity"},
-             {"side", "sell"},
-             {"type", "market"},
-             {"time_in_force", "day"},
-             {"status", "accepted"}
-         }}
+         {{"id", "order-1"},
+          {"asset_id", "asset-1"},
+          {"client_order_id", "client"},
+          {"account_id", "acct"},
+          {"created_at", "2023-01-01T00:00:00Z"},
+          {"symbol", "AAPL"},
+          {"asset_class", "us_equity"},
+          {"side", "sell"},
+          {"type", "market"},
+          {"time_in_force", "day"},
+          {"status", "accepted"}}}
     };
 
     auto const response = json.get<alpaca::ClosePositionResponse>();
@@ -212,18 +210,16 @@ TEST(PositionModelTest, ClosePositionResponseParsesOrderBody) {
 
 TEST(PositionModelTest, ClosePositionResponseParsesFailureBody) {
     alpaca::Json const json = {
-        {"order_id", nullptr},
-        {"status", 400},
-        {"symbol", "AAPL"},
+        {"order_id", nullptr },
+        {"status",   400     },
+        {"symbol",   "AAPL"  },
         {"body",
-         {
-             {"code", 12345},
-             {"message", "insufficient shares"},
-             {"available", 1.0},
-             {"existing_qty", 2.0},
-             {"held_for_orders", 1.0},
-             {"symbol", "AAPL"}
-         }}
+         {{"code", 12345},
+          {"message", "insufficient shares"},
+          {"available", 1.0},
+          {"existing_qty", 2.0},
+          {"held_for_orders", 1.0},
+          {"symbol", "AAPL"}}}
     };
 
     auto const response = json.get<alpaca::ClosePositionResponse>();

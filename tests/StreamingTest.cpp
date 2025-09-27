@@ -35,24 +35,24 @@ TEST(StreamingTest, RoutesUpdatedBarMessages) {
     std::optional<MessageCategory> category;
     std::optional<alpaca::streaming::UpdatedBarMessage> message;
 
-    client.set_message_handler([
-        &category, &message
-    ](StreamMessage const& msg, MessageCategory observed_category) {
+    client.set_message_handler([&category, &message](StreamMessage const& msg, MessageCategory observed_category) {
         category = observed_category;
         ASSERT_TRUE(std::holds_alternative<alpaca::streaming::UpdatedBarMessage>(msg));
         message = std::get<alpaca::streaming::UpdatedBarMessage>(msg);
     });
 
-    alpaca::Json payload{{"T", "u"},
-                         {"S", "AAPL"},
-                         {"t", "2024-05-01T12:34:56.123456789Z"},
-                         {"o", 150.0},
-                         {"h", 151.0},
-                         {"l", 149.5},
-                         {"c", 150.5},
-                         {"v", 1000},
-                         {"n", 12},
-                         {"vw", 150.2}};
+    alpaca::Json payload{
+        {"T",  "u"                             },
+        {"S",  "AAPL"                          },
+        {"t",  "2024-05-01T12:34:56.123456789Z"},
+        {"o",  150.0                           },
+        {"h",  151.0                           },
+        {"l",  149.5                           },
+        {"c",  150.5                           },
+        {"v",  1000                            },
+        {"n",  12                              },
+        {"vw", 150.2                           }
+    };
 
     WebSocketClientHarness::feed(client, payload);
 
@@ -72,23 +72,23 @@ TEST(StreamingTest, RoutesDailyBarMessages) {
     std::optional<MessageCategory> category;
     std::optional<alpaca::streaming::DailyBarMessage> message;
 
-    client.set_message_handler([
-        &category, &message
-    ](StreamMessage const& msg, MessageCategory observed_category) {
+    client.set_message_handler([&category, &message](StreamMessage const& msg, MessageCategory observed_category) {
         category = observed_category;
         ASSERT_TRUE(std::holds_alternative<alpaca::streaming::DailyBarMessage>(msg));
         message = std::get<alpaca::streaming::DailyBarMessage>(msg);
     });
 
-    alpaca::Json payload{{"T", "d"},
-                         {"S", "MSFT"},
-                         {"t", "2024-05-01T00:00:00Z"},
-                         {"o", 300.0},
-                         {"h", 305.0},
-                         {"l", 295.0},
-                         {"c", 304.0},
-                         {"v", 5000000},
-                         {"n", 42000}};
+    alpaca::Json payload{
+        {"T", "d"                   },
+        {"S", "MSFT"                },
+        {"t", "2024-05-01T00:00:00Z"},
+        {"o", 300.0                 },
+        {"h", 305.0                 },
+        {"l", 295.0                 },
+        {"c", 304.0                 },
+        {"v", 5000000               },
+        {"n", 42000                 }
+    };
 
     WebSocketClientHarness::feed(client, payload);
 
@@ -106,23 +106,23 @@ TEST(StreamingTest, RoutesTradeCancelMessages) {
     std::optional<MessageCategory> category;
     std::optional<alpaca::streaming::TradeCancelMessage> message;
 
-    client.set_message_handler([
-        &category, &message
-    ](StreamMessage const& msg, MessageCategory observed_category) {
+    client.set_message_handler([&category, &message](StreamMessage const& msg, MessageCategory observed_category) {
         category = observed_category;
         ASSERT_TRUE(std::holds_alternative<alpaca::streaming::TradeCancelMessage>(msg));
         message = std::get<alpaca::streaming::TradeCancelMessage>(msg);
     });
 
-    alpaca::Json payload{{"T", "x"},
-                         {"S", "NFLX"},
-                         {"t", "2024-05-01T14:03:00.000000000Z"},
-                         {"x", "XNYS"},
-                         {"p", 550.25},
-                         {"s", 25},
-                         {"i", "987654"},
-                         {"a", "cancel"},
-                         {"z", "C"}};
+    alpaca::Json payload{
+        {"T", "x"                             },
+        {"S", "NFLX"                          },
+        {"t", "2024-05-01T14:03:00.000000000Z"},
+        {"x", "XNYS"                          },
+        {"p", 550.25                          },
+        {"s", 25                              },
+        {"i", "987654"                        },
+        {"a", "cancel"                        },
+        {"z", "C"                             }
+    };
 
     WebSocketClientHarness::feed(client, payload);
 
@@ -149,27 +149,27 @@ TEST(StreamingTest, RoutesTradeCorrectionMessages) {
     std::optional<MessageCategory> category;
     std::optional<alpaca::streaming::TradeCorrectionMessage> message;
 
-    client.set_message_handler([
-        &category, &message
-    ](StreamMessage const& msg, MessageCategory observed_category) {
+    client.set_message_handler([&category, &message](StreamMessage const& msg, MessageCategory observed_category) {
         category = observed_category;
         ASSERT_TRUE(std::holds_alternative<alpaca::streaming::TradeCorrectionMessage>(msg));
         message = std::get<alpaca::streaming::TradeCorrectionMessage>(msg);
     });
 
-    alpaca::Json payload{{"T", "c"},
-                         {"S", "NVDA"},
-                         {"t", "2024-05-01T15:10:00.000000000Z"},
-                         {"x", "XNAS"},
-                         {"oi", "111"},
-                         {"op", 800.5},
-                         {"os", 10},
-                         {"oc", alpaca::Json::array({"@"})},
-                         {"ci", "222"},
-                         {"cp", 802.25},
-                         {"cs", 12},
-                         {"cc", alpaca::Json::array({"@", "T"})},
-                         {"z", "C"}};
+    alpaca::Json payload{
+        {"T",  "c"                             },
+        {"S",  "NVDA"                          },
+        {"t",  "2024-05-01T15:10:00.000000000Z"},
+        {"x",  "XNAS"                          },
+        {"oi", "111"                           },
+        {"op", 800.5                           },
+        {"os", 10                              },
+        {"oc", alpaca::Json::array({"@"})      },
+        {"ci", "222"                           },
+        {"cp", 802.25                          },
+        {"cs", 12                              },
+        {"cc", alpaca::Json::array({"@", "T"}) },
+        {"z",  "C"                             }
+    };
 
     WebSocketClientHarness::feed(client, payload);
 
@@ -205,28 +205,28 @@ TEST(StreamingTest, RoutesImbalanceMessages) {
     std::optional<MessageCategory> category;
     std::optional<alpaca::streaming::ImbalanceMessage> message;
 
-    client.set_message_handler([
-        &category, &message
-    ](StreamMessage const& msg, MessageCategory observed_category) {
+    client.set_message_handler([&category, &message](StreamMessage const& msg, MessageCategory observed_category) {
         category = observed_category;
         ASSERT_TRUE(std::holds_alternative<alpaca::streaming::ImbalanceMessage>(msg));
         message = std::get<alpaca::streaming::ImbalanceMessage>(msg);
     });
 
-    alpaca::Json payload{{"T", "i"},
-                         {"S", "TSLA"},
-                         {"t", "2024-05-01T15:55:00.000000000Z"},
-                         {"x", "XNYS"},
-                         {"im", 4500},
-                         {"paired", 12500},
-                         {"rp", 180.25},
-                         {"np", 180.1},
-                         {"fp", 180.4},
-                         {"cp", 180.3},
-                         {"p", 180.35},
-                         {"side", "B"},
-                         {"at", "closing"},
-                         {"z", "C"}};
+    alpaca::Json payload{
+        {"T",      "i"                             },
+        {"S",      "TSLA"                          },
+        {"t",      "2024-05-01T15:55:00.000000000Z"},
+        {"x",      "XNYS"                          },
+        {"im",     4500                            },
+        {"paired", 12500                           },
+        {"rp",     180.25                          },
+        {"np",     180.1                           },
+        {"fp",     180.4                           },
+        {"cp",     180.3                           },
+        {"p",      180.35                          },
+        {"side",   "B"                             },
+        {"at",     "closing"                       },
+        {"z",      "C"                             }
+    };
 
     WebSocketClientHarness::feed(client, payload);
 
@@ -265,19 +265,19 @@ TEST(StreamingTest, RoutesUnderlyingWhenPayloadIncludesUnderlyingSymbol) {
     std::optional<MessageCategory> category;
     std::optional<alpaca::streaming::UnderlyingMessage> message;
 
-    client.set_message_handler([
-        &category, &message
-    ](StreamMessage const& msg, MessageCategory observed_category) {
+    client.set_message_handler([&category, &message](StreamMessage const& msg, MessageCategory observed_category) {
         category = observed_category;
         ASSERT_TRUE(std::holds_alternative<alpaca::streaming::UnderlyingMessage>(msg));
         message = std::get<alpaca::streaming::UnderlyingMessage>(msg);
     });
 
-    alpaca::Json payload{{"T", "u"},
-                         {"S", "AAPL240621C00150000"},
-                         {"uS", "AAPL"},
-                         {"t", "2024-05-01T16:00:00Z"},
-                         {"p", 150.0}};
+    alpaca::Json payload{
+        {"T",  "u"                   },
+        {"S",  "AAPL240621C00150000" },
+        {"uS", "AAPL"                },
+        {"t",  "2024-05-01T16:00:00Z"},
+        {"p",  150.0                 }
+    };
 
     WebSocketClientHarness::feed(client, payload);
 

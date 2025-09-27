@@ -68,8 +68,7 @@ class AlpacaClient {
     [[nodiscard]] Position close_position(std::string const& symbol, ClosePositionRequest const& request = {});
 
     /// Closes all open positions using optional request modifiers.
-    [[nodiscard]] std::vector<ClosePositionResponse>
-    close_all_positions(CloseAllPositionsRequest const& request = {});
+    [[nodiscard]] std::vector<ClosePositionResponse> close_all_positions(CloseAllPositionsRequest const& request = {});
 
     /// Returns options positions currently held in the authenticated account.
     [[nodiscard]] std::vector<OptionPosition> list_option_positions();
@@ -148,7 +147,7 @@ class AlpacaClient {
 
     /// Replaces an existing crypto order using the Alpaca replace endpoint.
     [[nodiscard]] CryptoOrder replace_crypto_order(std::string const& order_id,
-                                                  ReplaceCryptoOrderRequest const& request);
+                                                   ReplaceCryptoOrderRequest const& request);
 
     /// Returns OTC orders that match the supplied filters.
     [[nodiscard]] std::vector<OtcOrder> list_otc_orders(ListOtcOrdersRequest request = {});
@@ -169,8 +168,7 @@ class AlpacaClient {
     [[nodiscard]] OtcOrder submit_otc_order(NewOtcOrderRequest const& request);
 
     /// Replaces an existing OTC order using the Alpaca replace endpoint.
-    [[nodiscard]] OtcOrder replace_otc_order(std::string const& order_id,
-                                            ReplaceOtcOrderRequest const& request);
+    [[nodiscard]] OtcOrder replace_otc_order(std::string const& order_id, ReplaceOtcOrderRequest const& request);
 
     /// Returns option contracts that match the supplied discovery filters.
     [[nodiscard]] OptionContractsResponse list_option_contracts(ListOptionContractsRequest const& request = {});
@@ -252,15 +250,14 @@ class AlpacaClient {
 
     /// Returns the latest trades for the supplied crypto symbols and feed.
     [[nodiscard]] LatestCryptoTrades get_latest_crypto_trades(std::string const& feed,
-                                                             LatestCryptoRequest const& request);
+                                                              LatestCryptoRequest const& request);
 
     /// Returns the latest quotes for the supplied crypto symbols and feed.
     [[nodiscard]] LatestCryptoQuotes get_latest_crypto_quotes(std::string const& feed,
-                                                             LatestCryptoRequest const& request);
+                                                              LatestCryptoRequest const& request);
 
     /// Returns the latest bars for the supplied crypto symbols and feed.
-    [[nodiscard]] LatestCryptoBars get_latest_crypto_bars(std::string const& feed,
-                                                         LatestCryptoRequest const& request);
+    [[nodiscard]] LatestCryptoBars get_latest_crypto_bars(std::string const& feed, LatestCryptoRequest const& request);
 
     /// Returns orderbook snapshots for the supplied stock symbols.
     [[nodiscard]] MultiStockOrderbooks get_stock_orderbooks(LatestStockOrderbooksRequest const& request);
@@ -270,7 +267,7 @@ class AlpacaClient {
 
     /// Returns orderbook snapshots for the supplied crypto symbols and feed.
     [[nodiscard]] MultiCryptoOrderbooks get_crypto_orderbooks(std::string const& feed,
-                                                             LatestCryptoOrderbooksRequest const& request);
+                                                              LatestCryptoOrderbooksRequest const& request);
 
     /// Returns historical bars for the supplied stock symbol using optional
     /// filters.
@@ -341,6 +338,22 @@ class AlpacaClient {
 
     /// Returns the most active stocks ranked by the specified metric.
     [[nodiscard]] MostActiveStocksResponse get_most_active_stocks(MostActiveStocksRequest const& request);
+
+    /// Retrieves the latest crypto trades for the supplied symbols using the requested feed.
+    [[nodiscard]] LatestCryptoTrades get_latest_crypto_trade(std::string const& feed,
+                                                             LatestCryptoDataRequest const& request = {});
+
+    /// Retrieves the latest crypto quotes for the supplied symbols using the requested feed.
+    [[nodiscard]] LatestCryptoQuotes get_latest_crypto_quote(std::string const& feed,
+                                                             LatestCryptoDataRequest const& request = {});
+
+    /// Retrieves the latest crypto bars for the supplied symbols using the requested feed.
+    [[nodiscard]] LatestCryptoBars get_latest_crypto_bar(std::string const& feed,
+                                                         LatestCryptoDataRequest const& request = {});
+
+    /// Retrieves the latest crypto order books for the supplied symbols using the requested feed.
+    [[nodiscard]] LatestCryptoOrderbooks get_latest_crypto_orderbook(std::string const& feed,
+                                                                     LatestCryptoOrderbookRequest const& request = {});
 
     /// Lists broker accounts using the optional filters.
     [[nodiscard]] BrokerAccountsPage list_broker_accounts(ListBrokerAccountsRequest const& request = {});
@@ -424,10 +437,11 @@ class AlpacaClient {
 
     /// Creates a new broker watchlist for the managed account.
     [[nodiscard]] BrokerWatchlist create_broker_watchlist(std::string const& account_id,
-                                                         CreateBrokerWatchlistRequest const& request);
+                                                          CreateBrokerWatchlistRequest const& request);
 
     /// Updates an existing broker watchlist.
-    [[nodiscard]] BrokerWatchlist update_broker_watchlist(std::string const& account_id, std::string const& watchlist_id,
+    [[nodiscard]] BrokerWatchlist update_broker_watchlist(std::string const& account_id,
+                                                          std::string const& watchlist_id,
                                                           UpdateBrokerWatchlistRequest const& request);
 
     /// Adds an asset to the broker watchlist.
@@ -466,7 +480,7 @@ class AlpacaClient {
 
     /// Convenience helper returning a pagination range for rebalancing subscriptions.
     [[nodiscard]] PaginatedVectorRange<ListRebalancingSubscriptionsRequest, RebalancingSubscriptionsPage,
-                                      RebalancingSubscription>
+                                       RebalancingSubscription>
     list_rebalancing_subscriptions_range(ListRebalancingSubscriptionsRequest request = {}) const;
 
     /// Retrieves a rebalancing subscription by identifier.
@@ -477,8 +491,8 @@ class AlpacaClient {
     create_rebalancing_subscription(CreateRebalancingSubscriptionRequest const& request);
 
     /// Retrieves managed portfolio history statistics for an account.
-    [[nodiscard]] ManagedPortfolioHistory get_managed_portfolio_history(std::string const& account_id,
-                                                                        ManagedPortfolioHistoryRequest const& request = {});
+    [[nodiscard]] ManagedPortfolioHistory
+    get_managed_portfolio_history(std::string const& account_id, ManagedPortfolioHistoryRequest const& request = {});
 
   private:
     Configuration config_;

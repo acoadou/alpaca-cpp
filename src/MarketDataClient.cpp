@@ -18,21 +18,23 @@ HttpClientPtr ensure_http_client(HttpClientPtr& client) {
     return client;
 }
 
-std::string make_data_beta_base_url(std::string const& data_base_url) {
+std::string make_data_beta_base_url(std::string const& data_base_url, std::string_view version) {
     constexpr std::string_view v2_suffix{"/v2"};
     if (data_base_url.ends_with(v2_suffix)) {
-        return std::string(data_base_url.substr(0, data_base_url.size() - v2_suffix.size())) + "/v1beta1";
+        return std::string(data_base_url.substr(0, data_base_url.size() - v2_suffix.size())) + '/' +
+               std::string(version);
     }
     if (!data_base_url.empty() && data_base_url.back() == '/') {
-        return data_base_url + "v1beta1";
+        return data_base_url + std::string(version);
     }
-    return data_base_url + "/v1beta1";
+    return data_base_url + '/' + std::string(version);
 }
 } // namespace
 
 MarketDataClient::MarketDataClient(Configuration const& config, HttpClientPtr http_client)
   : v2_client_(config, ensure_http_client(http_client), config.data_base_url),
-    beta_client_(config, ensure_http_client(http_client), make_data_beta_base_url(config.data_base_url)) {
+    beta_client_(config, ensure_http_client(http_client), make_data_beta_base_url(config.data_base_url, "v1beta1")),
+    beta_v3_client_(config, ensure_http_client(http_client), make_data_beta_base_url(config.data_base_url, "v1beta3")) {
 }
 
 MarketDataClient::MarketDataClient(Environment const& environment, std::string api_key_id, std::string api_secret_key,
@@ -85,13 +87,15 @@ LatestOptionBars MarketDataClient::get_latest_option_bars(LatestOptionsRequest c
 
 namespace {
 std::string to_lower_copy(std::string value) {
-    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char ch) {
+        return static_cast<char>(std::tolower(ch));
+    });
     return value;
 }
 } // namespace
 
 LatestCryptoTrades MarketDataClient::get_latest_crypto_trades(std::string const& feed,
-                                                             LatestCryptoRequest const& request) const {
+                                                              LatestCryptoRequest const& request) const {
     if (feed.empty()) {
         throw std::invalid_argument("feed must not be empty");
     }
@@ -100,7 +104,7 @@ LatestCryptoTrades MarketDataClient::get_latest_crypto_trades(std::string const&
 }
 
 LatestCryptoQuotes MarketDataClient::get_latest_crypto_quotes(std::string const& feed,
-                                                             LatestCryptoRequest const& request) const {
+                                                              LatestCryptoRequest const& request) const {
     if (feed.empty()) {
         throw std::invalid_argument("feed must not be empty");
     }
@@ -109,7 +113,7 @@ LatestCryptoQuotes MarketDataClient::get_latest_crypto_quotes(std::string const&
 }
 
 LatestCryptoBars MarketDataClient::get_latest_crypto_bars(std::string const& feed,
-                                                         LatestCryptoRequest const& request) const {
+                                                          LatestCryptoRequest const& request) const {
     if (feed.empty()) {
         throw std::invalid_argument("feed must not be empty");
     }
@@ -126,7 +130,7 @@ MultiOptionOrderbooks MarketDataClient::get_option_orderbooks(LatestOptionOrderb
 }
 
 MultiCryptoOrderbooks MarketDataClient::get_crypto_orderbooks(std::string const& feed,
-                                                             LatestCryptoOrderbooksRequest const& request) const {
+                                                              LatestCryptoOrderbooksRequest const& request) const {
     if (feed.empty()) {
         throw std::invalid_argument("feed must not be empty");
     }
@@ -237,8 +241,7 @@ MultiOptionSnapshots MarketDataClient::get_option_snapshots(MultiOptionSnapshots
     return beta_client_.get<MultiOptionSnapshots>("options/snapshots", request.to_query_params());
 }
 
-OptionChain MarketDataClient::get_option_chain(std::string const& symbol,
-                                               OptionChainRequest const& request) const {
+OptionChain MarketDataClient::get_option_chain(std::string const& symbol, OptionChainRequest const& request) const {
     return beta_client_.get<OptionChain>("options/" + symbol + "/chain", request.to_query_params());
 }
 
@@ -252,6 +255,28 @@ MultiCryptoQuotes MarketDataClient::get_crypto_quotes(MultiCryptoQuotesRequest c
 
 MultiCryptoTrades MarketDataClient::get_crypto_trades(MultiCryptoTradesRequest const& request) const {
     return beta_client_.get<MultiCryptoTrades>("crypto/trades", request.to_query_params());
+}
+
+LatestCryptoTrades MarketDataClient::get_latest_crypto_trade(std::string const& feed,
+                                                             LatestCryptoDataRequest const& request) const {
+    return beta_v3_client_.get<LatestCryptoTrades>("crypto/" + feed + "/latest/trades", request.to_query_params());
+}
+
+LatestCryptoQuotes MarketDataClient::get_latest_crypto_quote(std::string const& feed,
+                                                             LatestCryptoDataRequest const& request) const {
+    return beta_v3_client_.get<LatestCryptoQuotes>("crypto/" + feed + "/latest/quotes", request.to_query_params());
+}
+
+LatestCryptoBars MarketDataClient::get_latest_crypto_bar(std::string const& feed,
+                                                         LatestCryptoDataRequest const& request) const {
+    return beta_v3_client_.get<LatestCryptoBars>("crypto/" + feed + "/latest/bars", request.to_query_params());
+}
+
+LatestCryptoOrderbooks
+MarketDataClient::get_latest_crypto_orderbook(std::string const& feed,
+                                              LatestCryptoOrderbookRequest const& request) const {
+    return beta_v3_client_.get<LatestCryptoOrderbooks>("crypto/" + feed + "/latest/orderbooks",
+                                                       request.to_query_params());
 }
 
 ListExchangesResponse MarketDataClient::list_exchanges(ListExchangesRequest const& request) const {

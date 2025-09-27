@@ -43,8 +43,7 @@ struct NewMultiAssetOrderRequest : NewOrderBase {
 };
 
 /// Request used to submit a new crypto spot order.
-struct NewCryptoOrderRequest : NewMultiAssetOrderRequest {
-};
+struct NewCryptoOrderRequest : NewMultiAssetOrderRequest {};
 
 /// Request used to submit a new OTC order.
 struct NewOtcOrderRequest : NewMultiAssetOrderRequest {
@@ -125,8 +124,7 @@ struct ReplaceMultiAssetOrderRequest : ReplaceOrderRequest {
 };
 
 /// Request payload used to replace a crypto order.
-struct ReplaceCryptoOrderRequest : ReplaceMultiAssetOrderRequest {
-};
+struct ReplaceCryptoOrderRequest : ReplaceMultiAssetOrderRequest {};
 
 /// Request payload used to replace an OTC order.
 struct ReplaceOtcOrderRequest : ReplaceMultiAssetOrderRequest {

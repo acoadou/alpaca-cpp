@@ -4,10 +4,10 @@
 #include <stdexcept>
 #include <string>
 
+#include "FakeHttpClient.hpp"
 #include "alpaca/Configuration.hpp"
 #include "alpaca/MarketDataClient.hpp"
 #include "alpaca/models/MarketData.hpp"
-#include "FakeHttpClient.hpp"
 
 namespace {
 
@@ -215,4 +215,3 @@ TEST(MarketDataClientTest, MostActiveStocksSerializesQuery) {
     EXPECT_TRUE(http_request.url.find("by=volume") != std::string::npos);
     EXPECT_TRUE(http_request.url.find("top=3") != std::string::npos);
 }
-

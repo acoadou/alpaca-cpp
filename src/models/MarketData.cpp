@@ -23,8 +23,7 @@ void parse_symbol_collection(Json const& j, char const *key, std::map<std::strin
     }
 }
 
-template <typename Item>
-void parse_symbol_objects(Json const& j, char const *key, std::map<std::string, Item>& out) {
+template <typename Item> void parse_symbol_objects(Json const& j, char const *key, std::map<std::string, Item>& out) {
     out.clear();
     if (!j.contains(key) || !j.at(key).is_object()) {
         return;
@@ -265,6 +264,41 @@ void from_json(Json const& j, MultiCryptoTrades& response) {
     response.next_page_token = optional_field<std::string>(j, "next_page_token");
 }
 
+void from_json(Json const& j, CryptoOrderBookEntry& entry) {
+    j.at("p").get_to(entry.price);
+    j.at("s").get_to(entry.size);
+}
+
+void from_json(Json const& j, CryptoOrderBook& book) {
+    book.timestamp = parse_timestamp(j.at("t").get<std::string>());
+    if (j.contains("b")) {
+        j.at("b").get_to(book.bids);
+    } else {
+        book.bids.clear();
+    }
+    if (j.contains("a")) {
+        j.at("a").get_to(book.asks);
+    } else {
+        book.asks.clear();
+    }
+}
+
+void from_json(Json const& j, LatestCryptoTrades& response) {
+    parse_symbol_objects(j, "trades", response.trades);
+}
+
+void from_json(Json const& j, LatestCryptoQuotes& response) {
+    parse_symbol_objects(j, "quotes", response.quotes);
+}
+
+void from_json(Json const& j, LatestCryptoBars& response) {
+    parse_symbol_objects(j, "bars", response.bars);
+}
+
+void from_json(Json const& j, LatestCryptoOrderbooks& response) {
+    parse_symbol_objects(j, "orderbooks", response.orderbooks);
+}
+
 void from_json(Json const& j, OrderbookQuote& quote) {
     if (j.contains("p")) {
         j.at("p").get_to(quote.price);
@@ -349,21 +383,8 @@ void from_json(Json const& j, LatestOptionBars& response) {
     parse_symbol_objects(j, "bars", response.bars);
 }
 
-void from_json(Json const& j, LatestCryptoTrades& response) {
-    parse_symbol_objects(j, "trades", response.trades);
-}
-
-void from_json(Json const& j, LatestCryptoQuotes& response) {
-    parse_symbol_objects(j, "quotes", response.quotes);
-}
-
-void from_json(Json const& j, LatestCryptoBars& response) {
-    parse_symbol_objects(j, "bars", response.bars);
-}
-
 namespace {
-template <typename Orderbooks>
-void parse_orderbooks(Json const& j, Orderbooks& response) {
+template <typename Orderbooks> void parse_orderbooks(Json const& j, Orderbooks& response) {
     response.orderbooks.clear();
     if (!j.contains("orderbooks") || !j.at("orderbooks").is_object()) {
         return;
@@ -714,6 +735,24 @@ QueryParams MultiTradesRequest::to_query_params() const {
     if (feed.has_value()) {
         params.emplace_back("feed", *feed);
     }
+    return params;
+}
+
+QueryParams LatestCryptoDataRequest::to_query_params() const {
+    validate_symbols(symbols);
+    QueryParams params;
+    append_csv(params, "symbols", symbols);
+    if (currency.has_value()) {
+        params.emplace_back("currency", *currency);
+    }
+    return params;
+}
+
+QueryParams LatestCryptoOrderbookRequest::to_query_params() const {
+    validate_symbols(symbols);
+    QueryParams params;
+    append_csv(params, "symbols", symbols);
+    append_csv(params, "exchanges", exchanges);
     return params;
 }
 

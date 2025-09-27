@@ -93,17 +93,18 @@ TEST(BrokerClientModelTest, ManagedPortfolioHistoryParsesCashflowsAndNulls) {
 
 TEST(BrokerClientTest, CreateBrokerWatchlistSerializesPayload) {
     auto stub = std::make_shared<StubHttpClient>();
-    stub->enqueue_response(alpaca::HttpResponse{
-        200,
-        R"JSON({"id":"wl-1","name":"Focus","account_id":"acct-1","created_at":"2024-01-01T00:00:00Z",
+    stub->enqueue_response(
+    alpaca::HttpResponse{200,
+                         R"JSON({"id":"wl-1","name":"Focus","account_id":"acct-1","created_at":"2024-01-01T00:00:00Z",
                 "updated_at":"2024-01-01T00:00:00Z","assets":[]})JSON",
-        {}
-    });
+                         {}});
 
     alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
     alpaca::BrokerClient client(config, stub);
 
-    alpaca::CreateBrokerWatchlistRequest request{"Focus", {"AAPL", "TSLA"}};
+    alpaca::CreateBrokerWatchlistRequest request{
+        "Focus", {"AAPL", "TSLA"}
+    };
     alpaca::BrokerWatchlist const watchlist = client.create_watchlist("acct-1", request);
     EXPECT_EQ(watchlist.id, "wl-1");
 
@@ -120,13 +121,12 @@ TEST(BrokerClientTest, CreateBrokerWatchlistSerializesPayload) {
 
 TEST(BrokerClientTest, ListRebalancingPortfoliosHandlesWrappedResponse) {
     auto stub = std::make_shared<StubHttpClient>();
-    stub->enqueue_response(alpaca::HttpResponse{
-        200,
-        R"JSON({"portfolios":[{"id":"p1","name":"Core","description":"","status":"active",
+    stub->enqueue_response(
+    alpaca::HttpResponse{200,
+                         R"JSON({"portfolios":[{"id":"p1","name":"Core","description":"","status":"active",
                 "cooldown_days":0,"created_at":"2024-01-01T00:00:00Z","updated_at":"2024-01-01T00:00:00Z",
                 "weights":[],"rebalance_conditions":[]}]})JSON",
-        {}
-    });
+                         {}});
 
     alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
     alpaca::BrokerClient client(config, stub);
@@ -141,19 +141,17 @@ TEST(BrokerClientTest, ListRebalancingPortfoliosHandlesWrappedResponse) {
 
 TEST(BrokerClientTest, ListRebalancingSubscriptionsRangeIteratesPages) {
     auto stub = std::make_shared<StubHttpClient>();
-    stub->enqueue_response(alpaca::HttpResponse{
-        200,
-        R"JSON({"subscriptions":[{"id":"sub-1","account_id":"acct-1","portfolio_id":"p1",
+    stub->enqueue_response(
+    alpaca::HttpResponse{200,
+                         R"JSON({"subscriptions":[{"id":"sub-1","account_id":"acct-1","portfolio_id":"p1",
                 "created_at":"2024-01-01T00:00:00Z"},{"id":"sub-2","account_id":"acct-2","portfolio_id":"p1",
                 "created_at":"2024-01-01T00:00:00Z"}],"next_page_token":"token-2"})JSON",
-        {}
-    });
-    stub->enqueue_response(alpaca::HttpResponse{
-        200,
-        R"JSON({"subscriptions":[{"id":"sub-3","account_id":"acct-3","portfolio_id":"p1",
+                         {}});
+    stub->enqueue_response(
+    alpaca::HttpResponse{200,
+                         R"JSON({"subscriptions":[{"id":"sub-3","account_id":"acct-3","portfolio_id":"p1",
                 "created_at":"2024-01-01T00:00:00Z"}]})JSON",
-        {}
-    });
+                         {}});
 
     alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
     alpaca::BrokerClient client(config, stub);
@@ -170,7 +168,6 @@ TEST(BrokerClientTest, ListRebalancingSubscriptionsRangeIteratesPages) {
 
     EXPECT_EQ(ids, (std::vector<std::string>{"sub-1", "sub-2", "sub-3"}));
     ASSERT_EQ(stub->requests().size(), 2U);
-    EXPECT_EQ(stub->requests()[0].url,
-              config.broker_base_url + "/rebalancing/subscriptions?limit=2");
+    EXPECT_EQ(stub->requests()[0].url, config.broker_base_url + "/rebalancing/subscriptions?limit=2");
     EXPECT_NE(stub->requests()[1].url.find("page_token=token-2"), std::string::npos);
 }

@@ -74,4 +74,3 @@ void from_json(Json const& j, FailedClosePositionDetails& details);
 void from_json(Json const& j, ClosePositionResponse& response);
 
 } // namespace alpaca
-

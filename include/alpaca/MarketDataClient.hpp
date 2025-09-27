@@ -33,15 +33,15 @@ class MarketDataClient {
     [[nodiscard]] LatestOptionQuotes get_latest_option_quotes(LatestOptionsRequest const& request) const;
     [[nodiscard]] LatestOptionBars get_latest_option_bars(LatestOptionsRequest const& request) const;
     [[nodiscard]] LatestCryptoTrades get_latest_crypto_trades(std::string const& feed,
-                                                             LatestCryptoRequest const& request) const;
+                                                              LatestCryptoRequest const& request) const;
     [[nodiscard]] LatestCryptoQuotes get_latest_crypto_quotes(std::string const& feed,
-                                                             LatestCryptoRequest const& request) const;
+                                                              LatestCryptoRequest const& request) const;
     [[nodiscard]] LatestCryptoBars get_latest_crypto_bars(std::string const& feed,
-                                                         LatestCryptoRequest const& request) const;
+                                                          LatestCryptoRequest const& request) const;
     [[nodiscard]] MultiStockOrderbooks get_stock_orderbooks(LatestStockOrderbooksRequest const& request) const;
     [[nodiscard]] MultiOptionOrderbooks get_option_orderbooks(LatestOptionOrderbooksRequest const& request) const;
     [[nodiscard]] MultiCryptoOrderbooks get_crypto_orderbooks(std::string const& feed,
-                                                             LatestCryptoOrderbooksRequest const& request) const;
+                                                              LatestCryptoOrderbooksRequest const& request) const;
 
     [[nodiscard]] StockBars get_stock_bars(std::string const& symbol, StockBarsRequest const& request = {}) const;
     [[nodiscard]] std::vector<StockBar> get_all_stock_bars(std::string const& symbol,
@@ -70,13 +70,19 @@ class MarketDataClient {
     [[nodiscard]] OptionSnapshot get_option_snapshot(std::string const& symbol,
                                                      OptionSnapshotRequest const& request = {}) const;
     [[nodiscard]] MultiOptionSnapshots get_option_snapshots(MultiOptionSnapshotsRequest const& request) const;
-    [[nodiscard]] OptionChain get_option_chain(std::string const& symbol,
-                                               OptionChainRequest const& request = {}) const;
+    [[nodiscard]] OptionChain get_option_chain(std::string const& symbol, OptionChainRequest const& request = {}) const;
 
     [[nodiscard]] MultiCryptoBars get_crypto_aggregates(MultiCryptoBarsRequest const& request) const;
     [[nodiscard]] MultiCryptoQuotes get_crypto_quotes(MultiCryptoQuotesRequest const& request) const;
     [[nodiscard]] MultiCryptoTrades get_crypto_trades(MultiCryptoTradesRequest const& request) const;
-
+    [[nodiscard]] LatestCryptoTrades get_latest_crypto_trade(std::string const& feed,
+                                                             LatestCryptoDataRequest const& request = {}) const;
+    [[nodiscard]] LatestCryptoQuotes get_latest_crypto_quote(std::string const& feed,
+                                                             LatestCryptoDataRequest const& request = {}) const;
+    [[nodiscard]] LatestCryptoBars get_latest_crypto_bar(std::string const& feed,
+                                                         LatestCryptoDataRequest const& request = {}) const;
+    [[nodiscard]] LatestCryptoOrderbooks
+    get_latest_crypto_orderbook(std::string const& feed, LatestCryptoOrderbookRequest const& request = {}) const;
     [[nodiscard]] ListExchangesResponse list_exchanges(ListExchangesRequest const& request) const;
     [[nodiscard]] ListTradeConditionsResponse list_trade_conditions(ListTradeConditionsRequest const& request) const;
     [[nodiscard]] MarketMoversResponse get_top_market_movers(MarketMoversRequest const& request) const;
@@ -85,6 +91,7 @@ class MarketDataClient {
   private:
     RestClient v2_client_;
     RestClient beta_client_;
+    RestClient beta_v3_client_;
 };
 
 } // namespace alpaca

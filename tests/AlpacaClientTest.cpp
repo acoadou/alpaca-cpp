@@ -3,6 +3,7 @@
 #include <memory>
 #include <optional>
 #include <queue>
+#include <string>
 #include <vector>
 
 #include <chrono>
@@ -38,6 +39,22 @@ class StubHttpClient : public alpaca::HttpClient {
     std::queue<alpaca::HttpResponse> responses_{};
     std::vector<alpaca::HttpRequest> requests_{};
 };
+
+std::string make_data_url_with_version(alpaca::Configuration const& config, std::string const& version) {
+    std::string base = config.data_base_url;
+    std::string const suffix{"/v2"};
+    if (base.size() >= suffix.size() && base.compare(base.size() - suffix.size(), suffix.size(), suffix) == 0) {
+        base.erase(base.size() - suffix.size());
+        if (!base.empty() && base.back() == '/') {
+            return base + version;
+        }
+        return base + '/' + version;
+    }
+    if (!base.empty() && base.back() == '/') {
+        return base + version;
+    }
+    return base + '/' + version;
+}
 
 TEST(ConfigurationTest, FromEnvironmentIncludesStreamingEndpoints) {
     auto environment = alpaca::Environments::Paper();
@@ -90,11 +107,11 @@ TEST(AlpacaClientTest, SubmitOrderSerializesAdvancedFields) {
 
 TEST(AlpacaClientTest, SubmitOptionOrderTargetsOptionsEndpoint) {
     auto stub = std::make_shared<StubHttpClient>();
-    stub->enqueue_response(alpaca::HttpResponse{
-        200,
-        R"({"id":"opt-order-1","symbol":"AAPL240119C00195000","side":"buy","type":"market",
+    stub->enqueue_response(
+    alpaca::HttpResponse{200,
+                         R"({"id":"opt-order-1","symbol":"AAPL240119C00195000","side":"buy","type":"market",
              "created_at":"2023-01-01T00:00:00Z","time_in_force":"day","status":"accepted"})",
-        {}});
+                         {}});
 
     alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
     alpaca::AlpacaClient client(config, stub);
@@ -122,11 +139,10 @@ TEST(AlpacaClientTest, SubmitOptionOrderTargetsOptionsEndpoint) {
 
 TEST(AlpacaClientTest, SubmitCryptoOrderSerializesVenueExtensions) {
     auto stub = std::make_shared<StubHttpClient>();
-    stub->enqueue_response(alpaca::HttpResponse{
-        200,
-        R"({"id":"crypto-order-1","symbol":"BTCUSD","side":"buy","type":"limit",
+    stub->enqueue_response(alpaca::HttpResponse{200,
+                                                R"({"id":"crypto-order-1","symbol":"BTCUSD","side":"buy","type":"limit",
              "created_at":"2023-01-01T00:00:00Z","time_in_force":"ioc","status":"accepted"})",
-        {}});
+                                                {}});
 
     alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
     alpaca::AlpacaClient client(config, stub);
@@ -183,11 +199,10 @@ TEST(AlpacaClientTest, ListCryptoOrdersTargetsCryptoEndpoint) {
 
 TEST(AlpacaClientTest, SubmitOtcOrderSerializesCounterpartyFields) {
     auto stub = std::make_shared<StubHttpClient>();
-    stub->enqueue_response(alpaca::HttpResponse{
-        200,
-        R"({"id":"otc-1","symbol":"AAPL","side":"sell","type":"limit",
+    stub->enqueue_response(alpaca::HttpResponse{200,
+                                                R"({"id":"otc-1","symbol":"AAPL","side":"sell","type":"limit",
              "created_at":"2023-01-01T00:00:00Z","time_in_force":"gtc","status":"accepted"})",
-        {}});
+                                                {}});
 
     alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
     alpaca::AlpacaClient client(config, stub);
@@ -219,9 +234,8 @@ TEST(AlpacaClientTest, SubmitOtcOrderSerializesCounterpartyFields) {
 
 TEST(AlpacaClientTest, ListOptionContractsParsesResponse) {
     auto stub = std::make_shared<StubHttpClient>();
-    stub->enqueue_response(alpaca::HttpResponse{
-        200,
-        R"({
+    stub->enqueue_response(alpaca::HttpResponse{200,
+                                                R"({
             "contracts": [
                 {
                     "id": "contract-1",
@@ -241,7 +255,7 @@ TEST(AlpacaClientTest, ListOptionContractsParsesResponse) {
             ],
             "next_page_token": "cursor"
         })",
-        {}});
+                                                {}});
 
     alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
     alpaca::AlpacaClient client(config, stub);
@@ -266,9 +280,8 @@ TEST(AlpacaClientTest, ListOptionContractsParsesResponse) {
 
 TEST(AlpacaClientTest, GetOptionAnalyticsParsesGreeksAndLegs) {
     auto stub = std::make_shared<StubHttpClient>();
-    stub->enqueue_response(alpaca::HttpResponse{
-        200,
-        R"({
+    stub->enqueue_response(alpaca::HttpResponse{200,
+                                                R"({
             "symbol": "AAPL240119C00195000",
             "greeks": {
                 "delta": 0.55,
@@ -288,7 +301,7 @@ TEST(AlpacaClientTest, GetOptionAnalyticsParsesGreeksAndLegs) {
                 {"symbol": "AAPL240119C00195000", "side": "buy", "ratio": 1}
             ]
         })",
-        {}});
+                                                {}});
 
     alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
     alpaca::AlpacaClient client(config, stub);
@@ -309,9 +322,8 @@ TEST(AlpacaClientTest, GetOptionAnalyticsParsesGreeksAndLegs) {
 
 TEST(AlpacaClientTest, ListOptionPositionsParsesExtendedFields) {
     auto stub = std::make_shared<StubHttpClient>();
-    stub->enqueue_response(alpaca::HttpResponse{
-        200,
-        R"([
+    stub->enqueue_response(alpaca::HttpResponse{200,
+                                                R"([
             {
                 "asset_id":"asset-1",
                 "account_id":"account-1",
@@ -339,7 +351,7 @@ TEST(AlpacaClientTest, ListOptionPositionsParsesExtendedFields) {
                 "underlying_symbol":"AAPL"
             }
         ])",
-        {}});
+                                                {}});
 
     alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
     alpaca::AlpacaClient client(config, stub);
@@ -431,6 +443,106 @@ TEST(AlpacaClientTest, LatestStockTradeUsesMarketDataEndpoint) {
     auto const& http_request = stub->requests().front();
     EXPECT_EQ(http_request.method, alpaca::HttpMethod::GET);
     EXPECT_EQ(http_request.url, config.data_base_url + "/stocks/AAPL/trades/latest");
+}
+
+TEST(AlpacaClientTest, LatestCryptoTradeUsesBetaV3Endpoint) {
+    auto stub = std::make_shared<StubHttpClient>();
+    stub->enqueue_response(alpaca::HttpResponse{
+        200, R"({"trades":{"BTC/USD":{"i":"t1","x":"CBSE","p":25000.5,"s":1,"t":"2023-01-01T00:00:00Z"}}})", {}});
+
+    alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
+    alpaca::AlpacaClient client(config, stub);
+
+    alpaca::LatestCryptoDataRequest request;
+    request.symbols = {"BTC/USD"};
+
+    auto const latest = client.get_latest_crypto_trade("us", request);
+    ASSERT_EQ(latest.trades.size(), 1U);
+    EXPECT_DOUBLE_EQ(latest.trades.at("BTC/USD").price, 25000.5);
+
+    ASSERT_EQ(stub->requests().size(), 1U);
+    auto const& http_request = stub->requests().front();
+    EXPECT_EQ(http_request.method, alpaca::HttpMethod::GET);
+    auto const expected_prefix = make_data_url_with_version(config, "v1beta3");
+    EXPECT_EQ(http_request.url.substr(0, expected_prefix.size()), expected_prefix);
+    EXPECT_NE(http_request.url.find("/v1beta3/crypto/us/latest/trades"), std::string::npos);
+    EXPECT_NE(http_request.url.find("symbols=BTC%2FUSD"), std::string::npos);
+}
+
+TEST(AlpacaClientTest, LatestCryptoOrderbookSerializesExchanges) {
+    auto stub = std::make_shared<StubHttpClient>();
+    stub->enqueue_response(alpaca::HttpResponse{
+        200,
+        R"({"orderbooks":{"BTC/USD":{"t":"2023-01-01T00:00:00Z","b":[{"p":24999.5,"s":0.75}],"a":[{"p":25000.5,"s":0.5}]}}})",
+        {}});
+
+    alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
+    alpaca::AlpacaClient client(config, stub);
+
+    alpaca::LatestCryptoOrderbookRequest request;
+    request.symbols = {"BTC/USD"};
+    request.exchanges = {"CBSE"};
+
+    auto const books = client.get_latest_crypto_orderbook("us", request);
+    ASSERT_EQ(books.orderbooks.size(), 1U);
+    ASSERT_EQ(books.orderbooks.at("BTC/USD").asks.size(), 1U);
+
+    ASSERT_EQ(stub->requests().size(), 1U);
+    auto const& http_request = stub->requests().front();
+    EXPECT_EQ(http_request.method, alpaca::HttpMethod::GET);
+    EXPECT_NE(http_request.url.find("/v1beta3/crypto/us/latest/orderbooks"), std::string::npos);
+    EXPECT_NE(http_request.url.find("symbols=BTC%2FUSD"), std::string::npos);
+    EXPECT_NE(http_request.url.find("exchanges=CBSE"), std::string::npos);
+}
+
+TEST(AlpacaClientTest, LatestCryptoQuoteIncludesCurrencyFilter) {
+    auto stub = std::make_shared<StubHttpClient>();
+    stub->enqueue_response(alpaca::HttpResponse{
+        200,
+        R"({"quotes":{"BTC/USD":{"ax":"CBSE","ap":25001.0,"as":0.5,"bx":"CBSE","bp":24999.0,"bs":0.75,"t":"2023-01-01T00:00:00Z"}}})",
+        {}});
+
+    alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
+    alpaca::AlpacaClient client(config, stub);
+
+    alpaca::LatestCryptoDataRequest request;
+    request.symbols = {"BTC/USD"};
+    request.currency = std::string{"USD"};
+
+    auto const quotes = client.get_latest_crypto_quote("us", request);
+    ASSERT_EQ(quotes.quotes.size(), 1U);
+    EXPECT_DOUBLE_EQ(quotes.quotes.at("BTC/USD").ask_price, 25001.0);
+
+    ASSERT_EQ(stub->requests().size(), 1U);
+    auto const& http_request = stub->requests().front();
+    EXPECT_EQ(http_request.method, alpaca::HttpMethod::GET);
+    EXPECT_NE(http_request.url.find("/v1beta3/crypto/us/latest/quotes"), std::string::npos);
+    EXPECT_NE(http_request.url.find("symbols=BTC%2FUSD"), std::string::npos);
+    EXPECT_NE(http_request.url.find("currency=USD"), std::string::npos);
+}
+
+TEST(AlpacaClientTest, LatestCryptoBarUsesBetaV3Endpoint) {
+    auto stub = std::make_shared<StubHttpClient>();
+    stub->enqueue_response(alpaca::HttpResponse{
+        200,
+        R"({"bars":{"BTC/USD":{"t":"2023-01-01T00:00:00Z","o":24000.0,"h":25500.0,"l":23500.0,"c":25000.0,"v":10}}})",
+        {}});
+
+    alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
+    alpaca::AlpacaClient client(config, stub);
+
+    alpaca::LatestCryptoDataRequest request;
+    request.symbols = {"BTC/USD"};
+
+    auto const bars = client.get_latest_crypto_bar("us", request);
+    ASSERT_EQ(bars.bars.size(), 1U);
+    EXPECT_DOUBLE_EQ(bars.bars.at("BTC/USD").close, 25000.0);
+
+    ASSERT_EQ(stub->requests().size(), 1U);
+    auto const& http_request = stub->requests().front();
+    EXPECT_EQ(http_request.method, alpaca::HttpMethod::GET);
+    EXPECT_NE(http_request.url.find("/v1beta3/crypto/us/latest/bars"), std::string::npos);
+    EXPECT_NE(http_request.url.find("symbols=BTC%2FUSD"), std::string::npos);
 }
 
 TEST(AlpacaClientTest, StockBarsForwardQueryParameters) {

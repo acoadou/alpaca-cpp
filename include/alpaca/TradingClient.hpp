@@ -36,8 +36,7 @@ class TradingClient {
     [[nodiscard]] std::vector<Position> list_positions();
     [[nodiscard]] Position get_position(std::string const& symbol);
     [[nodiscard]] Position close_position(std::string const& symbol, ClosePositionRequest const& request = {});
-    [[nodiscard]] std::vector<ClosePositionResponse>
-    close_all_positions(CloseAllPositionsRequest const& request = {});
+    [[nodiscard]] std::vector<ClosePositionResponse> close_all_positions(CloseAllPositionsRequest const& request = {});
 
     [[nodiscard]] std::vector<OptionPosition> list_option_positions();
     [[nodiscard]] OptionPosition get_option_position(std::string const& symbol);
@@ -77,8 +76,7 @@ class TradingClient {
     void cancel_otc_order(std::string const& order_id);
     [[nodiscard]] std::vector<OtcCancelledOrderId> cancel_all_otc_orders();
     [[nodiscard]] OtcOrder submit_otc_order(NewOtcOrderRequest const& request);
-    [[nodiscard]] OtcOrder replace_otc_order(std::string const& order_id,
-                                             ReplaceOtcOrderRequest const& request);
+    [[nodiscard]] OtcOrder replace_otc_order(std::string const& order_id, ReplaceOtcOrderRequest const& request);
 
     [[nodiscard]] OptionContractsResponse list_option_contracts(ListOptionContractsRequest const& request = {});
     [[nodiscard]] OptionContract get_option_contract(std::string const& symbol);

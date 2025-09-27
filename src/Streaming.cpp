@@ -1,8 +1,8 @@
 #include "alpaca/Streaming.hpp"
 
 #include <algorithm>
-#include <chrono>
 #include <cctype>
+#include <chrono>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -36,8 +36,7 @@ std::vector<std::string> parse_conditions(Json const& j, char const *key) {
     return j.at(key).get<std::vector<std::string>>();
 }
 
-template <typename T>
-std::optional<T> parse_optional(Json const& j, char const *key) {
+template <typename T> std::optional<T> parse_optional(Json const& j, char const *key) {
     if (!j.contains(key)) {
         return std::nullopt;
     }
@@ -659,10 +658,10 @@ void WebSocketClient::subscribe(MarketSubscription const& subscription) {
         }
     }
 
-    if (diff.trades.empty() && diff.quotes.empty() && diff.bars.empty() && diff.updated_bars.empty() && diff.daily_bars.empty()
-        && diff.statuses.empty() && diff.orderbooks.empty() && diff.lulds.empty() && diff.auctions.empty()
-        && diff.greeks.empty() && diff.underlyings.empty() && diff.trade_cancels.empty() && diff.trade_corrections.empty()
-        && diff.imbalances.empty()) {
+    if (diff.trades.empty() && diff.quotes.empty() && diff.bars.empty() && diff.updated_bars.empty() &&
+        diff.daily_bars.empty() && diff.statuses.empty() && diff.orderbooks.empty() && diff.lulds.empty() &&
+        diff.auctions.empty() && diff.greeks.empty() && diff.underlyings.empty() && diff.trade_cancels.empty() &&
+        diff.trade_corrections.empty() && diff.imbalances.empty()) {
         return;
     }
 
@@ -789,10 +788,10 @@ void WebSocketClient::unsubscribe(MarketSubscription const& subscription) {
         }
     }
 
-    if (diff.trades.empty() && diff.quotes.empty() && diff.bars.empty() && diff.updated_bars.empty() && diff.daily_bars.empty()
-        && diff.statuses.empty() && diff.orderbooks.empty() && diff.lulds.empty() && diff.auctions.empty()
-        && diff.greeks.empty() && diff.underlyings.empty() && diff.trade_cancels.empty() && diff.trade_corrections.empty()
-        && diff.imbalances.empty()) {
+    if (diff.trades.empty() && diff.quotes.empty() && diff.bars.empty() && diff.updated_bars.empty() &&
+        diff.daily_bars.empty() && diff.statuses.empty() && diff.orderbooks.empty() && diff.lulds.empty() &&
+        diff.auctions.empty() && diff.greeks.empty() && diff.underlyings.empty() && diff.trade_cancels.empty() &&
+        diff.trade_corrections.empty() && diff.imbalances.empty()) {
         return;
     }
 
@@ -970,7 +969,9 @@ void WebSocketClient::handle_payload(Json const& payload) {
 
     if (payload.contains("T")) {
         auto type = payload.at("T").get<std::string>();
-        std::transform(type.begin(), type.end(), type.begin(), [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+        std::transform(type.begin(), type.end(), type.begin(), [](unsigned char ch) {
+            return static_cast<char>(std::tolower(ch));
+        });
         if (type == "t") {
             message_handler_(build_trade_message(payload), MessageCategory::Trade);
             return;
@@ -1112,11 +1113,11 @@ void WebSocketClient::replay_subscriptions() {
         streams.assign(listened_streams_.begin(), listened_streams_.end());
     }
 
-    if (!snapshot.trades.empty() || !snapshot.quotes.empty() || !snapshot.bars.empty() || !snapshot.updated_bars.empty()
-        || !snapshot.daily_bars.empty() || !snapshot.statuses.empty() || !snapshot.orderbooks.empty()
-        || !snapshot.lulds.empty() || !snapshot.auctions.empty() || !snapshot.greeks.empty()
-        || !snapshot.underlyings.empty() || !snapshot.trade_cancels.empty() || !snapshot.trade_corrections.empty()
-        || !snapshot.imbalances.empty()) {
+    if (!snapshot.trades.empty() || !snapshot.quotes.empty() || !snapshot.bars.empty() ||
+        !snapshot.updated_bars.empty() || !snapshot.daily_bars.empty() || !snapshot.statuses.empty() ||
+        !snapshot.orderbooks.empty() || !snapshot.lulds.empty() || !snapshot.auctions.empty() ||
+        !snapshot.greeks.empty() || !snapshot.underlyings.empty() || !snapshot.trade_cancels.empty() ||
+        !snapshot.trade_corrections.empty() || !snapshot.imbalances.empty()) {
         Json message;
         message["action"] = "subscribe";
         if (!snapshot.trades.empty()) {

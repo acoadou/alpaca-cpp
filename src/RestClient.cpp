@@ -35,7 +35,8 @@ std::string url_encode(std::string_view value) {
 } // namespace
 
 RestClient::RestClient(Configuration config, HttpClientPtr http_client, std::string base_url)
-  : RestClient(std::move(config), std::move(http_client), std::move(base_url), Options{}) {}
+  : RestClient(std::move(config), std::move(http_client), std::move(base_url), Options{}) {
+}
 
 RestClient::RestClient(Configuration config, HttpClientPtr http_client, std::string base_url, Options options)
   : config_(std::move(config)), http_client_(std::move(http_client)), base_url_(std::move(base_url)),
@@ -136,7 +137,8 @@ HttpResponse RestClient::perform_request(HttpMethod method, std::string const& p
     }
 }
 
-std::optional<std::string> RestClient::request_raw(HttpMethod method, std::string const& path, QueryParams const& params,
+std::optional<std::string> RestClient::request_raw(HttpMethod method, std::string const& path,
+                                                   QueryParams const& params,
                                                    std::optional<std::string> payload) const {
     HttpResponse response = perform_request(method, path, params, std::move(payload));
 

@@ -30,14 +30,14 @@ void ensure_curl_global_init() {
     });
 }
 
-size_t write_body(char* ptr, size_t size, size_t nmemb, void* userdata) {
-    auto* body = static_cast<std::string*>(userdata);
+size_t write_body(char *ptr, size_t size, size_t nmemb, void *userdata) {
+    auto *body = static_cast<std::string *>(userdata);
     body->append(ptr, size * nmemb);
     return size * nmemb;
 }
 
-size_t write_header(char* buffer, size_t size, size_t nitems, void* userdata) {
-    auto* headers = static_cast<HttpHeaders*>(userdata);
+size_t write_header(char *buffer, size_t size, size_t nitems, void *userdata) {
+    auto *headers = static_cast<HttpHeaders *>(userdata);
     std::string header_line(buffer, size * nitems);
     auto const separator = header_line.find(':');
     if (separator == std::string::npos) {
@@ -66,15 +66,15 @@ size_t write_header(char* buffer, size_t size, size_t nitems, void* userdata) {
 }
 
 class CurlSlistDeleter {
-public:
-    void operator()(curl_slist* list) const {
+  public:
+    void operator()(curl_slist *list) const {
         curl_slist_free_all(list);
     }
 };
 
 class CurlEasyDeleter {
-public:
-    void operator()(CURL* handle) const {
+  public:
+    void operator()(CURL *handle) const {
         if (handle != nullptr) {
             curl_easy_cleanup(handle);
         }
@@ -86,7 +86,8 @@ public:
 struct CurlHttpClient::Impl {
     struct HandleLease {
         HandleLease() = default;
-        HandleLease(Impl* owner, std::size_t index, CURL* handle) : owner_(owner), index_(index), handle_(handle) {}
+        HandleLease(Impl *owner, std::size_t index, CURL *handle) : owner_(owner), index_(index), handle_(handle) {
+        }
 
         HandleLease(HandleLease const&) = delete;
         HandleLease& operator=(HandleLease const&) = delete;
@@ -115,11 +116,11 @@ struct CurlHttpClient::Impl {
             release();
         }
 
-        [[nodiscard]] CURL* get() const noexcept {
+        [[nodiscard]] CURL *get() const noexcept {
             return handle_;
         }
 
-    private:
+      private:
         void release() {
             if (owner_ != nullptr) {
                 owner_->release_handle(index_);
@@ -128,9 +129,9 @@ struct CurlHttpClient::Impl {
             }
         }
 
-        Impl* owner_{nullptr};
+        Impl *owner_{nullptr};
         std::size_t index_{0};
-        CURL* handle_{nullptr};
+        CURL *handle_{nullptr};
     };
 
     explicit Impl(CurlHttpClientOptions options) : options_(std::move(options)) {
@@ -157,7 +158,7 @@ struct CurlHttpClient::Impl {
         });
         auto index = available_indices_.back();
         available_indices_.pop_back();
-        CURL* handle = handles_[index].get();
+        CURL *handle = handles_[index].get();
         return HandleLease(this, index, handle);
     }
 
@@ -176,7 +177,8 @@ struct CurlHttpClient::Impl {
     std::condition_variable available_cv_;
 };
 
-CurlHttpClient::CurlHttpClient(CurlHttpClientOptions options) : impl_(new Impl(std::move(options))) {}
+CurlHttpClient::CurlHttpClient(CurlHttpClientOptions options) : impl_(new Impl(std::move(options))) {
+}
 
 CurlHttpClient::~CurlHttpClient() {
     delete impl_;
@@ -186,7 +188,7 @@ HttpResponse CurlHttpClient::send(HttpRequest const& request) {
     ensure_curl_global_init();
 
     auto lease = impl_->acquire_handle();
-    CURL* handle = lease.get();
+    CURL *handle = lease.get();
     if (!handle) {
         throw std::runtime_error("CURL handle is not initialized");
     }
@@ -254,7 +256,7 @@ HttpResponse CurlHttpClient::send(HttpRequest const& request) {
     std::unique_ptr<curl_slist, CurlSlistDeleter> headers(nullptr);
     for (auto const& [key, value] : request.headers) {
         std::string header_line = key + ": " + value;
-        curl_slist* raw = headers.release();
+        curl_slist *raw = headers.release();
         raw = curl_slist_append(raw, header_line.c_str());
         if (!raw) {
             throw std::runtime_error("Failed to append HTTP header");

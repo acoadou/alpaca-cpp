@@ -201,6 +201,111 @@ TEST(ModelSerializationTest, NewsRequestValidationAndQueryParams) {
     EXPECT_THROW(request.to_query_params(), std::invalid_argument);
 }
 
+TEST(ModelSerializationTest, LatestCryptoDataRequestValidatesSymbolsAndCurrency) {
+    alpaca::LatestCryptoDataRequest request;
+    request.symbols = {"BTC/USD", "ETH/USD"};
+    request.currency = std::string{"USD"};
+
+    auto const params = request.to_query_params();
+    ASSERT_EQ(params.size(), 2U);
+    EXPECT_EQ(params[0].first, "symbols");
+    EXPECT_NE(params[0].second.find("BTC/USD"), std::string::npos);
+    EXPECT_EQ(params[1].first, "currency");
+    EXPECT_EQ(params[1].second, "USD");
+
+    request.symbols.clear();
+    EXPECT_THROW(request.to_query_params(), std::invalid_argument);
+}
+
+TEST(ModelSerializationTest, LatestCryptoOrderbookRequestSerializesExchanges) {
+    alpaca::LatestCryptoOrderbookRequest request;
+    request.symbols = {"BTC/USD"};
+    request.exchanges = {"CBSE", "ERSX"};
+
+    auto const params = request.to_query_params();
+    ASSERT_EQ(params.size(), 2U);
+    EXPECT_EQ(params[0].first, "symbols");
+    EXPECT_NE(params[0].second.find("BTC/USD"), std::string::npos);
+    EXPECT_EQ(params[1].first, "exchanges");
+    EXPECT_NE(params[1].second.find("CBSE"), std::string::npos);
+
+    request.symbols.clear();
+    EXPECT_THROW(request.to_query_params(), std::invalid_argument);
+}
+
+TEST(ModelSerializationTest, LatestCryptoTradesParseSymbolMap) {
+    alpaca::Json json = {
+        {"trades",
+         {{"BTC/USD", {{"i", "t1"}, {"x", "CBSE"}, {"p", 25000.5}, {"s", 1}, {"t", "2023-01-01T00:00:00Z"}}},
+          {"ETH/USD", {{"i", "t2"}, {"x", "ERSX"}, {"p", 1800.25}, {"s", 2}, {"t", "2023-01-01T00:00:01Z"}}}}}
+    };
+
+    auto const response = json.get<alpaca::LatestCryptoTrades>();
+    ASSERT_EQ(response.trades.size(), 2U);
+    EXPECT_DOUBLE_EQ(response.trades.at("BTC/USD").price, 25000.5);
+    EXPECT_EQ(response.trades.at("ETH/USD").exchange, "ERSX");
+}
+
+TEST(ModelSerializationTest, LatestCryptoBarsParseSymbolMap) {
+    alpaca::Json json = {
+        {"bars",
+         {{"BTC/USD",
+           {{"t", "2023-01-01T00:00:00Z"}, {"o", 24000.0}, {"h", 25500.0}, {"l", 23500.0}, {"c", 25000.0}, {"v", 10}}},
+          {"ETH/USD",
+           {{"t", "2023-01-01T00:00:00Z"}, {"o", 1700.0}, {"h", 1850.0}, {"l", 1650.0}, {"c", 1800.0}, {"v", 20}}}}}
+    };
+
+    auto const response = json.get<alpaca::LatestCryptoBars>();
+    ASSERT_EQ(response.bars.size(), 2U);
+    EXPECT_DOUBLE_EQ(response.bars.at("BTC/USD").close, 25000.0);
+    EXPECT_EQ(response.bars.at("ETH/USD").volume, 20U);
+}
+
+TEST(ModelSerializationTest, LatestCryptoQuotesParseSymbolMap) {
+    alpaca::Json json = {
+        {"quotes",
+         {{"BTC/USD",
+           {{"ax", "CBSE"},
+            {"ap", 25001.0},
+            {"as", 0.5},
+            {"bx", "CBSE"},
+            {"bp", 24999.0},
+            {"bs", 0.75},
+            {"t", "2023-01-01T00:00:00Z"}}},
+          {"ETH/USD",
+           {{"ax", "ERSX"},
+            {"ap", 1801.0},
+            {"as", 1.5},
+            {"bx", "ERSX"},
+            {"bp", 1799.0},
+            {"bs", 1.0},
+            {"t", "2023-01-01T00:00:01Z"}}}}}
+    };
+
+    auto const response = json.get<alpaca::LatestCryptoQuotes>();
+    ASSERT_EQ(response.quotes.size(), 2U);
+    EXPECT_DOUBLE_EQ(response.quotes.at("BTC/USD").ask_price, 25001.0);
+    EXPECT_DOUBLE_EQ(response.quotes.at("ETH/USD").bid_price, 1799.0);
+}
+
+TEST(ModelSerializationTest, LatestCryptoOrderbooksParseBidsAndAsks) {
+    alpaca::Json json = {
+        {"orderbooks",
+         {{"BTC/USD",
+           {{"t", "2023-01-01T00:00:00Z"},
+            {"b", alpaca::Json::array({{{"p", 24999.0}, {"s", 0.75}}})},
+            {"a", alpaca::Json::array({{{"p", 25001.0}, {"s", 0.5}}})}}}}}
+    };
+
+    auto const response = json.get<alpaca::LatestCryptoOrderbooks>();
+    ASSERT_EQ(response.orderbooks.size(), 1U);
+    auto const& book = response.orderbooks.at("BTC/USD");
+    ASSERT_EQ(book.bids.size(), 1U);
+    ASSERT_EQ(book.asks.size(), 1U);
+    EXPECT_DOUBLE_EQ(book.bids.front().price, 24999.0);
+    EXPECT_DOUBLE_EQ(book.asks.front().size, 0.5);
+}
+
 TEST(ModelSerializationTest, MultiBarsRequestRequiresSymbols) {
     alpaca::MultiStockBarsRequest request;
     EXPECT_THROW(request.to_query_params(), std::invalid_argument);
