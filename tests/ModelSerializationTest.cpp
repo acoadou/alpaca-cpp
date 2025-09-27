@@ -30,6 +30,11 @@ TEST(ModelSerializationTest, NewOrderRequestSupportsAdvancedOptions) {
     request.order_class = alpaca::OrderClass::BRACKET;
     request.take_profit = alpaca::TakeProfitParams{"160"};
     request.stop_loss = alpaca::StopLossParams{std::make_optional<std::string>("135"), std::nullopt};
+    request.position_intent = alpaca::PositionIntent::OPENING;
+    request.legs = {
+        {"AAPL240119C00150000", 1, alpaca::OrderSide::BUY, alpaca::PositionIntent::OPENING},
+        {"AAPL240119P00150000", 1, alpaca::OrderSide::SELL, alpaca::PositionIntent::CLOSING}
+    };
 
     alpaca::Json json;
     to_json(json, request);
@@ -44,11 +49,20 @@ TEST(ModelSerializationTest, NewOrderRequestSupportsAdvancedOptions) {
     EXPECT_EQ(json["client_order_id"], "client");
     EXPECT_EQ(json["order_class"], "bracket");
     EXPECT_TRUE(json["extended_hours"].get<bool>());
+    EXPECT_EQ(json["position_intent"], "opening");
     ASSERT_TRUE(json.contains("take_profit"));
     EXPECT_EQ(json["take_profit"]["limit_price"], "160");
     ASSERT_TRUE(json.contains("stop_loss"));
     EXPECT_EQ(json["stop_loss"]["stop_price"], "135");
     EXPECT_FALSE(json["stop_loss"].contains("limit_price"));
+    ASSERT_TRUE(json.contains("legs"));
+    ASSERT_EQ(json["legs"].size(), 2);
+    EXPECT_EQ(json["legs"][0]["symbol"], "AAPL240119C00150000");
+    EXPECT_EQ(json["legs"][0]["ratio"], 1);
+    EXPECT_EQ(json["legs"][0]["side"], "buy");
+    EXPECT_EQ(json["legs"][0]["position_intent"], "opening");
+    EXPECT_EQ(json["legs"][1]["side"], "sell");
+    EXPECT_EQ(json["legs"][1]["position_intent"], "closing");
 }
 
 TEST(ModelSerializationTest, ReplaceOrderRequestSerializesOptionals) {

@@ -45,6 +45,27 @@ template <typename Request> Json build_new_order_payload(Request const& request)
         j["stop_loss"] = std::move(stop_loss_json);
     }
 
+    if constexpr (requires { request.position_intent; }) {
+        if (request.position_intent.has_value()) {
+            j["position_intent"] = to_string(*request.position_intent);
+        }
+    }
+    if constexpr (requires { request.legs; }) {
+        if (!request.legs.empty()) {
+            Json legs_json = Json::array();
+            for (auto const& leg : request.legs) {
+                Json leg_json = {
+                    {"symbol",          leg.symbol            },
+                    {"ratio",           leg.ratio             },
+                    {"side",            to_string(leg.side)   },
+                    {"position_intent", to_string(leg.intent) }
+                };
+                legs_json.push_back(std::move(leg_json));
+            }
+            j["legs"] = std::move(legs_json);
+        }
+    }
+
     if constexpr (requires { request.extended_hours; }) {
         if (request.extended_hours) {
             j["extended_hours"] = request.extended_hours;
@@ -170,6 +191,18 @@ std::string to_string(OrderStatusFilter status) {
         return "all";
     }
     throw std::invalid_argument("Unknown OrderStatusFilter");
+}
+
+std::string to_string(PositionIntent intent) {
+    switch (intent) {
+    case PositionIntent::OPENING:
+        return "opening";
+    case PositionIntent::CLOSING:
+        return "closing";
+    case PositionIntent::AUTOMATIC:
+        return "automatic";
+    }
+    throw std::invalid_argument("Unknown PositionIntent");
 }
 
 void to_json(Json& j, NewOrderRequest const& request) {

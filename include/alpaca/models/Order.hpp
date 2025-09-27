@@ -10,6 +10,21 @@
 
 namespace alpaca {
 
+/// Indicates whether a new order opens or closes a position.
+enum class PositionIntent {
+    OPENING,
+    CLOSING,
+    AUTOMATIC
+};
+
+/// Represents a single leg within a multi-leg option order.
+struct OptionLeg {
+    std::string symbol;
+    int ratio{1};
+    OrderSide side{OrderSide::BUY};
+    PositionIntent intent{PositionIntent::OPENING};
+};
+
 /// Common fields shared by all new order request payloads.
 struct NewOrderBase {
     std::string symbol;
@@ -29,6 +44,8 @@ struct NewOrderBase {
 /// Request used to submit a new equity order.
 struct NewOrderRequest : NewOrderBase {
     bool extended_hours{false};
+    std::optional<PositionIntent> position_intent{};
+    std::vector<OptionLeg> legs{};
 };
 
 /// Request used to submit a new multi-asset order with venue routing controls.
@@ -103,6 +120,7 @@ enum class OrderStatusFilter {
 };
 
 std::string to_string(OrderStatusFilter status);
+std::string to_string(PositionIntent intent);
 
 /// Request payload used to replace an existing order.
 struct ReplaceOrderRequest {
