@@ -134,14 +134,40 @@ TEST(ModelSerializationTest, AccountConfigurationUpdateSerializesOnlyProvidedFie
     alpaca::AccountConfigurationUpdateRequest request;
     request.dtbp_check = "both";
     request.no_shorting = true;
+    request.ptp_no_exception_entry = true;
+    request.max_options_trading_level = alpaca::OptionsTradingLevel::LONG;
 
     alpaca::Json json;
     to_json(json, request);
 
-    EXPECT_EQ(json.size(), 2);
+    EXPECT_EQ(json.size(), 4);
     EXPECT_EQ(json["dtbp_check"], "both");
     EXPECT_TRUE(json["no_shorting"].get<bool>());
+    EXPECT_TRUE(json["ptp_no_exception_entry"].get<bool>());
+    EXPECT_EQ(json["max_options_trading_level"].get<int>(), 2);
     EXPECT_FALSE(json.contains("trade_confirm_email"));
+}
+
+TEST(ModelSerializationTest, AccountConfigurationRoundTripsOptionsSettings) {
+    alpaca::Json json = {
+        {"dtbp_check", "both"},
+        {"no_shorting", false},
+        {"trade_confirm_email", "all"},
+        {"suspend_trade", false},
+        {"ptp_no_exception_entry", true},
+        {"max_options_trading_level", 3}
+    };
+
+    auto const configuration = json.get<alpaca::AccountConfiguration>();
+    EXPECT_TRUE(configuration.ptp_no_exception_entry);
+    ASSERT_TRUE(configuration.max_options_trading_level.has_value());
+    EXPECT_EQ(*configuration.max_options_trading_level, alpaca::OptionsTradingLevel::SPREADS);
+
+    alpaca::Json serialized;
+    to_json(serialized, configuration);
+
+    EXPECT_TRUE(serialized["ptp_no_exception_entry"].get<bool>());
+    EXPECT_EQ(serialized["max_options_trading_level"].get<int>(), 3);
 }
 
 TEST(ModelSerializationTest, PortfolioHistoryParsesNumericVectors) {
