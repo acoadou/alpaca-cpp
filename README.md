@@ -22,6 +22,8 @@ client while embracing contemporary C++ idioms. The codebase builds a compiled l
   types where appropriate.
 - **Robust testing** powered by GoogleTest/GoogleMock and a fake HTTP client that validates headers, query encoding and JSON
   serialization.
+- **Synchronous by design** REST and streaming clients that you can wrap in your preferred executor, coroutine, or
+  future abstraction when integrating with asynchronous pipelines.
 
 ## Endpoint coverage
 
@@ -314,6 +316,23 @@ All REST operations are issued through the `alpaca::HttpClient` interface. The d
 provide any custom transport (Boost.Beast, cpp-httplib, proprietary stacks, …) by supplying your own implementation when
 constructing `alpaca::AlpacaClient`.
 
+When you stick with the bundled curl transport you can tune concurrency and redirect behaviour with
+`alpaca::CurlHttpClientOptions`. The defaults favour safety by disabling automatic redirects and keeping a single reusable
+easy handle, but you can opt into a small pool when higher throughput is required:
+
+```cpp
+alpaca::CurlHttpClientOptions options;
+options.connection_pool_size = 4;
+options.follow_redirects = true;        // Will still honour max_redirects and protocol restrictions
+options.max_redirects = 3;
+
+auto http_client = alpaca::create_default_http_client(options);
+alpaca::TradingClient trading(config, http_client);
+```
+
+Redirects remain disabled by default to avoid leaking credentials toward untrusted hosts, so only enable them when you control
+the upstream endpoints.
+
 ### Streaming
 
 `alpaca::streaming::WebSocketClient` bundles robust reconnect behaviour by default. You can tweak the
@@ -337,6 +356,14 @@ socket.set_ping_interval(std::chrono::seconds{15});
 
 The client automatically resubscribes after reconnecting and responds to server pings with a `pong`
 message, so long-running feeds keep flowing without manual intervention.
+
+Outbound messages queued while the socket is down are now bounded (1024 by default) to guard against accidental memory
+growth. Use `set_pending_message_limit(0)` if you explicitly need an unbounded buffer or pick a tighter cap that suits your
+traffic profile:
+
+```cpp
+socket.set_pending_message_limit(256);
+```
 
 ### TLS configuration
 

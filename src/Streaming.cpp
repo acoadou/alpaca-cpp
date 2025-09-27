@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <random>
 #include <stdexcept>
@@ -390,6 +391,12 @@ void WebSocketClient::listen(std::vector<std::string> const& streams) {
 void WebSocketClient::send_raw(Json const& message) {
     std::lock_guard<std::mutex> lock(connection_mutex_);
     if (!connected_) {
+        if (pending_message_limit_ > 0 && pending_messages_.size() >= pending_message_limit_) {
+            if (error_handler_) {
+                error_handler_("websocket send queue limit reached; rejecting message");
+            }
+            throw std::runtime_error("websocket send queue limit reached");
+        }
         pending_messages_.push_back(message);
         return;
     }
@@ -436,6 +443,19 @@ void WebSocketClient::set_ping_interval(std::chrono::seconds interval) {
     }
     ping_interval_ = interval;
     socket_.setPingInterval(static_cast<uint32_t>(ping_interval_.count()));
+}
+
+void WebSocketClient::set_pending_message_limit(std::size_t limit) {
+    std::lock_guard<std::mutex> lock(connection_mutex_);
+    pending_message_limit_ = limit;
+    if (pending_message_limit_ > 0 && pending_messages_.size() > pending_message_limit_) {
+        auto const overflow = pending_messages_.size() - pending_message_limit_;
+        pending_messages_.erase(pending_messages_.begin(),
+                                pending_messages_.begin() + static_cast<std::ptrdiff_t>(overflow));
+        if (error_handler_) {
+            error_handler_("websocket send queue trimmed to respect pending message limit");
+        }
+    }
 }
 
 bool WebSocketClient::is_connected() const {

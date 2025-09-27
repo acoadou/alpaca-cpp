@@ -10,33 +10,24 @@
 #include <variant>
 
 int main() {
-    auto const* key = std::getenv("APCA_API_KEY_ID");
-    auto const* secret = std::getenv("APCA_API_SECRET_KEY");
+    auto const *key = std::getenv("APCA_API_KEY_ID");
+    auto const *secret = std::getenv("APCA_API_SECRET_KEY");
     if (key == nullptr || secret == nullptr) {
         std::cerr << "Please set APCA_API_KEY_ID and APCA_API_SECRET_KEY in the environment." << std::endl;
         return 1;
     }
 
-    auto config = alpaca::Configuration::FromEnvironment(
-        alpaca::Environments::Paper(),
-        key,
-        secret);
+    auto config = alpaca::Configuration::FromEnvironment(alpaca::Environments::Paper(), key, secret);
 
-    alpaca::streaming::WebSocketClient socket(
-        config.trading_stream_url,
-        config.api_key_id,
-        config.api_secret_key,
-        alpaca::streaming::StreamFeed::Trading);
+    alpaca::streaming::WebSocketClient socket(config.trading_stream_url, config.api_key_id, config.api_secret_key,
+                                              alpaca::streaming::StreamFeed::Trading);
 
-    socket.set_reconnect_policy({
-        std::chrono::milliseconds{250},
-        std::chrono::seconds{15},
-        2.0,
-        std::chrono::milliseconds{250}});
+    socket.set_reconnect_policy(
+    {std::chrono::milliseconds{250}, std::chrono::seconds{15}, 2.0, std::chrono::milliseconds{250}});
     socket.set_ping_interval(std::chrono::seconds{15});
 
-    socket.set_message_handler([](alpaca::streaming::StreamMessage const& message,
-                                  alpaca::streaming::MessageCategory category) {
+    socket.set_message_handler(
+    [](alpaca::streaming::StreamMessage const& message, alpaca::streaming::MessageCategory category) {
         switch (category) {
         case alpaca::streaming::MessageCategory::OrderUpdate: {
             auto const& update = std::get<alpaca::streaming::OrderUpdateMessage>(message);

@@ -191,6 +191,10 @@ class WebSocketClient {
     void set_reconnect_policy(ReconnectPolicy policy);
     void set_ping_interval(std::chrono::seconds interval);
 
+    /// Sets the maximum number of buffered outbound messages while disconnected.
+    /// A value of 0 disables the limit.
+    void set_pending_message_limit(std::size_t limit);
+
   private:
     void authenticate();
     void handle_payload(Json const& payload);
@@ -214,6 +218,7 @@ class WebSocketClient {
     std::thread reconnect_thread_{};
 
     std::vector<Json> pending_messages_;
+    std::size_t pending_message_limit_{1024};
 
     MessageHandler message_handler_{};
     LifecycleHandler open_handler_{};

@@ -4,16 +4,15 @@
 #include <ctime>
 #include <iomanip>
 #include <sstream>
-#include <unordered_map>
 
 #include "alpaca/ApiException.hpp"
+#include "alpaca/HttpHeaders.hpp"
 
 namespace {
 
 TEST(ApiExceptionTest, ParsesDeltaSecondsRetryAfter) {
-    std::unordered_map<std::string, std::string> headers{
-        {"Retry-After", "5"}
-    };
+    alpaca::HttpHeaders headers;
+    headers.append("Retry-After", "5");
 
     alpaca::ApiException exception(429, "rate limit", "{}", headers);
 
@@ -36,9 +35,8 @@ TEST(ApiExceptionTest, ParsesHttpDateRetryAfter) {
     std::ostringstream header_value;
     header_value << std::put_time(&utc_tm, "%a, %d %b %Y %H:%M:%S GMT");
 
-    std::unordered_map<std::string, std::string> headers{
-        {"Retry-After", header_value.str()}
-    };
+    alpaca::HttpHeaders headers;
+    headers.append("Retry-After", header_value.str());
 
     alpaca::ApiException exception(429, "rate limit", "{}", headers);
 

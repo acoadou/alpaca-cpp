@@ -3,9 +3,9 @@
 #include <chrono>
 #include <optional>
 #include <string>
-#include <unordered_map>
 
 #include "alpaca/Environments.hpp"
+#include "alpaca/HttpHeaders.hpp"
 
 namespace alpaca {
 
@@ -42,7 +42,7 @@ struct Configuration {
     std::chrono::milliseconds timeout{std::chrono::seconds{30}};
 
     /// Additional headers to append to every HTTP request.
-    std::unordered_map<std::string, std::string> default_headers{};
+    HttpHeaders default_headers{};
 
     /// Optional bearer token used for OAuth-style authentication.
     std::optional<std::string> bearer_token{};

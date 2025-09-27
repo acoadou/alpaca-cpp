@@ -10,15 +10,15 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
-#include <unordered_map>
+
+#include "alpaca/HttpHeaders.hpp"
 
 namespace alpaca {
 
 /// Exception thrown when the Alpaca API returns an error response.
 class ApiException : public std::runtime_error {
   public:
-    ApiException(long status_code, std::string message, std::string body,
-                 std::unordered_map<std::string, std::string> headers)
+    ApiException(long status_code, std::string message, std::string body, HttpHeaders headers)
       : std::runtime_error(std::move(message)), status_code_(status_code), body_(std::move(body)),
         headers_(std::move(headers)), retry_after_(parse_retry_after(headers_)) {
     }
@@ -34,7 +34,7 @@ class ApiException : public std::runtime_error {
     }
 
     /// Response headers returned with the error.
-    [[nodiscard]] std::unordered_map<std::string, std::string> const& headers() const noexcept {
+    [[nodiscard]] HttpHeaders const& headers() const noexcept {
         return headers_;
     }
 
@@ -98,8 +98,7 @@ class ApiException : public std::runtime_error {
         return std::nullopt;
     }
 
-    static std::optional<std::chrono::seconds>
-    parse_retry_after(std::unordered_map<std::string, std::string> const& headers) {
+    static std::optional<std::chrono::seconds> parse_retry_after(HttpHeaders const& headers) {
         for (auto const& [key, value] : headers) {
             if (iequals(key, "Retry-After")) {
                 try {
@@ -120,7 +119,7 @@ class ApiException : public std::runtime_error {
 
     long status_code_;
     std::string body_;
-    std::unordered_map<std::string, std::string> headers_;
+    HttpHeaders headers_;
     std::optional<std::chrono::seconds> retry_after_;
 };
 

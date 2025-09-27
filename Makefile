@@ -19,6 +19,8 @@ test: build
 package: configure
 	cmake --build $(BUILD_DIR) $(BUILD_PARALLEL) --target package
 
+indent:
+	clang-format -i $(shell find . -regex '.*\.\(cpp\|hpp\)' -not -path "./$(BUILD_DIR)/*" -not -path "./.vscode/*" -not -path "./.git/*")
 
 coverage:
 	cmake -S . -B $(BUILD_DIR) $(CMAKE_FLAGS) -DALPACA_ENABLE_COVERAGE=ON

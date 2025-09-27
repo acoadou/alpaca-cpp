@@ -1,5 +1,6 @@
 #pragma once
 
+#include "alpaca/CurlHttpClientOptions.hpp"
 #include "alpaca/HttpClient.hpp"
 
 namespace alpaca {
@@ -7,7 +8,7 @@ namespace alpaca {
 /// HTTP client implementation that delegates to libcurl.
 class CurlHttpClient : public HttpClient {
   public:
-    CurlHttpClient();
+    explicit CurlHttpClient(CurlHttpClientOptions options = {});
     ~CurlHttpClient() override;
 
     HttpResponse send(HttpRequest const& request) override;

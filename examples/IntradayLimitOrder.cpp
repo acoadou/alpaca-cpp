@@ -22,17 +22,14 @@ std::string format_price(double value) {
 } // namespace
 
 int main() {
-    auto const* key = std::getenv("APCA_API_KEY_ID");
-    auto const* secret = std::getenv("APCA_API_SECRET_KEY");
+    auto const *key = std::getenv("APCA_API_KEY_ID");
+    auto const *secret = std::getenv("APCA_API_SECRET_KEY");
     if (key == nullptr || secret == nullptr) {
         std::cerr << "Please set APCA_API_KEY_ID and APCA_API_SECRET_KEY in the environment." << std::endl;
         return 1;
     }
 
-    auto config = alpaca::Configuration::FromEnvironment(
-        alpaca::Environments::Paper(),
-        key,
-        secret);
+    auto config = alpaca::Configuration::FromEnvironment(alpaca::Environments::Paper(), key, secret);
 
     alpaca::MarketDataClient market(config);
     alpaca::TradingClient trading(config);
@@ -72,12 +69,11 @@ int main() {
         try {
             ++attempt;
             auto placed = trading.submit_order(order);
-            std::cout << "Order " << placed.id << " accepted at limit price " << *order.limit_price
-                      << " after " << attempt << " attempt(s)." << std::endl;
+            std::cout << "Order " << placed.id << " accepted at limit price " << *order.limit_price << " after "
+                      << attempt << " attempt(s)." << std::endl;
             submitted = true;
         } catch (alpaca::ApiException const& ex) {
-            std::cerr << "Attempt " << attempt << " failed (" << ex.status_code() << "): " << ex.what()
-                      << std::endl;
+            std::cerr << "Attempt " << attempt << " failed (" << ex.status_code() << "): " << ex.what() << std::endl;
             if (ex.status_code() == 429 || ex.status_code() == 503) {
                 if (auto const delay = ex.retry_after()) {
                     std::cout << "Sleeping for " << delay->count() << " second(s) per Retry-After." << std::endl;
