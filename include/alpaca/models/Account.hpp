@@ -22,9 +22,13 @@ struct Account {
     std::string buying_power;
     std::string regt_buying_power;
     std::string daytrading_buying_power;
+    std::string non_marginable_buying_power;
     std::string equity;
     std::string last_equity;
     std::string cash;
+    std::string cash_long;
+    std::string cash_short;
+    std::string cash_withdrawable;
     std::string portfolio_value;
     std::string long_market_value;
     std::string short_market_value;
@@ -32,6 +36,8 @@ struct Account {
     std::string maintenance_margin;
     std::string last_maintenance_margin;
     std::string multiplier;
+    std::string sma;
+    std::string options_buying_power;
     std::string created_at;
     std::optional<std::string> daytrade_count;
 };

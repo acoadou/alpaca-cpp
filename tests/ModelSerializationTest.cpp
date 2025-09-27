@@ -81,9 +81,13 @@ TEST(ModelSerializationTest, AccountDeserializesExtendedFields) {
         {"buying_power",            "1000"      },
         {"regt_buying_power",       "2000"      },
         {"daytrading_buying_power", "1500"      },
+        {"non_marginable_buying_power", "750"    },
         {"equity",                  "2000"      },
         {"last_equity",             "1500"      },
         {"cash",                    "500"       },
+        {"cash_long",               "400"       },
+        {"cash_short",              "100"       },
+        {"cash_withdrawable",       "450"       },
         {"portfolio_value",         "2500"      },
         {"long_market_value",       "1000"      },
         {"short_market_value",      "0"         },
@@ -91,6 +95,8 @@ TEST(ModelSerializationTest, AccountDeserializesExtendedFields) {
         {"maintenance_margin",      "0"         },
         {"last_maintenance_margin", "0"         },
         {"multiplier",              "4"         },
+        {"sma",                     "200"       },
+        {"options_buying_power",    "300"       },
         {"created_at",              "2020-01-01"},
         {"daytrade_count",          "3"         }
     };
@@ -100,6 +106,12 @@ TEST(ModelSerializationTest, AccountDeserializesExtendedFields) {
     EXPECT_EQ(account.account_number, "123");
     EXPECT_TRUE(account.pattern_day_trader);
     EXPECT_EQ(account.portfolio_value, "2500");
+    EXPECT_EQ(account.non_marginable_buying_power, "750");
+    EXPECT_EQ(account.cash_long, "400");
+    EXPECT_EQ(account.cash_short, "100");
+    EXPECT_EQ(account.cash_withdrawable, "450");
+    EXPECT_EQ(account.sma, "200");
+    EXPECT_EQ(account.options_buying_power, "300");
     ASSERT_TRUE(account.daytrade_count.has_value());
     EXPECT_EQ(*account.daytrade_count, "3");
 }

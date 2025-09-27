@@ -19,6 +19,23 @@ void from_json(Json const& j, Asset& asset) {
     asset.easy_to_borrow = j.value("easy_to_borrow", false);
     asset.fractionable = j.value("fractionable", false);
     asset.maintenance_margin_requirement = j.value("maintenance_margin_requirement", std::string{});
+    asset.margin_requirement_long = j.value("margin_requirement_long", std::string{});
+    asset.margin_requirement_short = j.value("margin_requirement_short", std::string{});
+    if (j.contains("min_order_size") && !j.at("min_order_size").is_null()) {
+        asset.min_order_size = j.at("min_order_size").get<std::string>();
+    } else {
+        asset.min_order_size.reset();
+    }
+    if (j.contains("min_trade_increment") && !j.at("min_trade_increment").is_null()) {
+        asset.min_trade_increment = j.at("min_trade_increment").get<std::string>();
+    } else {
+        asset.min_trade_increment.reset();
+    }
+    if (j.contains("price_increment") && !j.at("price_increment").is_null()) {
+        asset.price_increment = j.at("price_increment").get<std::string>();
+    } else {
+        asset.price_increment.reset();
+    }
 }
 
 QueryParams ListAssetsRequest::to_query_params() const {

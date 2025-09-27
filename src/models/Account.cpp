@@ -16,9 +16,13 @@ void from_json(Json const& j, Account& account) {
     account.buying_power = j.value("buying_power", std::string{});
     account.regt_buying_power = j.value("regt_buying_power", std::string{});
     account.daytrading_buying_power = j.value("daytrading_buying_power", std::string{});
+    account.non_marginable_buying_power = j.value("non_marginable_buying_power", std::string{});
     account.equity = j.value("equity", std::string{});
     account.last_equity = j.value("last_equity", std::string{});
     account.cash = j.value("cash", std::string{});
+    account.cash_long = j.value("cash_long", std::string{});
+    account.cash_short = j.value("cash_short", std::string{});
+    account.cash_withdrawable = j.value("cash_withdrawable", std::string{});
     account.portfolio_value = j.value("portfolio_value", std::string{});
     account.long_market_value = j.value("long_market_value", std::string{});
     account.short_market_value = j.value("short_market_value", std::string{});
@@ -26,6 +30,8 @@ void from_json(Json const& j, Account& account) {
     account.maintenance_margin = j.value("maintenance_margin", std::string{});
     account.last_maintenance_margin = j.value("last_maintenance_margin", std::string{});
     account.multiplier = j.value("multiplier", std::string{});
+    account.sma = j.value("sma", std::string{});
+    account.options_buying_power = j.value("options_buying_power", std::string{});
     account.created_at = j.value("created_at", std::string{});
     if (j.contains("daytrade_count") && !j.at("daytrade_count").is_null()) {
         account.daytrade_count = j.at("daytrade_count").get<std::string>();

@@ -24,6 +24,11 @@ struct Asset {
     bool easy_to_borrow{false};
     bool fractionable{false};
     std::string maintenance_margin_requirement;
+    std::string margin_requirement_long;
+    std::string margin_requirement_short;
+    std::optional<std::string> min_order_size{};
+    std::optional<std::string> min_trade_increment{};
+    std::optional<std::string> price_increment{};
 };
 
 void from_json(Json const& j, Asset& asset);

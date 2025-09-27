@@ -21,7 +21,12 @@ TEST(AssetModelTest, FromJsonParsesOptionalFields) {
         {"shortable",                      false     },
         {"easy_to_borrow",                 true      },
         {"fractionable",                   true      },
-        {"maintenance_margin_requirement", "25"      }
+        {"maintenance_margin_requirement", "25"      },
+        {"margin_requirement_long",        "30"      },
+        {"margin_requirement_short",       "35"      },
+        {"min_order_size",                 "1"       },
+        {"min_trade_increment",            "0.1"     },
+        {"price_increment",                "0.01"    }
     };
 
     auto const asset = json.get<alpaca::Asset>();
@@ -38,6 +43,14 @@ TEST(AssetModelTest, FromJsonParsesOptionalFields) {
     EXPECT_TRUE(asset.easy_to_borrow);
     EXPECT_TRUE(asset.fractionable);
     EXPECT_EQ(asset.maintenance_margin_requirement, "25");
+    EXPECT_EQ(asset.margin_requirement_long, "30");
+    EXPECT_EQ(asset.margin_requirement_short, "35");
+    ASSERT_TRUE(asset.min_order_size.has_value());
+    EXPECT_EQ(*asset.min_order_size, "1");
+    ASSERT_TRUE(asset.min_trade_increment.has_value());
+    EXPECT_EQ(*asset.min_trade_increment, "0.1");
+    ASSERT_TRUE(asset.price_increment.has_value());
+    EXPECT_EQ(*asset.price_increment, "0.01");
 }
 
 TEST(AssetModelTest, FromJsonUsesDefaultsWhenOptionalFieldsMissing) {
@@ -58,6 +71,11 @@ TEST(AssetModelTest, FromJsonUsesDefaultsWhenOptionalFieldsMissing) {
     EXPECT_FALSE(asset.easy_to_borrow);
     EXPECT_FALSE(asset.fractionable);
     EXPECT_EQ(asset.maintenance_margin_requirement, "");
+    EXPECT_EQ(asset.margin_requirement_long, "");
+    EXPECT_EQ(asset.margin_requirement_short, "");
+    EXPECT_FALSE(asset.min_order_size.has_value());
+    EXPECT_FALSE(asset.min_trade_increment.has_value());
+    EXPECT_FALSE(asset.price_increment.has_value());
 }
 
 TEST(AssetModelTest, ListAssetsRequestBuildsQueryParams) {
