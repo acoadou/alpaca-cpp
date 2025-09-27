@@ -35,8 +35,8 @@ client while embracing contemporary C++ idioms. The codebase builds a compiled l
 | Trading          | OK   | OK        | Equities, options, crypto, and OTC order workflows, option analytics/contracts, positions, activities, clock, watchlists, and `trade_updates` / `account_updates` streams. |
 | Market Data      | OK   | OK        | Trades, quotes, bars, order books, corporate actions, market movers, single/multi snapshots, options snapshots/chains, and automatic pagination via `PaginatedVectorRange`. |
 | Broker / Connect | OK   | N/A       | Account onboarding, documents, transfers, journals, banking relationships, watchlists, rebalancing portfolios/subscriptions, and managed portfolio history. |
-| Options          | OK   | OK        | REST aggregates/quotes/trades, option analytics, contracts, and trading endpoints for submitting, replacing, and cancelling options orders. |
-| News             | OK   | N/A       | REST `get_news` plus the `news_range` paginator; no public streaming endpoint. |
+| Options          | OK   | OK        | REST aggregates/quotes/trades, option analytics (with greeks + strategy legs), contracts, and trading endpoints for submitting, replacing, and cancelling single or multi-leg options orders. |
+| News             | OK   | OK        | REST `get_news`, the `news_range` paginator, and websocket `news` channels on the market data feed. |
 | Crypto           | OK   | OK        | REST aggregates/quotes/trades, order books, and dedicated crypto streaming feed. |
 
 ## Getting started
@@ -147,6 +147,109 @@ target_link_libraries(my_trader PRIVATE alpaca::alpaca-cpp)
 This approach keeps dependency management within CMake, ensures the correct
 transitive include directories and compiler options are propagated, and allows
 you to track a specific release or commit through the `GIT_TAG` field.
+
+## Options trading and analytics walkthrough
+
+Alpaca's options APIs expose both market data (chains, greeks, and strategy legs)
+and trading workflows (single-leg and multi-leg order management). The
+`TradingClient` and `MarketDataClient` surfaces in this library map those
+capabilities directly, so you can discover contracts, analyse the greeks for a
+potential spread, and submit/cancel combo orders without juggling raw HTTP calls
+yourself.
+
+```cpp
+#include <iostream>
+#include <stdexcept>
+
+#include "alpaca/Configuration.hpp"
+#include "alpaca/TradingClient.hpp"
+
+alpaca::Configuration config = alpaca::Configuration::Paper("KEY", "SECRET");
+alpaca::TradingClient trading(config);
+
+// 1. Discover the option chain for a given underlying symbol and expiry.
+alpaca::ListOptionContractsRequest chain{};
+chain.underlying_symbols = {"AAPL"};
+chain.expiry = "2024-01-19";         // Filter by expiration date
+chain.type = "call";                 // Filter by option type
+chain.strike_gte = "180";            // Strike filtering helpers
+chain.strike_lte = "200";
+
+alpaca::OptionContractsResponse contracts = trading.list_option_contracts(chain);
+if (contracts.contracts.empty()) {
+    throw std::runtime_error("No matching contracts");
+}
+
+// 2. Pull analytics (greeks, risk metrics, and strategy legs) for the legs you
+//    care about. The analytics payload mirrors the REST response, so multi-leg
+//    strategies will surface their individual legs automatically.
+alpaca::ListOptionAnalyticsRequest analytics_request{};
+for (alpaca::OptionContract const& contract : contracts.contracts) {
+    analytics_request.symbols.push_back(contract.symbol);
+}
+analytics_request.include_greeks = true;
+analytics_request.include_risk_parameters = true;
+
+alpaca::OptionAnalyticsResponse analytics = trading.list_option_analytics(analytics_request);
+for (alpaca::OptionAnalytics const& entry : analytics.analytics) {
+    if (entry.greeks && entry.greeks->delta) {
+        std::cout << entry.symbol << " Δ=" << *entry.greeks->delta << '\n';
+    }
+    for (alpaca::OptionStrategyLeg const& leg : entry.legs) {
+        std::cout << "  leg: " << leg.symbol << " x" << leg.ratio << '\n';
+    }
+}
+
+// 3. Submit a spread (multi-leg) order. Alpaca encodes complex strategies as
+//    synthetic symbols – use the symbols returned by the contract/analytics
+//    endpoints so the exchange interprets the combo correctly.
+alpaca::NewOptionOrderRequest order{};
+order.symbol = analytics.analytics.front().symbol; // e.g. a call spread combo
+order.side = alpaca::OrderSide::BUY;
+order.type = alpaca::OrderType::LIMIT;
+order.time_in_force = alpaca::TimeInForce::DAY;
+order.quantity = "1";                // Spreads are still sized with qty
+order.limit_price = "2.45";          // Net debit/credit for the combo
+
+alpaca::OptionOrder placed = trading.submit_option_order(order);
+
+// 4. Adjust or unwind the position: replace, cancel, or cancel all.
+alpaca::ReplaceOptionOrderRequest replace{};
+replace.limit_price = "2.10";
+
+placed = trading.replace_option_order(placed.id, replace);
+trading.cancel_option_order(placed.id);
+
+// Multi-leg orders return nested legs when you ask for nested results.
+alpaca::ListOptionOrdersRequest history{};
+history.nested = true;               // Expands combo legs in the response
+
+std::vector<alpaca::OptionOrder> orders = trading.list_option_orders(history);
+for (alpaca::OptionOrder const& existing : orders) {
+    if (!existing.legs.empty()) {
+        std::cout << existing.symbol << " has " << existing.legs.size() << " legs" << '\n';
+    }
+}
+```
+
+Key takeaways:
+
+- **Chain discovery and filtering** – `ListOptionContractsRequest` supports
+  filtering by underlying symbols, expiry, type, strike bounds, limit, and
+  pagination tokens so you can iterate option chains.
+- **Analytics and greeks** – `ListOptionAnalyticsRequest` toggles greeks and
+  risk metrics (`delta`, `gamma`, implied volatility, breakevens, and more) and
+  exposes the underlying strategy legs for multi-leg combos through
+  `OptionStrategyLeg`.
+- **Order lifecycle** – `submit_option_order`, `replace_option_order`,
+  `cancel_option_order`, and `cancel_all_option_orders` all target the dedicated
+  options endpoints and accept the same request/response models as equities.
+  Multi-leg strategies use the synthetic symbols surfaced by the discovery
+  endpoints, and nested responses give you the per-leg fill detail.
+
+Pair the `TradingClient` with `MarketDataClient` helpers (snapshots, latest
+quotes, or historical bars for the contract symbols you surfaced) when you need
+intraday analytics alongside greeks.
 
 ## OAuth / Connect authorization
 
@@ -310,6 +413,50 @@ socket.set_open_handler([&]() {
 
 socket.connect();
 ```
+
+### Streaming news headlines
+
+[`examples/NewsStream.cpp`](examples/NewsStream.cpp) shows how to connect to the market data websocket feed and subscribe to
+the `news` channel to receive headlines in real time:
+
+```cpp
+alpaca::streaming::WebSocketClient socket(
+    config.market_data_stream_url,
+    config.api_key_id,
+    config.api_secret_key,
+    alpaca::streaming::StreamFeed::MarketData);
+
+socket.set_message_handler(
+    [](alpaca::streaming::StreamMessage const& message, alpaca::streaming::MessageCategory category) {
+        if (category != alpaca::streaming::MessageCategory::News) {
+            return;
+        }
+
+        auto const& article = std::get<alpaca::streaming::NewsMessage>(message);
+        std::cout << "[news]";
+        for (auto const& symbol : article.symbols) {
+            std::cout << ' ' << symbol;
+        }
+        std::cout << " :: " << article.headline << std::endl;
+    });
+
+socket.set_open_handler([&socket]() {
+    alpaca::streaming::MarketSubscription subscription;
+    subscription.news = {"*"};
+    socket.subscribe(subscription);
+});
+
+socket.connect();
+```
+
+The websocket client already understands `news` payloads via the
+`alpaca::streaming::MarketSubscription::news` field and parses them into
+`alpaca::streaming::NewsMessage` instances (see
+[`include/alpaca/Streaming.hpp`](include/alpaca/Streaming.hpp) and
+[`src/Streaming.cpp`](src/Streaming.cpp)). Automated coverage exercises the
+behaviour through `StreamingTest.RoutesNewsMessages` and the news serialization
+tests under `tests/ModelSerializationTest.cpp` to make sure the payloads are
+decoded as expected.
 
 ### Intraday bars, limit order and `Retry-After` handling
 

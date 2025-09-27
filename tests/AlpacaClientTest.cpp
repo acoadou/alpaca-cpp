@@ -138,6 +138,89 @@ TEST(AlpacaClientTest, SubmitOptionOrderTargetsOptionsEndpoint) {
     EXPECT_EQ(json.at("qty"), "1");
 }
 
+TEST(AlpacaClientTest, ListOptionOrdersExpandsNestedLegsWhenRequested) {
+    auto stub = std::make_shared<StubHttpClient>();
+    stub->enqueue_response(alpaca::HttpResponse{
+        200,
+        R"([
+            {
+                "id": "spread-1",
+                "asset_id": "asset-combo",
+                "client_order_id": "combo-1",
+                "account_id": "account-1",
+                "created_at": "2023-01-01T00:00:00Z",
+                "symbol": "AAPL24JAN-SPREAD",
+                "asset_class": "option",
+                "side": "buy",
+                "type": "limit",
+                "time_in_force": "day",
+                "status": "accepted",
+                "qty": "1",
+                "limit_price": "2.45",
+                "legs": [
+                    {
+                        "id": "leg-1",
+                        "asset_id": "asset-leg-1",
+                        "client_order_id": "combo-1-leg-1",
+                        "account_id": "account-1",
+                        "created_at": "2023-01-01T00:00:00Z",
+                        "symbol": "AAPL240119C00195000",
+                        "asset_class": "option",
+                        "side": "buy",
+                        "type": "limit",
+                        "time_in_force": "day",
+                        "status": "filled",
+                        "qty": "1",
+                        "filled_qty": "1",
+                        "limit_price": "5.00",
+                        "legs": []
+                    },
+                    {
+                        "id": "leg-2",
+                        "asset_id": "asset-leg-2",
+                        "client_order_id": "combo-1-leg-2",
+                        "account_id": "account-1",
+                        "created_at": "2023-01-01T00:00:00Z",
+                        "symbol": "AAPL240119C00185000",
+                        "asset_class": "option",
+                        "side": "sell",
+                        "type": "limit",
+                        "time_in_force": "day",
+                        "status": "filled",
+                        "qty": "1",
+                        "filled_qty": "1",
+                        "limit_price": "2.55",
+                        "legs": []
+                    }
+                ]
+            }
+        ])",
+        {}});
+
+    alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
+    alpaca::AlpacaClient client(config, stub);
+
+    alpaca::ListOptionOrdersRequest request;
+    request.nested = true;
+
+    std::vector<alpaca::OptionOrder> const orders = client.list_option_orders(request);
+    ASSERT_EQ(orders.size(), 1U);
+    alpaca::OptionOrder const& spread = orders.front();
+    EXPECT_EQ(spread.id, "spread-1");
+    EXPECT_EQ(spread.symbol, "AAPL24JAN-SPREAD");
+    ASSERT_EQ(spread.legs.size(), 2U);
+    EXPECT_EQ(spread.legs.front().symbol, "AAPL240119C00195000");
+    EXPECT_EQ(spread.legs.back().symbol, "AAPL240119C00185000");
+    EXPECT_EQ(spread.legs.front().side, alpaca::OrderSide::BUY);
+    EXPECT_EQ(spread.legs.back().side, alpaca::OrderSide::SELL);
+
+    ASSERT_EQ(stub->requests().size(), 1U);
+    auto const& http_request = stub->requests().front();
+    EXPECT_EQ(http_request.method, alpaca::HttpMethod::GET);
+    EXPECT_TRUE(http_request.url.find(config.trading_base_url + "/v2/options/orders") == 0);
+    EXPECT_NE(http_request.url.find("nested=true"), std::string::npos);
+}
+
 TEST(AlpacaClientTest, SubmitCryptoOrderSerializesVenueExtensions) {
     auto stub = std::make_shared<StubHttpClient>();
     stub->enqueue_response(alpaca::HttpResponse{200,
