@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cctype>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -33,6 +34,33 @@ std::vector<std::string> parse_conditions(Json const& j, char const *key) {
         return {};
     }
     return j.at(key).get<std::vector<std::string>>();
+}
+
+template <typename T>
+std::optional<T> parse_optional(Json const& j, char const *key) {
+    if (!j.contains(key)) {
+        return std::nullopt;
+    }
+    auto const& field = j.at(key);
+    if (field.is_null()) {
+        return std::nullopt;
+    }
+    return field.get<T>();
+}
+
+std::vector<OrderBookLevel> parse_order_book_side(Json const& payload, char const *key) {
+    if (!payload.contains(key) || !payload.at(key).is_array()) {
+        return {};
+    }
+    std::vector<OrderBookLevel> levels;
+    for (auto const& entry : payload.at(key)) {
+        OrderBookLevel level{};
+        level.price = entry.value("p", 0.0);
+        level.size = entry.value("s", std::uint64_t{0});
+        level.exchange = entry.value("x", "");
+        levels.push_back(std::move(level));
+    }
+    return levels;
 }
 
 StreamMessage build_trade_message(Json const& payload) {
@@ -97,6 +125,90 @@ StreamMessage build_status_message(Json const& payload) {
         message.reason_message = payload.at("rm").get<std::string>();
     }
     message.timestamp = parse_timestamp_field_or_default(payload, "t");
+    return message;
+}
+
+StreamMessage build_order_book_message(Json const& payload) {
+    OrderBookMessage message{};
+    message.symbol = payload.value("S", "");
+    message.timestamp = parse_timestamp_field_or_default(payload, "t");
+    message.bids = parse_order_book_side(payload, "b");
+    message.asks = parse_order_book_side(payload, "a");
+    if (auto tape = parse_optional<std::string>(payload, "z")) {
+        message.tape = std::move(tape);
+    }
+    return message;
+}
+
+StreamMessage build_luld_message(Json const& payload) {
+    LuldMessage message{};
+    message.symbol = payload.value("S", "");
+    message.timestamp = parse_timestamp_field_or_default(payload, "t");
+    message.limit_up = payload.value("u", 0.0);
+    message.limit_down = payload.value("d", 0.0);
+    message.indicator = parse_optional<std::string>(payload, "i");
+    message.tape = parse_optional<std::string>(payload, "z");
+    return message;
+}
+
+StreamMessage build_auction_message(Json const& payload) {
+    AuctionMessage message{};
+    message.symbol = payload.value("S", "");
+    message.timestamp = parse_timestamp_field_or_default(payload, "t");
+    message.auction_type = parse_optional<std::string>(payload, "at");
+    if (!message.auction_type) {
+        message.auction_type = parse_optional<std::string>(payload, "type");
+    }
+    message.condition = parse_optional<std::string>(payload, "c");
+    if (auto price = parse_optional<double>(payload, "p")) {
+        message.price = price;
+    } else if (auto open_price = parse_optional<double>(payload, "o")) {
+        message.price = open_price;
+    }
+    if (auto size = parse_optional<std::uint64_t>(payload, "s")) {
+        message.size = size;
+    }
+    message.imbalance = parse_optional<double>(payload, "im");
+    if (!message.imbalance) {
+        message.imbalance = parse_optional<double>(payload, "i");
+    }
+    message.imbalance_side = parse_optional<std::string>(payload, "side");
+    if (!message.imbalance_side) {
+        message.imbalance_side = parse_optional<std::string>(payload, "zv");
+    }
+    message.exchange = parse_optional<std::string>(payload, "x");
+    message.tape = parse_optional<std::string>(payload, "z");
+    return message;
+}
+
+StreamMessage build_greeks_message(Json const& payload) {
+    GreeksMessage message{};
+    message.symbol = payload.value("S", "");
+    message.timestamp = parse_timestamp_field_or_default(payload, "t");
+    message.delta = parse_optional<double>(payload, "delta");
+    message.gamma = parse_optional<double>(payload, "gamma");
+    message.theta = parse_optional<double>(payload, "theta");
+    message.vega = parse_optional<double>(payload, "vega");
+    message.rho = parse_optional<double>(payload, "rho");
+    if (!message.rho) {
+        message.rho = parse_optional<double>(payload, "r");
+    }
+    message.implied_volatility = parse_optional<double>(payload, "iv");
+    if (!message.implied_volatility) {
+        message.implied_volatility = parse_optional<double>(payload, "implied_volatility");
+    }
+    return message;
+}
+
+StreamMessage build_underlying_message(Json const& payload) {
+    UnderlyingMessage message{};
+    message.symbol = payload.value("S", "");
+    message.underlying_symbol = payload.value("uS", payload.value("underlying_symbol", ""));
+    message.timestamp = parse_timestamp_field_or_default(payload, "t");
+    message.price = payload.value("p", 0.0);
+    if (message.price == 0.0 && payload.contains("price") && !payload.at("price").is_null()) {
+        message.price = payload.at("price").get<double>();
+    }
     return message;
 }
 
@@ -296,9 +408,35 @@ void WebSocketClient::subscribe(MarketSubscription const& subscription) {
                 diff.statuses.push_back(symbol);
             }
         }
+        for (auto const& symbol : subscription.orderbooks) {
+            if (subscribed_orderbooks_.insert(symbol).second) {
+                diff.orderbooks.push_back(symbol);
+            }
+        }
+        for (auto const& symbol : subscription.lulds) {
+            if (subscribed_lulds_.insert(symbol).second) {
+                diff.lulds.push_back(symbol);
+            }
+        }
+        for (auto const& symbol : subscription.auctions) {
+            if (subscribed_auctions_.insert(symbol).second) {
+                diff.auctions.push_back(symbol);
+            }
+        }
+        for (auto const& symbol : subscription.greeks) {
+            if (subscribed_greeks_.insert(symbol).second) {
+                diff.greeks.push_back(symbol);
+            }
+        }
+        for (auto const& symbol : subscription.underlyings) {
+            if (subscribed_underlyings_.insert(symbol).second) {
+                diff.underlyings.push_back(symbol);
+            }
+        }
     }
 
-    if (diff.trades.empty() && diff.quotes.empty() && diff.bars.empty() && diff.statuses.empty()) {
+    if (diff.trades.empty() && diff.quotes.empty() && diff.bars.empty() && diff.statuses.empty() && diff.orderbooks.empty()
+        && diff.lulds.empty() && diff.auctions.empty() && diff.greeks.empty() && diff.underlyings.empty()) {
         return;
     }
 
@@ -315,6 +453,21 @@ void WebSocketClient::subscribe(MarketSubscription const& subscription) {
     }
     if (!diff.statuses.empty()) {
         message["statuses"] = diff.statuses;
+    }
+    if (!diff.orderbooks.empty()) {
+        message["orderbooks"] = diff.orderbooks;
+    }
+    if (!diff.lulds.empty()) {
+        message["lulds"] = diff.lulds;
+    }
+    if (!diff.auctions.empty()) {
+        message["auctions"] = diff.auctions;
+    }
+    if (!diff.greeks.empty()) {
+        message["greeks"] = diff.greeks;
+    }
+    if (!diff.underlyings.empty()) {
+        message["underlyings"] = diff.underlyings;
     }
     send_raw(message);
 }
@@ -343,9 +496,35 @@ void WebSocketClient::unsubscribe(MarketSubscription const& subscription) {
                 diff.statuses.push_back(symbol);
             }
         }
+        for (auto const& symbol : subscription.orderbooks) {
+            if (subscribed_orderbooks_.erase(symbol) > 0) {
+                diff.orderbooks.push_back(symbol);
+            }
+        }
+        for (auto const& symbol : subscription.lulds) {
+            if (subscribed_lulds_.erase(symbol) > 0) {
+                diff.lulds.push_back(symbol);
+            }
+        }
+        for (auto const& symbol : subscription.auctions) {
+            if (subscribed_auctions_.erase(symbol) > 0) {
+                diff.auctions.push_back(symbol);
+            }
+        }
+        for (auto const& symbol : subscription.greeks) {
+            if (subscribed_greeks_.erase(symbol) > 0) {
+                diff.greeks.push_back(symbol);
+            }
+        }
+        for (auto const& symbol : subscription.underlyings) {
+            if (subscribed_underlyings_.erase(symbol) > 0) {
+                diff.underlyings.push_back(symbol);
+            }
+        }
     }
 
-    if (diff.trades.empty() && diff.quotes.empty() && diff.bars.empty() && diff.statuses.empty()) {
+    if (diff.trades.empty() && diff.quotes.empty() && diff.bars.empty() && diff.statuses.empty() && diff.orderbooks.empty()
+        && diff.lulds.empty() && diff.auctions.empty() && diff.greeks.empty() && diff.underlyings.empty()) {
         return;
     }
 
@@ -362,6 +541,21 @@ void WebSocketClient::unsubscribe(MarketSubscription const& subscription) {
     }
     if (!diff.statuses.empty()) {
         message["statuses"] = diff.statuses;
+    }
+    if (!diff.orderbooks.empty()) {
+        message["orderbooks"] = diff.orderbooks;
+    }
+    if (!diff.lulds.empty()) {
+        message["lulds"] = diff.lulds;
+    }
+    if (!diff.auctions.empty()) {
+        message["auctions"] = diff.auctions;
+    }
+    if (!diff.greeks.empty()) {
+        message["greeks"] = diff.greeks;
+    }
+    if (!diff.underlyings.empty()) {
+        message["underlyings"] = diff.underlyings;
     }
     send_raw(message);
 }
@@ -492,7 +686,8 @@ void WebSocketClient::handle_payload(Json const& payload) {
     }
 
     if (payload.contains("T")) {
-        auto const type = payload.at("T").get<std::string>();
+        auto type = payload.at("T").get<std::string>();
+        std::transform(type.begin(), type.end(), type.begin(), [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
         if (type == "t") {
             message_handler_(build_trade_message(payload), MessageCategory::Trade);
             return;
@@ -501,8 +696,28 @@ void WebSocketClient::handle_payload(Json const& payload) {
             message_handler_(build_quote_message(payload), MessageCategory::Quote);
             return;
         }
-        if (type == "b" || type == "d" || type == "o") {
+        if (type == "b" || type == "d") {
             message_handler_(build_bar_message(payload), MessageCategory::Bar);
+            return;
+        }
+        if (type == "o") {
+            message_handler_(build_order_book_message(payload), MessageCategory::OrderBook);
+            return;
+        }
+        if (type == "l") {
+            message_handler_(build_luld_message(payload), MessageCategory::Luld);
+            return;
+        }
+        if (type == "a") {
+            message_handler_(build_auction_message(payload), MessageCategory::Auction);
+            return;
+        }
+        if (type == "g") {
+            message_handler_(build_greeks_message(payload), MessageCategory::Greeks);
+            return;
+        }
+        if (type == "u") {
+            message_handler_(build_underlying_message(payload), MessageCategory::Underlying);
             return;
         }
         if (type == "s") {
@@ -581,10 +796,17 @@ void WebSocketClient::replay_subscriptions() {
         snapshot.quotes.assign(subscribed_quotes_.begin(), subscribed_quotes_.end());
         snapshot.bars.assign(subscribed_bars_.begin(), subscribed_bars_.end());
         snapshot.statuses.assign(subscribed_statuses_.begin(), subscribed_statuses_.end());
+        snapshot.orderbooks.assign(subscribed_orderbooks_.begin(), subscribed_orderbooks_.end());
+        snapshot.lulds.assign(subscribed_lulds_.begin(), subscribed_lulds_.end());
+        snapshot.auctions.assign(subscribed_auctions_.begin(), subscribed_auctions_.end());
+        snapshot.greeks.assign(subscribed_greeks_.begin(), subscribed_greeks_.end());
+        snapshot.underlyings.assign(subscribed_underlyings_.begin(), subscribed_underlyings_.end());
         streams.assign(listened_streams_.begin(), listened_streams_.end());
     }
 
-    if (!snapshot.trades.empty() || !snapshot.quotes.empty() || !snapshot.bars.empty() || !snapshot.statuses.empty()) {
+    if (!snapshot.trades.empty() || !snapshot.quotes.empty() || !snapshot.bars.empty() || !snapshot.statuses.empty()
+        || !snapshot.orderbooks.empty() || !snapshot.lulds.empty() || !snapshot.auctions.empty()
+        || !snapshot.greeks.empty() || !snapshot.underlyings.empty()) {
         Json message;
         message["action"] = "subscribe";
         if (!snapshot.trades.empty()) {
@@ -598,6 +820,21 @@ void WebSocketClient::replay_subscriptions() {
         }
         if (!snapshot.statuses.empty()) {
             message["statuses"] = snapshot.statuses;
+        }
+        if (!snapshot.orderbooks.empty()) {
+            message["orderbooks"] = snapshot.orderbooks;
+        }
+        if (!snapshot.lulds.empty()) {
+            message["lulds"] = snapshot.lulds;
+        }
+        if (!snapshot.auctions.empty()) {
+            message["auctions"] = snapshot.auctions;
+        }
+        if (!snapshot.greeks.empty()) {
+            message["greeks"] = snapshot.greeks;
+        }
+        if (!snapshot.underlyings.empty()) {
+            message["underlyings"] = snapshot.underlyings;
         }
         send_raw(message);
     }

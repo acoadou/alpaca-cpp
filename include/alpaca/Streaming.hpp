@@ -43,6 +43,11 @@ enum class MessageCategory {
     Trade,
     Quote,
     Bar,
+    OrderBook,
+    Luld,
+    Auction,
+    Greeks,
+    Underlying,
     Status,
     Error,
     OrderUpdate,
@@ -101,6 +106,66 @@ struct StatusMessage {
     Timestamp timestamp{};
 };
 
+/// Represents a single level within an order book side.
+struct OrderBookLevel {
+    double price{0.0};
+    std::uint64_t size{0};
+    std::string exchange;
+};
+
+/// Depth-of-book update containing bid and ask levels.
+struct OrderBookMessage {
+    std::string symbol;
+    Timestamp timestamp{};
+    std::vector<OrderBookLevel> bids{};
+    std::vector<OrderBookLevel> asks{};
+    std::optional<std::string> tape{};
+};
+
+/// Limit-up / limit-down notification for a symbol.
+struct LuldMessage {
+    std::string symbol;
+    Timestamp timestamp{};
+    double limit_up{0.0};
+    double limit_down{0.0};
+    std::optional<std::string> indicator{};
+    std::optional<std::string> tape{};
+};
+
+/// Opening/closing auction event for a symbol.
+struct AuctionMessage {
+    std::string symbol;
+    Timestamp timestamp{};
+    std::optional<std::string> auction_type{};
+    std::optional<std::string> condition{};
+    std::optional<double> price{};
+    std::optional<std::uint64_t> size{};
+    std::optional<double> imbalance{};
+    std::optional<std::string> imbalance_side{};
+    std::optional<std::string> exchange{};
+    std::optional<std::string> tape{};
+};
+
+/// Option greeks update delivered through the options feed.
+struct GreeksMessage {
+    std::string symbol;
+    Timestamp timestamp{};
+    std::optional<double> delta{};
+    std::optional<double> gamma{};
+    std::optional<double> theta{};
+    std::optional<double> vega{};
+    std::optional<double> rho{};
+    std::optional<double> implied_volatility{};
+};
+
+/// Underlying price update delivered through the options feed.
+struct UnderlyingMessage {
+    std::string symbol;
+    std::string underlying_symbol;
+    Timestamp timestamp{};
+    double price{0.0};
+};
+
 /// Order update payload delivered from the trading stream.
 struct OrderUpdateMessage {
     std::string event;
@@ -128,6 +193,7 @@ struct ControlMessage {
 
 /// Strongly typed representation of an Alpaca websocket payload.
 using StreamMessage = std::variant<TradeMessage, QuoteMessage, BarMessage, StatusMessage, OrderUpdateMessage,
+                                   OrderBookMessage, LuldMessage, AuctionMessage, GreeksMessage, UnderlyingMessage,
                                    AccountUpdateMessage, ErrorMessage, ControlMessage>;
 
 /// Subscription helper for market data feeds.
@@ -136,6 +202,11 @@ struct MarketSubscription {
     std::vector<std::string> quotes{};
     std::vector<std::string> bars{};
     std::vector<std::string> statuses{};
+    std::vector<std::string> orderbooks{};
+    std::vector<std::string> lulds{};
+    std::vector<std::string> auctions{};
+    std::vector<std::string> greeks{};
+    std::vector<std::string> underlyings{};
 };
 
 /// Callback invoked for every decoded streaming payload.
@@ -233,6 +304,11 @@ class WebSocketClient {
     std::unordered_set<std::string> subscribed_quotes_;
     std::unordered_set<std::string> subscribed_bars_;
     std::unordered_set<std::string> subscribed_statuses_;
+    std::unordered_set<std::string> subscribed_orderbooks_;
+    std::unordered_set<std::string> subscribed_lulds_;
+    std::unordered_set<std::string> subscribed_auctions_;
+    std::unordered_set<std::string> subscribed_greeks_;
+    std::unordered_set<std::string> subscribed_underlyings_;
     std::unordered_set<std::string> listened_streams_;
 
     ReconnectPolicy reconnect_policy_{};
