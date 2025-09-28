@@ -133,9 +133,11 @@ TEST(ModelSerializationTest, AccountDeserializesExtendedFields) {
         {"account_number",              "123"       },
         {"currency",                    "USD"       },
         {"status",                      "ACTIVE"    },
+        {"crypto_status",               "ACTIVE"    },
         {"trade_blocked",               false       },
         {"trading_blocked",             false       },
         {"transfers_blocked",           true        },
+        {"trade_suspended_by_user",     true        },
         {"pattern_day_trader",          true        },
         {"shorting_enabled",            true        },
         {"buying_power",                "1000"      },
@@ -145,9 +147,12 @@ TEST(ModelSerializationTest, AccountDeserializesExtendedFields) {
         {"equity",                      "2000"      },
         {"last_equity",                 "1500"      },
         {"cash",                        "500"       },
+        {"accrued_fees",                "12.34"     },
         {"cash_long",                   "400"       },
         {"cash_short",                  "100"       },
         {"cash_withdrawable",           "450"       },
+        {"pending_transfer_out",        "25.5"      },
+        {"pending_transfer_in",         10.25       },
         {"portfolio_value",             "2500"      },
         {"long_market_value",           "1000"      },
         {"short_market_value",          "0"         },
@@ -157,6 +162,8 @@ TEST(ModelSerializationTest, AccountDeserializesExtendedFields) {
         {"multiplier",                  "4"         },
         {"sma",                         "200"       },
         {"options_buying_power",        "300"       },
+        {"options_approved_level",      "3"         },
+        {"options_trading_level",       2           },
         {"created_at",                  "2020-01-01"},
         {"daytrade_count",              "3"         }
     };
@@ -164,14 +171,27 @@ TEST(ModelSerializationTest, AccountDeserializesExtendedFields) {
     auto const account = json.get<alpaca::Account>();
     EXPECT_EQ(account.id, "account");
     EXPECT_EQ(account.account_number, "123");
+    ASSERT_TRUE(account.crypto_status.has_value());
+    EXPECT_EQ(*account.crypto_status, "ACTIVE");
     EXPECT_TRUE(account.pattern_day_trader);
     EXPECT_EQ(account.portfolio_value, "2500");
     EXPECT_EQ(account.non_marginable_buying_power, "750");
     EXPECT_EQ(account.cash_long, "400");
     EXPECT_EQ(account.cash_short, "100");
     EXPECT_EQ(account.cash_withdrawable, "450");
+    EXPECT_TRUE(account.trade_suspended_by_user);
+    ASSERT_TRUE(account.accrued_fees.has_value());
+    EXPECT_DOUBLE_EQ(*account.accrued_fees, 12.34);
+    ASSERT_TRUE(account.pending_transfer_out.has_value());
+    EXPECT_DOUBLE_EQ(*account.pending_transfer_out, 25.5);
+    ASSERT_TRUE(account.pending_transfer_in.has_value());
+    EXPECT_DOUBLE_EQ(*account.pending_transfer_in, 10.25);
     EXPECT_EQ(account.sma, "200");
     EXPECT_EQ(account.options_buying_power, "300");
+    ASSERT_TRUE(account.options_approved_level.has_value());
+    EXPECT_EQ(*account.options_approved_level, 3);
+    ASSERT_TRUE(account.options_trading_level.has_value());
+    EXPECT_EQ(*account.options_trading_level, 2);
     ASSERT_TRUE(account.daytrade_count.has_value());
     EXPECT_EQ(*account.daytrade_count, "3");
 }
