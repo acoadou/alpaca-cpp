@@ -167,17 +167,35 @@ Request prepare_stock_request(Request request, MarketDataPlan plan, std::string 
 }
 } // namespace
 
-MarketDataClient::MarketDataClient(Configuration const& config, HttpClientPtr http_client)
+MarketDataClient::MarketDataClient(Configuration const& config, HttpClientPtr http_client, RestClient::Options options)
     : stock_data_plan_(resolve_market_data_plan(config)),
     stock_data_feed_(std::string(plan_feed_name(stock_data_plan_))),
-    v2_client_(config, ensure_http_client(http_client), config.data_base_url),
-    beta_client_(config, ensure_http_client(http_client), make_data_beta_base_url(config.data_base_url, "v1beta1")),
-    beta_v3_client_(config, ensure_http_client(http_client), make_data_beta_base_url(config.data_base_url, "v1beta3")) {}
+    v2_client_(config, ensure_http_client(http_client), config.data_base_url, options),
+    beta_client_(config,
+                 ensure_http_client(http_client),
+                 make_data_beta_base_url(config.data_base_url, "v1beta1"),
+                 options),
+    beta_v3_client_(config,
+                    ensure_http_client(http_client),
+                    make_data_beta_base_url(config.data_base_url, "v1beta3"),
+                    std::move(options)) {}
+
+MarketDataClient::MarketDataClient(Configuration const& config, RestClient::Options options)
+    : MarketDataClient(config, nullptr, std::move(options)) {}
 
 MarketDataClient::MarketDataClient(Environment const& environment, std::string api_key_id, std::string api_secret_key,
-                                   HttpClientPtr http_client)
+                                   HttpClientPtr http_client, RestClient::Options options)
     : MarketDataClient(Configuration::FromEnvironment(environment, std::move(api_key_id), std::move(api_secret_key)),
-                       std::move(http_client)) {}
+                       std::move(http_client),
+                       std::move(options)) {}
+
+MarketDataClient::MarketDataClient(Environment const& environment, std::string api_key_id, std::string api_secret_key,
+                                   RestClient::Options options)
+    : MarketDataClient(environment,
+                       std::move(api_key_id),
+                       std::move(api_secret_key),
+                       nullptr,
+                       std::move(options)) {}
 
 LatestStockTrade MarketDataClient::get_latest_stock_trade(std::string const& symbol) const {
     QueryParams params{{"feed", stock_data_feed_}};

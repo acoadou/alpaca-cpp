@@ -405,6 +405,29 @@ Documenting the retry strategy in your application—backing off and respecting
 within the published limits while keeping the SDK responsive to transient
 outages.
 
+### Retry configuration
+
+`alpaca::RestClient` now mirrors the retry defaults used across Alpaca SDKs.
+Synchronous requests automatically retry at least three times with an
+exponential backoff that starts at 100&nbsp;ms and doubles between attempts up to a
+five-second ceiling. The defaults are exposed through
+`alpaca::RestClient::default_retry_options()` so applications can introspect or
+clone them. Higher-level clients—`TradingClient`, `MarketDataClient`,
+`BrokerClient`, and `AlpacaClient`—forward a `RestClient::Options` parameter so
+you can override the behaviour without re-implementing the transport layer.
+
+```cpp
+alpaca::RestClient::Options options = alpaca::RestClient::default_options();
+options.retry.max_attempts = 5; // pessimistic retry policy
+options.retry.initial_backoff = std::chrono::milliseconds{250};
+
+alpaca::TradingClient trading(config, /*http_client=*/nullptr, options);
+```
+
+Setting `initial_backoff`, `max_backoff`, and `max_attempts` to smaller values
+is useful for unit tests or latency-sensitive workflows, while larger settings
+allow background services to better absorb transient outages.
+
 ## Usage examples
 
 ```cpp

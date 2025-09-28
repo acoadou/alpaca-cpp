@@ -146,8 +146,18 @@ bool code_matches(std::optional<std::string> const& code, std::initializer_list<
 }
 } // namespace
 
+RestClient::RetryOptions RestClient::default_retry_options() {
+    return RetryOptions{};
+}
+
+RestClient::Options RestClient::default_options() {
+    Options options;
+    options.retry = default_retry_options();
+    return options;
+}
+
 RestClient::RestClient(Configuration config, HttpClientPtr http_client, std::string base_url)
-  : RestClient(std::move(config), std::move(http_client), std::move(base_url), Options{}) {
+  : RestClient(std::move(config), std::move(http_client), std::move(base_url), default_options()) {
 }
 
 RestClient::RestClient(Configuration config, HttpClientPtr http_client, std::string base_url, Options options)
@@ -158,6 +168,15 @@ RestClient::RestClient(Configuration config, HttpClientPtr http_client, std::str
     }
     if (!config_.has_credentials()) {
         throw std::invalid_argument("Configuration must contain API credentials");
+    }
+    if (options_.retry.max_attempts < 1) {
+        options_.retry.max_attempts = 1;
+    }
+    if (options_.retry.initial_backoff.count() < 0) {
+        options_.retry.initial_backoff = std::chrono::milliseconds{0};
+    }
+    if (options_.retry.max_backoff.count() < 0) {
+        options_.retry.max_backoff = std::chrono::milliseconds{0};
     }
 }
 

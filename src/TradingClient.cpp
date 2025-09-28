@@ -14,13 +14,28 @@ Json symbol_payload(std::string const& symbol) {
 }
 } // namespace
 
-TradingClient::TradingClient(Configuration const& config, HttpClientPtr http_client)
-    : rest_client_(config, ensure_http_client(http_client), config.trading_base_url) {}
+TradingClient::TradingClient(Configuration const& config, HttpClientPtr http_client, RestClient::Options options)
+    : rest_client_(config,
+                   ensure_http_client(http_client),
+                   config.trading_base_url,
+                   std::move(options)) {}
+
+TradingClient::TradingClient(Configuration const& config, RestClient::Options options)
+    : TradingClient(config, nullptr, std::move(options)) {}
 
 TradingClient::TradingClient(Environment const& environment, std::string api_key_id, std::string api_secret_key,
-                             HttpClientPtr http_client)
+                             HttpClientPtr http_client, RestClient::Options options)
     : TradingClient(Configuration::FromEnvironment(environment, std::move(api_key_id), std::move(api_secret_key)),
-                    std::move(http_client)) {}
+                    std::move(http_client),
+                    std::move(options)) {}
+
+TradingClient::TradingClient(Environment const& environment, std::string api_key_id, std::string api_secret_key,
+                             RestClient::Options options)
+    : TradingClient(environment,
+                    std::move(api_key_id),
+                    std::move(api_secret_key),
+                    nullptr,
+                    std::move(options)) {}
 
 Account TradingClient::get_account() {
     return rest_client_.get<Account>("/v2/account");

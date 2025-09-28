@@ -13,9 +13,14 @@ namespace alpaca {
 /// Broker client exposes account onboarding, documents, journals, and transfers.
 class BrokerClient {
   public:
-    BrokerClient(Configuration const& config, HttpClientPtr http_client = nullptr);
+    BrokerClient(Configuration const& config, HttpClientPtr http_client = nullptr,
+                 RestClient::Options options = RestClient::default_options());
+    BrokerClient(Configuration const& config, RestClient::Options options);
     BrokerClient(Environment const& environment, std::string api_key_id, std::string api_secret_key,
-                 HttpClientPtr http_client = nullptr);
+                 HttpClientPtr http_client = nullptr,
+                 RestClient::Options options = RestClient::default_options());
+    BrokerClient(Environment const& environment, std::string api_key_id, std::string api_secret_key,
+                 RestClient::Options options);
 
     [[nodiscard]] BrokerAccountsPage list_accounts(ListBrokerAccountsRequest const& request = {}) const;
     [[nodiscard]] BrokerAccount get_account(std::string const& account_id) const;

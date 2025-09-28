@@ -1,10 +1,12 @@
 #include <gtest/gtest.h>
 
+#include <chrono>
 #include <memory>
 #include <stdexcept>
 #include <string>
 
 #include "FakeHttpClient.hpp"
+#include "alpaca/ApiException.hpp"
 #include "alpaca/Configuration.hpp"
 #include "alpaca/MarketDataClient.hpp"
 #include "alpaca/models/MarketData.hpp"
@@ -320,4 +322,24 @@ TEST(MarketDataClientTest, MostActiveStocksSerializesQuery) {
     EXPECT_TRUE(http_request.url.find("/v1beta1/screener/stocks/most-actives") != std::string::npos);
     EXPECT_TRUE(http_request.url.find("by=volume") != std::string::npos);
     EXPECT_TRUE(http_request.url.find("top=3") != std::string::npos);
+}
+
+TEST(MarketDataClientTest, CustomRetryOptionsPropagateToRestClients) {
+    auto fake = std::make_shared<FakeHttpClient>();
+    fake->push_response(alpaca::HttpResponse{500, R"({"message":"fail"})", {}});
+
+    alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
+    alpaca::RestClient::Options options;
+    options.retry.max_attempts = 1;
+    options.retry.retry_status_codes = {500};
+    options.retry.initial_backoff = std::chrono::milliseconds{0};
+    options.retry.max_backoff = std::chrono::milliseconds{0};
+
+    alpaca::MarketDataClient client(config, fake, options);
+
+    alpaca::LatestStocksRequest request;
+    request.symbols = {"AAPL"};
+
+    EXPECT_THROW(client.get_latest_stock_trades(request), alpaca::ApiException);
+    ASSERT_EQ(fake->requests().size(), 1U);
 }

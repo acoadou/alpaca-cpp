@@ -5,15 +5,30 @@
 #include "alpaca/HttpClientFactory.hpp"
 
 namespace alpaca {
-AlpacaClient::AlpacaClient(Configuration config, HttpClientPtr http_client)
-  : config_(std::move(config)), http_client_(ensure_http_client(http_client)), trading_client_(config_, http_client_),
-    market_data_client_(config_, http_client_), broker_client_(config_, http_client_) {
+AlpacaClient::AlpacaClient(Configuration config, HttpClientPtr http_client, RestClient::Options options)
+  : config_(std::move(config)), http_client_(ensure_http_client(http_client)),
+    trading_client_(config_, http_client_, options), market_data_client_(config_, http_client_, options),
+    broker_client_(config_, http_client_, std::move(options)) {
+}
+
+AlpacaClient::AlpacaClient(Configuration config, RestClient::Options options)
+  : AlpacaClient(std::move(config), nullptr, std::move(options)) {
 }
 
 AlpacaClient::AlpacaClient(Environment const& environment, std::string api_key_id, std::string api_secret_key,
-                           HttpClientPtr http_client)
+                           HttpClientPtr http_client, RestClient::Options options)
   : AlpacaClient(Configuration::FromEnvironment(environment, std::move(api_key_id), std::move(api_secret_key)),
-                 std::move(http_client)) {
+                 std::move(http_client),
+                 std::move(options)) {
+}
+
+AlpacaClient::AlpacaClient(Environment const& environment, std::string api_key_id, std::string api_secret_key,
+                           RestClient::Options options)
+  : AlpacaClient(environment,
+                 std::move(api_key_id),
+                 std::move(api_secret_key),
+                 nullptr,
+                 std::move(options)) {
 }
 
 TradingClient& AlpacaClient::trading() noexcept {

@@ -1,8 +1,10 @@
 #include <gtest/gtest.h>
 
+#include <chrono>
 #include <memory>
 
 #include "FakeHttpClient.hpp"
+#include "alpaca/ApiException.hpp"
 #include "alpaca/Configuration.hpp"
 #include "alpaca/Json.hpp"
 #include "alpaca/TradingClient.hpp"
@@ -82,6 +84,23 @@ TEST(TradingClientTest, SubmitOptionOrderIncludesMultiLegPayload) {
     ASSERT_EQ(payload.at("legs").size(), 2);
     EXPECT_EQ(payload.at("legs")[0].at("symbol"), "AAPL240119C00195000");
     EXPECT_EQ(payload.at("legs")[1].at("position_intent"), "closing");
+}
+
+TEST(TradingClientTest, CustomRetryOptionsPropagateToRestClient) {
+    auto http = std::make_shared<FakeHttpClient>();
+    http->push_response(alpaca::HttpResponse{500, R"({"message":"fail"})", {}});
+
+    alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
+    alpaca::RestClient::Options options;
+    options.retry.max_attempts = 1;
+    options.retry.retry_status_codes = {500};
+    options.retry.initial_backoff = std::chrono::milliseconds{0};
+    options.retry.max_backoff = std::chrono::milliseconds{0};
+
+    alpaca::TradingClient client(config, http, options);
+
+    EXPECT_THROW(client.get_account(), alpaca::ApiException);
+    ASSERT_EQ(http->requests().size(), 1U);
 }
 
 } // namespace

@@ -52,6 +52,16 @@ TEST(RestClientTest, AddsAuthenticationHeaders) {
     EXPECT_TRUE(request.verify_host);
 }
 
+TEST(RestClientTest, DefaultRetryOptionsFollowAlpacaDefaults) {
+    alpaca::RestClient::RetryOptions const defaults = alpaca::RestClient::default_retry_options();
+
+    EXPECT_GE(defaults.max_attempts, 3U);
+    EXPECT_EQ(defaults.initial_backoff, std::chrono::milliseconds{100});
+    EXPECT_DOUBLE_EQ(defaults.backoff_multiplier, 2.0);
+    EXPECT_EQ(defaults.max_backoff, std::chrono::seconds{5});
+    EXPECT_THAT(defaults.retry_status_codes, ::testing::Contains(429));
+}
+
 TEST(RestClientTest, RetriesFailedRequests) {
     alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
     auto fake_client = std::make_shared<FakeHttpClient>();
@@ -82,6 +92,33 @@ TEST(RestClientTest, RetriesFailedRequests) {
 
     EXPECT_EQ(account.id, "test");
     ASSERT_THAT(fake_client->requests(), SizeIs(2));
+}
+
+TEST(RestClientTest, DefaultRetriesCoverMultipleAttempts) {
+    alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
+    auto fake_client = std::make_shared<FakeHttpClient>();
+
+    alpaca::Json account_json = {
+        {"id",                "test"  },
+        {"currency",          "USD"   },
+        {"status",            "ACTIVE"},
+        {"trade_blocked",     false   },
+        {"trading_blocked",   false   },
+        {"transfers_blocked", false   },
+        {"buying_power",      "1000"  },
+        {"equity",            "1000"  },
+        {"last_equity",       "1000"  }
+    };
+
+    fake_client->push_response(alpaca::HttpResponse{500, alpaca::Json{{"message", "fail"}}.dump(), {}});
+    fake_client->push_response(alpaca::HttpResponse{500, alpaca::Json{{"message", "fail"}}.dump(), {}});
+    fake_client->push_response(alpaca::HttpResponse{200, account_json.dump(), {}});
+
+    alpaca::RestClient client(config, fake_client, config.trading_base_url);
+    alpaca::Account account = client.get<alpaca::Account>("/v2/account");
+
+    EXPECT_EQ(account.id, "test");
+    ASSERT_THAT(fake_client->requests(), SizeIs(3));
 }
 
 TEST(RestClientTest, InvokesRequestInterceptors) {

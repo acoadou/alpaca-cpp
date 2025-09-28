@@ -7,13 +7,28 @@
 
 namespace alpaca {
 
-BrokerClient::BrokerClient(Configuration const& config, HttpClientPtr http_client)
-    : rest_client_(config, ensure_http_client(http_client), config.broker_base_url) {}
+BrokerClient::BrokerClient(Configuration const& config, HttpClientPtr http_client, RestClient::Options options)
+    : rest_client_(config,
+                   ensure_http_client(http_client),
+                   config.broker_base_url,
+                   std::move(options)) {}
+
+BrokerClient::BrokerClient(Configuration const& config, RestClient::Options options)
+    : BrokerClient(config, nullptr, std::move(options)) {}
 
 BrokerClient::BrokerClient(Environment const& environment, std::string api_key_id, std::string api_secret_key,
-                           HttpClientPtr http_client)
+                           HttpClientPtr http_client, RestClient::Options options)
     : BrokerClient(Configuration::FromEnvironment(environment, std::move(api_key_id), std::move(api_secret_key)),
-                   std::move(http_client)) {}
+                   std::move(http_client),
+                   std::move(options)) {}
+
+BrokerClient::BrokerClient(Environment const& environment, std::string api_key_id, std::string api_secret_key,
+                           RestClient::Options options)
+    : BrokerClient(environment,
+                   std::move(api_key_id),
+                   std::move(api_secret_key),
+                   nullptr,
+                   std::move(options)) {}
 
 BrokerAccountsPage BrokerClient::list_accounts(ListBrokerAccountsRequest const& request) const {
     return rest_client_.get<BrokerAccountsPage>("/v1/accounts", request.to_query_params());

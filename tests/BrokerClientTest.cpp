@@ -1,11 +1,13 @@
 #include <gtest/gtest.h>
 
+#include <chrono>
 #include <memory>
 #include <optional>
 #include <queue>
 #include <string>
 #include <vector>
 
+#include "alpaca/ApiException.hpp"
 #include "alpaca/BrokerClient.hpp"
 #include "alpaca/Json.hpp"
 
@@ -170,4 +172,21 @@ TEST(BrokerClientTest, ListRebalancingSubscriptionsRangeIteratesPages) {
     ASSERT_EQ(stub->requests().size(), 2U);
     EXPECT_EQ(stub->requests()[0].url, config.broker_base_url + "/rebalancing/subscriptions?limit=2");
     EXPECT_NE(stub->requests()[1].url.find("page_token=token-2"), std::string::npos);
+}
+
+TEST(BrokerClientTest, CustomRetryOptionsPropagateToRestClient) {
+    auto stub = std::make_shared<StubHttpClient>();
+    stub->enqueue_response(alpaca::HttpResponse{500, R"({"message":"fail"})", {}});
+
+    alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
+    alpaca::RestClient::Options options;
+    options.retry.max_attempts = 1;
+    options.retry.retry_status_codes = {500};
+    options.retry.initial_backoff = std::chrono::milliseconds{0};
+    options.retry.max_backoff = std::chrono::milliseconds{0};
+
+    alpaca::BrokerClient client(config, stub, options);
+
+    EXPECT_THROW(client.get_account("acct-1"), alpaca::ApiException);
+    ASSERT_EQ(stub->requests().size(), 1U);
 }

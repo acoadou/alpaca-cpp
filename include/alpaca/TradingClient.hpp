@@ -25,9 +25,14 @@ namespace alpaca {
 /// High-level trading surface exposing account/order/watchlist operations.
 class TradingClient {
   public:
-    TradingClient(Configuration const& config, HttpClientPtr http_client = nullptr);
+    TradingClient(Configuration const& config, HttpClientPtr http_client = nullptr,
+                  RestClient::Options options = RestClient::default_options());
+    TradingClient(Configuration const& config, RestClient::Options options);
     TradingClient(Environment const& environment, std::string api_key_id, std::string api_secret_key,
-                  HttpClientPtr http_client = nullptr);
+                  HttpClientPtr http_client = nullptr,
+                  RestClient::Options options = RestClient::default_options());
+    TradingClient(Environment const& environment, std::string api_key_id, std::string api_secret_key,
+                  RestClient::Options options);
 
     [[nodiscard]] Account get_account();
     [[nodiscard]] AccountConfiguration get_account_configuration();

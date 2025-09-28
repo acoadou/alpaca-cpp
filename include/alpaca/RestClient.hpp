@@ -39,10 +39,10 @@ class RestClient {
     };
 
     struct RetryOptions {
-        std::size_t max_attempts{1};
-        std::chrono::milliseconds initial_backoff{std::chrono::milliseconds{0}};
+        std::size_t max_attempts{3};
+        std::chrono::milliseconds initial_backoff{std::chrono::milliseconds{100}};
         double backoff_multiplier{2.0};
-        std::chrono::milliseconds max_backoff{std::chrono::seconds{1}};
+        std::chrono::milliseconds max_backoff{std::chrono::seconds{5}};
         std::vector<long> retry_status_codes{429, 500, 502, 503, 504};
     };
 
@@ -59,8 +59,12 @@ class RestClient {
         RateLimitHandler rate_limit_handler{};
     };
 
+    static RetryOptions default_retry_options();
+    static Options default_options();
+
     RestClient(Configuration config, HttpClientPtr http_client, std::string base_url);
-    RestClient(Configuration config, HttpClientPtr http_client, std::string base_url, Options options);
+    RestClient(Configuration config, HttpClientPtr http_client, std::string base_url,
+               Options options);
 
     [[nodiscard]] Configuration const& config() const noexcept {
         return config_;
