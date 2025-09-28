@@ -2,13 +2,18 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <memory>
+#include <cstddef>
 #include <mutex>
 #include <optional>
+#include <future>
 #include <tuple>
 #include <utility>
 #include <vector>
+#include <thread>
 
 #include "FakeHttpClient.hpp"
 #include "alpaca/BackfillCoordinator.hpp"
@@ -29,6 +34,117 @@ public:
         std::lock_guard<std::mutex> lock(client.connection_mutex_);
         return client.pending_messages_.size();
     }
+
+    static std::vector<Json> pending_messages(WebSocketClient const& client) {
+        std::lock_guard<std::mutex> lock(client.connection_mutex_);
+        return client.pending_messages_;
+    }
+
+    static void set_test_hooks(WebSocketClient& client, WebSocketClientTestHooks hooks) {
+        client.test_hooks_ = std::move(hooks);
+    }
+
+    static void set_should_reconnect(WebSocketClient& client, bool value) {
+        client.should_reconnect_.store(value);
+    }
+
+    static void set_manual_disconnect(WebSocketClient& client, bool value) {
+        std::lock_guard<std::mutex> lock(client.connection_mutex_);
+        client.manual_disconnect_ = value;
+    }
+
+    static void set_connected(WebSocketClient& client, bool value) {
+        std::lock_guard<std::mutex> lock(client.connection_mutex_);
+        client.connected_.store(value);
+    }
+
+    static void simulate_open(WebSocketClient& client) {
+        {
+            std::lock_guard<std::mutex> lock(client.connection_mutex_);
+            client.connected_.store(true);
+            client.should_reconnect_.store(true);
+            client.manual_disconnect_ = false;
+            client.reconnect_attempt_ = 0;
+        }
+
+        client.record_activity();
+        client.authenticate();
+        client.replay_subscriptions();
+
+        std::vector<Json> pending;
+        {
+            std::lock_guard<std::mutex> lock(client.connection_mutex_);
+            pending.swap(client.pending_messages_);
+        }
+        for (auto const& payload : pending) {
+            set_connected(client, true);
+            client.send_raw(payload);
+        }
+
+        if (client.open_handler_) {
+            client.open_handler_();
+        }
+    }
+
+    static void simulate_close(WebSocketClient& client) {
+        bool should_retry = false;
+        {
+            std::lock_guard<std::mutex> lock(client.connection_mutex_);
+            client.connected_.store(false);
+            should_retry = client.should_reconnect_ && !client.manual_disconnect_;
+        }
+        if (client.close_handler_) {
+            client.close_handler_();
+        }
+        if (should_retry) {
+            client.schedule_reconnect();
+        }
+    }
+
+    static void simulate_error(WebSocketClient& client, std::string reason) {
+        bool should_retry = false;
+        {
+            std::lock_guard<std::mutex> lock(client.connection_mutex_);
+            client.connected_.store(false);
+            should_retry = client.should_reconnect_ && !client.manual_disconnect_;
+        }
+        if (client.error_handler_) {
+            client.error_handler_(std::move(reason));
+        }
+        if (should_retry) {
+            client.schedule_reconnect();
+        }
+    }
+
+    static void drain_reconnect_thread(WebSocketClient& client) {
+        std::thread thread;
+        {
+            std::lock_guard<std::mutex> lock(client.connection_mutex_);
+            if (client.reconnect_thread_.joinable()) {
+                thread = std::move(client.reconnect_thread_);
+            }
+        }
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+
+    static std::size_t reconnect_attempt(WebSocketClient const& client) {
+        std::lock_guard<std::mutex> lock(client.connection_mutex_);
+        return client.reconnect_attempt_;
+    }
+
+    static void set_last_message_time(WebSocketClient& client, std::int64_t value) {
+        client.last_message_time_ns_.store(value);
+    }
+
+    static void handle_control(WebSocketClient& client, Json const& payload, std::string const& type) {
+        client.handle_control_payload(payload, type);
+    }
+
+    static void trigger_heartbeat_timeout(WebSocketClient& client) {
+        client.handle_heartbeat_timeout();
+    }
 };
 
 } // namespace alpaca::streaming
@@ -36,10 +152,14 @@ public:
 namespace {
 
 using alpaca::parse_timestamp;
+using alpaca::Json;
 using alpaca::streaming::MessageCategory;
 using alpaca::streaming::StreamMessage;
 using alpaca::streaming::WebSocketClient;
 using alpaca::streaming::WebSocketClientHarness;
+using alpaca::streaming::WebSocketClientTestHooks;
+using alpaca::streaming::MarketSubscription;
+using alpaca::streaming::ReconnectPolicy;
 
 alpaca::HttpResponse MakeHttpResponse(std::string body) {
     return alpaca::HttpResponse{200, std::move(body), {}};
@@ -513,6 +633,146 @@ TEST(StreamingTest, IssuesRestBackfillRequestWhenTradeSequenceGapDetected) {
     EXPECT_NE(request.url.find("end=2024-05-01T12%3A00%3A05Z"), std::string::npos);
     EXPECT_NE(request.url.find("limit=3"), std::string::npos);
     EXPECT_NE(request.url.find("sort=asc"), std::string::npos);
+}
+
+TEST(StreamingTest, CloseEventSchedulesReconnectAndReplaysSubscriptions) {
+    auto client = make_client();
+
+    std::vector<Json> sent_messages;
+    std::atomic<int> replay_calls{0};
+    std::atomic<int> reconnect_calls{0};
+
+    WebSocketClientTestHooks hooks{};
+    hooks.on_send_raw = [&sent_messages](Json const& message) { sent_messages.push_back(message); };
+    hooks.on_replay_subscriptions = [&replay_calls]() { replay_calls.fetch_add(1, std::memory_order_relaxed); };
+    hooks.on_schedule_reconnect = [&reconnect_calls]() { reconnect_calls.fetch_add(1, std::memory_order_relaxed); };
+    WebSocketClientHarness::set_test_hooks(client, std::move(hooks));
+
+    MarketSubscription subscription;
+    subscription.trades.push_back("AAPL");
+    client.subscribe(subscription);
+    client.send_raw(alpaca::Json{{"action", "noop"}});
+
+    ASSERT_EQ(WebSocketClientHarness::pending_message_count(client), 2U);
+
+    WebSocketClientHarness::set_should_reconnect(client, true);
+    WebSocketClientHarness::set_connected(client, true);
+
+    auto before_close = reconnect_calls.load(std::memory_order_relaxed);
+    WebSocketClientHarness::simulate_close(client);
+    WebSocketClientHarness::drain_reconnect_thread(client);
+
+    EXPECT_GT(reconnect_calls.load(std::memory_order_relaxed), before_close);
+    EXPECT_EQ(WebSocketClientHarness::reconnect_attempt(client), 1U);
+
+    auto baseline = sent_messages.size();
+    WebSocketClientHarness::simulate_open(client);
+
+    EXPECT_EQ(replay_calls.load(std::memory_order_relaxed), 1);
+    auto pending_after_open = WebSocketClientHarness::pending_message_count(client);
+    if (pending_after_open != 0U) {
+        auto snapshot = WebSocketClientHarness::pending_messages(client);
+        for (auto const& message : snapshot) {
+            ADD_FAILURE() << "Pending message after open: " << message.dump();
+        }
+    }
+    EXPECT_EQ(pending_after_open, 0U);
+
+    ASSERT_GE(sent_messages.size(), baseline + 4U);
+    auto start = sent_messages.begin() + static_cast<std::ptrdiff_t>(baseline);
+    std::vector<Json> new_messages(start, sent_messages.end());
+
+    auto auth_count = std::count_if(new_messages.begin(), new_messages.end(), [](Json const& msg) {
+        return msg.contains("action") && msg.at("action").get<std::string>() == "auth";
+    });
+    EXPECT_GE(auth_count, 1);
+
+    auto subscribe_count = std::count_if(new_messages.begin(), new_messages.end(), [](Json const& msg) {
+        if (!msg.contains("action")) {
+            return false;
+        }
+        if (msg.at("action").get<std::string>() != "subscribe") {
+            return false;
+        }
+        if (!msg.contains("trades")) {
+            return false;
+        }
+        auto symbols = msg.at("trades").get<std::vector<std::string>>();
+        return std::find(symbols.begin(), symbols.end(), "AAPL") != symbols.end();
+    });
+    EXPECT_GE(subscribe_count, 2);
+
+    auto noop_count = std::count_if(new_messages.begin(), new_messages.end(), [](Json const& msg) {
+        return msg.contains("action") && msg.at("action").get<std::string>() == "noop";
+    });
+    EXPECT_GE(noop_count, 1);
+}
+
+TEST(StreamingTest, ErrorEventSchedulesReconnect) {
+    auto client = make_client();
+
+    std::atomic<int> reconnect_calls{0};
+    WebSocketClientTestHooks hooks{};
+    hooks.on_schedule_reconnect = [&reconnect_calls]() { reconnect_calls.fetch_add(1, std::memory_order_relaxed); };
+    WebSocketClientHarness::set_test_hooks(client, std::move(hooks));
+
+    WebSocketClientHarness::set_should_reconnect(client, true);
+    WebSocketClientHarness::set_connected(client, true);
+
+    WebSocketClientHarness::simulate_error(client, "simulated error");
+    WebSocketClientHarness::drain_reconnect_thread(client);
+
+    EXPECT_GE(reconnect_calls.load(std::memory_order_relaxed), 1);
+    EXPECT_EQ(WebSocketClientHarness::reconnect_attempt(client), 1U);
+}
+
+TEST(StreamingTest, HeartbeatTimeoutSchedulesReconnect) {
+    auto client = make_client();
+
+    ReconnectPolicy policy;
+    policy.initial_delay = std::chrono::milliseconds{0};
+    policy.max_delay = std::chrono::milliseconds{0};
+    policy.multiplier = 1.0;
+    policy.jitter = std::chrono::milliseconds{0};
+    client.set_reconnect_policy(policy);
+
+    std::atomic<int> reconnect_calls{0};
+    std::atomic<int> timeout_calls{0};
+
+    WebSocketClientTestHooks hooks{};
+    hooks.on_schedule_reconnect = [&reconnect_calls]() { reconnect_calls.fetch_add(1, std::memory_order_relaxed); };
+    hooks.on_handle_heartbeat_timeout = [&timeout_calls]() { timeout_calls.fetch_add(1, std::memory_order_relaxed); };
+    WebSocketClientHarness::set_test_hooks(client, std::move(hooks));
+
+    WebSocketClientHarness::set_should_reconnect(client, true);
+    WebSocketClientHarness::set_connected(client, true);
+
+    client.set_heartbeat_timeout(std::chrono::milliseconds{1});
+    WebSocketClientHarness::set_last_message_time(client, 0);
+
+    WebSocketClientHarness::trigger_heartbeat_timeout(client);
+    WebSocketClientHarness::drain_reconnect_thread(client);
+
+    EXPECT_GE(timeout_calls.load(std::memory_order_relaxed), 1);
+    EXPECT_GE(reconnect_calls.load(std::memory_order_relaxed), 1);
+}
+
+TEST(StreamingTest, RespondsToPingWithPong) {
+    auto client = make_client();
+
+    std::vector<Json> sent_messages;
+    WebSocketClientTestHooks hooks{};
+    hooks.on_send_raw = [&sent_messages](Json const& message) { sent_messages.push_back(message); };
+    WebSocketClientHarness::set_test_hooks(client, std::move(hooks));
+
+    WebSocketClientHarness::set_connected(client, false);
+    WebSocketClientHarness::handle_control(client, Json::object(), "ping");
+
+    ASSERT_EQ(WebSocketClientHarness::pending_message_count(client), 1U);
+    ASSERT_EQ(sent_messages.size(), 1U);
+    auto const& message = sent_messages.front();
+    ASSERT_TRUE(message.contains("action"));
+    EXPECT_EQ(message.at("action").get<std::string>(), "pong");
 }
 
 } // namespace

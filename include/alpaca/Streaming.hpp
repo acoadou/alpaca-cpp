@@ -358,6 +358,13 @@ struct ReconnectPolicy {
     std::chrono::milliseconds jitter{std::chrono::milliseconds{250}};
 };
 
+struct WebSocketClientTestHooks {
+    std::function<void()> on_schedule_reconnect;
+    std::function<void()> on_replay_subscriptions;
+    std::function<void(Json const&)> on_send_raw;
+    std::function<void()> on_handle_heartbeat_timeout;
+};
+
 class WebSocketClientHarness;
 
 /// Lightweight websocket client capable of connecting to Alpaca's streaming
@@ -529,6 +536,8 @@ class WebSocketClient {
     ReconnectPolicy reconnect_policy_{};
     std::mt19937_64 rng_;
     std::chrono::seconds ping_interval_{std::chrono::seconds{30}};
+
+    WebSocketClientTestHooks test_hooks_{};
 };
 
 } // namespace alpaca::streaming

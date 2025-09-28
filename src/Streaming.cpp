@@ -988,6 +988,9 @@ void WebSocketClient::send_raw(Json const& message) {
             throw std::runtime_error("websocket send queue limit reached");
         }
         pending_messages_.push_back(message);
+        if (test_hooks_.on_send_raw) {
+            test_hooks_.on_send_raw(message);
+        }
         return;
     }
     auto const payload = message.dump();
@@ -998,6 +1001,9 @@ void WebSocketClient::send_raw(Json const& message) {
         } else {
             error_handler_("websocket send failed");
         }
+    }
+    if (test_hooks_.on_send_raw) {
+        test_hooks_.on_send_raw(message);
     }
 }
 
@@ -1321,6 +1327,9 @@ void WebSocketClient::handle_control_payload(Json const& payload, std::string co
 }
 
 void WebSocketClient::replay_subscriptions() {
+    if (test_hooks_.on_replay_subscriptions) {
+        test_hooks_.on_replay_subscriptions();
+    }
     MarketSubscription snapshot;
     std::vector<std::string> streams;
     {
@@ -1458,6 +1467,9 @@ void WebSocketClient::schedule_reconnect() {
     }
 
     auto const delay = compute_backoff_delay(attempt);
+    if (test_hooks_.on_schedule_reconnect) {
+        test_hooks_.on_schedule_reconnect();
+    }
     std::thread worker([this, delay]() {
         std::this_thread::sleep_for(delay);
         std::lock_guard<std::mutex> lock(connection_mutex_);
@@ -1616,6 +1628,9 @@ void WebSocketClient::stop_heartbeat() {
 }
 
 void WebSocketClient::handle_heartbeat_timeout() {
+    if (test_hooks_.on_handle_heartbeat_timeout) {
+        test_hooks_.on_handle_heartbeat_timeout();
+    }
     bool should_retry = false;
     {
         std::lock_guard<std::mutex> lock(connection_mutex_);
