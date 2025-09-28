@@ -15,6 +15,7 @@
 #include "alpaca/models/AccountConfiguration.hpp"
 #include "alpaca/models/Asset.hpp"
 #include "alpaca/models/Broker.hpp"
+#include "alpaca/models/BulkTradingResults.hpp"
 #include "alpaca/models/CalendarDay.hpp"
 #include "alpaca/models/Clock.hpp"
 #include "alpaca/models/CorporateActions.hpp"
@@ -72,7 +73,7 @@ class AlpacaClient {
     [[nodiscard]] Position close_position(std::string const& symbol, ClosePositionRequest const& request = {});
 
     /// Closes all open positions using optional request modifiers.
-    [[nodiscard]] std::vector<ClosePositionResponse> close_all_positions(CloseAllPositionsRequest const& request = {});
+    [[nodiscard]] BulkClosePositionsResponse close_all_positions(CloseAllPositionsRequest const& request = {});
 
     /// Returns options positions currently held in the authenticated account.
     [[nodiscard]] std::vector<OptionPosition> list_option_positions();
@@ -101,7 +102,7 @@ class AlpacaClient {
     void cancel_order(std::string const& order_id);
 
     /// Cancels all open orders and returns the identifiers that were cancelled.
-    [[nodiscard]] std::vector<CancelledOrderId> cancel_all_orders();
+    [[nodiscard]] BulkCancelOrdersResponse cancel_all_orders();
 
     /// Submits a new order and returns the created order representation.
     [[nodiscard]] Order submit_order(NewOrderRequest const& request);

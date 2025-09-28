@@ -12,6 +12,7 @@
 #include "alpaca/models/AccountActivity.hpp"
 #include "alpaca/models/AccountConfiguration.hpp"
 #include "alpaca/models/Asset.hpp"
+#include "alpaca/models/BulkTradingResults.hpp"
 #include "alpaca/models/CalendarDay.hpp"
 #include "alpaca/models/Clock.hpp"
 #include "alpaca/models/Option.hpp"
@@ -40,7 +41,7 @@ class TradingClient {
     [[nodiscard]] std::vector<Position> list_positions();
     [[nodiscard]] Position get_position(std::string const& symbol);
     [[nodiscard]] Position close_position(std::string const& symbol, ClosePositionRequest const& request = {});
-    [[nodiscard]] std::vector<ClosePositionResponse> close_all_positions(CloseAllPositionsRequest const& request = {});
+    [[nodiscard]] BulkClosePositionsResponse close_all_positions(CloseAllPositionsRequest const& request = {});
 
     [[nodiscard]] std::vector<OptionPosition> list_option_positions();
     [[nodiscard]] OptionPosition get_option_position(std::string const& symbol);
@@ -52,7 +53,7 @@ class TradingClient {
     [[nodiscard]] Order get_order(std::string const& order_id);
     [[nodiscard]] Order get_order_by_client_order_id(std::string const& client_order_id);
     void cancel_order(std::string const& order_id);
-    [[nodiscard]] std::vector<CancelledOrderId> cancel_all_orders();
+    [[nodiscard]] BulkCancelOrdersResponse cancel_all_orders();
     [[nodiscard]] Order submit_order(NewOrderRequest const& request);
     [[nodiscard]] Order replace_order(std::string const& order_id, ReplaceOrderRequest const& request);
 

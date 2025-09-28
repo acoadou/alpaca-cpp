@@ -1,7 +1,10 @@
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <chrono>
 #include <memory>
+#include <optional>
+#include <string>
 
 #include "FakeHttpClient.hpp"
 #include "alpaca/Configuration.hpp"
@@ -10,6 +13,62 @@
 #include "alpaca/TradingClient.hpp"
 
 namespace {
+
+alpaca::Json make_order_json(std::string id, std::string status) {
+    return alpaca::Json{
+        {"id", id},
+        {"asset_id", "asset-" + id},
+        {"client_order_id", "client-" + id},
+        {"account_id", "account"},
+        {"created_at", "2023-01-01T00:00:00Z"},
+        {"updated_at", nullptr},
+        {"submitted_at", nullptr},
+        {"filled_at", nullptr},
+        {"expired_at", nullptr},
+        {"canceled_at", nullptr},
+        {"failed_at", nullptr},
+        {"replaced_at", nullptr},
+        {"replaced_by", ""},
+        {"replaces", ""},
+        {"symbol", "AAPL"},
+        {"asset_class", "us_equity"},
+        {"side", "buy"},
+        {"type", "market"},
+        {"time_in_force", "day"},
+        {"status", status},
+        {"extended_hours", false}
+    };
+}
+
+alpaca::Json make_position_json(std::string symbol) {
+    return alpaca::Json{
+        {"asset_id", "asset-" + symbol},
+        {"symbol", symbol},
+        {"exchange", "NASDAQ"},
+        {"asset_class", "us_equity"},
+        {"qty", "1"},
+        {"qty_available", "1"},
+        {"avg_entry_price", "100"},
+        {"market_value", "100"},
+        {"cost_basis", "100"},
+        {"unrealized_pl", "0"},
+        {"unrealized_plpc", "0"},
+        {"unrealized_intraday_pl", "0"},
+        {"unrealized_intraday_plpc", "0"},
+        {"current_price", "100"},
+        {"lastday_price", "100"},
+        {"change_today", "0"}
+    };
+}
+
+alpaca::Json make_close_success_json(std::string order_id, std::string symbol) {
+    return alpaca::Json{
+        {"order_id", order_id},
+        {"status", 200},
+        {"symbol", symbol},
+        {"body", make_order_json(order_id, "pending_cancel")}
+    };
+}
 
 TEST(TradingClientTest, CloseAllPositionsTargetsPositionsEndpoint) {
     auto http = std::make_shared<FakeHttpClient>();
@@ -22,12 +81,90 @@ TEST(TradingClientTest, CloseAllPositionsTargetsPositionsEndpoint) {
     request.cancel_orders = true;
 
     auto const responses = client.close_all_positions(request);
-    EXPECT_TRUE(responses.empty());
+    EXPECT_TRUE(responses.successful.empty());
+    EXPECT_TRUE(responses.failed.empty());
 
     ASSERT_EQ(http->requests().size(), 1U);
     auto const& recorded = http->requests().front().request;
     EXPECT_EQ(recorded.method, alpaca::HttpMethod::DELETE_);
     EXPECT_EQ(recorded.url, config.trading_base_url + "/v2/positions?cancel_orders=true");
+}
+
+TEST(TradingClientTest, CancelAllOrdersRetriesUntilOutstandingResolved) {
+    auto http = std::make_shared<FakeHttpClient>();
+
+    alpaca::Json initial = alpaca::Json::array();
+    initial.push_back({{"id", "order-1"}, {"status", "pending_cancel"}});
+    initial.push_back({{"id", "order-2"}, {"status", "canceled"}});
+    initial.push_back({{"id", "order-3"}, {"status", "rejected"}});
+    http->push_response(alpaca::HttpResponse{200, initial.dump(), {}});
+
+    alpaca::Json pending_orders = alpaca::Json::array();
+    pending_orders.push_back(make_order_json("order-1", "pending_cancel"));
+    http->push_response(alpaca::HttpResponse{200, pending_orders.dump(), {}});
+
+    http->push_response(alpaca::HttpResponse{200, alpaca::Json::array().dump(), {}});
+
+    alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
+    alpaca::TradingClient client(config, http);
+
+    auto const result = client.cancel_all_orders();
+
+    ASSERT_EQ(result.successful.size(), 2U);
+    ASSERT_EQ(result.failed.size(), 1U);
+    EXPECT_TRUE(std::any_of(result.successful.begin(), result.successful.end(), [](auto const& item) {
+        return item.id == "order-1";
+    }));
+    EXPECT_TRUE(std::any_of(result.successful.begin(), result.successful.end(), [](auto const& item) {
+        return item.id == "order-2";
+    }));
+    EXPECT_EQ(result.failed.front().id, "order-3");
+
+    ASSERT_EQ(http->requests().size(), 3U);
+    EXPECT_EQ(http->requests()[0].request.method, alpaca::HttpMethod::DELETE_);
+    EXPECT_EQ(http->requests()[0].request.url, config.trading_base_url + "/v2/orders");
+    EXPECT_EQ(http->requests()[1].request.method, alpaca::HttpMethod::GET);
+    EXPECT_EQ(http->requests()[1].request.url, config.trading_base_url + "/v2/orders?status=open&limit=500");
+    EXPECT_EQ(http->requests()[2].request.method, alpaca::HttpMethod::GET);
+    EXPECT_EQ(http->requests()[2].request.url, config.trading_base_url + "/v2/orders?status=open&limit=500");
+}
+
+TEST(TradingClientTest, CloseAllPositionsPollsUntilSymbolsDisappear) {
+    auto http = std::make_shared<FakeHttpClient>();
+
+    alpaca::Json initial = alpaca::Json::array();
+    initial.push_back(make_close_success_json("order-1", "AAPL"));
+    initial.push_back(alpaca::Json{
+        {"order_id", nullptr},
+        {"status", 400},
+        {"symbol", "TSLA"},
+        {"body", alpaca::Json{{"code", 12345}, {"message", "insufficient shares"}}}
+    });
+    http->push_response(alpaca::HttpResponse{200, initial.dump(), {}});
+
+    alpaca::Json open_positions = alpaca::Json::array();
+    open_positions.push_back(make_position_json("AAPL"));
+    http->push_response(alpaca::HttpResponse{200, open_positions.dump(), {}});
+
+    http->push_response(alpaca::HttpResponse{200, alpaca::Json::array().dump(), {}});
+
+    alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
+    alpaca::TradingClient client(config, http);
+
+    auto const result = client.close_all_positions();
+
+    ASSERT_EQ(result.successful.size(), 1U);
+    EXPECT_EQ(result.successful.front().symbol, std::optional<std::string>{"AAPL"});
+    ASSERT_EQ(result.failed.size(), 1U);
+    EXPECT_EQ(result.failed.front().symbol, std::optional<std::string>{"TSLA"});
+
+    ASSERT_EQ(http->requests().size(), 3U);
+    EXPECT_EQ(http->requests()[0].request.method, alpaca::HttpMethod::DELETE_);
+    EXPECT_EQ(http->requests()[0].request.url, config.trading_base_url + "/v2/positions");
+    EXPECT_EQ(http->requests()[1].request.method, alpaca::HttpMethod::GET);
+    EXPECT_EQ(http->requests()[1].request.url, config.trading_base_url + "/v2/positions");
+    EXPECT_EQ(http->requests()[2].request.method, alpaca::HttpMethod::GET);
+    EXPECT_EQ(http->requests()[2].request.url, config.trading_base_url + "/v2/positions");
 }
 
 TEST(TradingClientTest, ExerciseOptionsPositionPostsToExerciseEndpoint) {

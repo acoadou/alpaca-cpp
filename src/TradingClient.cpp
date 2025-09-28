@@ -1,5 +1,9 @@
 #include "alpaca/TradingClient.hpp"
 
+#include <chrono>
+#include <thread>
+#include <unordered_map>
+#include <unordered_set>
 #include <utility>
 
 #include "alpaca/HttpClientFactory.hpp"
@@ -57,8 +61,83 @@ Position TradingClient::close_position(std::string const& symbol, ClosePositionR
     return rest_client_.del<Position>("/v2/positions/" + symbol, request.to_query_params());
 }
 
-std::vector<ClosePositionResponse> TradingClient::close_all_positions(CloseAllPositionsRequest const& request) {
-    return rest_client_.del<std::vector<ClosePositionResponse>>("/v2/positions", request.to_query_params());
+namespace {
+constexpr auto kBulkPollInterval = std::chrono::milliseconds{200};
+constexpr auto kBulkTimeout = std::chrono::seconds{5};
+
+bool is_pending_cancellation(OrderStatus status) {
+    switch (status) {
+    case OrderStatus::PENDING_CANCEL:
+    case OrderStatus::PENDING_NEW:
+    case OrderStatus::ACCEPTED:
+    case OrderStatus::ACCEPTED_FOR_BIDDING:
+    case OrderStatus::NEW:
+    case OrderStatus::HELD:
+        return true;
+    default:
+        return false;
+    }
+}
+
+bool is_cancellation_failure(OrderStatus status) {
+    switch (status) {
+    case OrderStatus::REJECTED:
+    case OrderStatus::DONE_FOR_DAY:
+    case OrderStatus::SUSPENDED:
+    case OrderStatus::EXPIRED:
+    case OrderStatus::FILLED:
+    case OrderStatus::CALCULATED:
+        return true;
+    default:
+        return false;
+    }
+}
+} // namespace
+
+BulkClosePositionsResponse TradingClient::close_all_positions(CloseAllPositionsRequest const& request) {
+    auto const initial = rest_client_.del<std::vector<ClosePositionResponse>>("/v2/positions", request.to_query_params());
+
+    BulkClosePositionsResponse result;
+    std::unordered_map<std::string, ClosePositionResponse> pending;
+
+    for (auto const& response : initial) {
+        if (std::holds_alternative<FailedClosePositionDetails>(response.body)) {
+            result.failed.push_back(response);
+            continue;
+        }
+
+        if (response.symbol.has_value()) {
+            pending.emplace(*response.symbol, response);
+        } else {
+            result.successful.push_back(response);
+        }
+    }
+
+    auto const deadline = std::chrono::steady_clock::now() + kBulkTimeout;
+    while (!pending.empty() && std::chrono::steady_clock::now() < deadline) {
+        std::this_thread::sleep_for(kBulkPollInterval);
+        auto const positions = rest_client_.get<std::vector<Position>>("/v2/positions");
+        std::unordered_set<std::string> open_symbols;
+        open_symbols.reserve(positions.size());
+        for (auto const& position : positions) {
+            open_symbols.insert(position.symbol);
+        }
+
+        for (auto it = pending.begin(); it != pending.end();) {
+            if (open_symbols.find(it->first) == open_symbols.end()) {
+                result.successful.push_back(it->second);
+                it = pending.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
+
+    for (auto& entry : pending) {
+        result.failed.push_back(entry.second);
+    }
+
+    return result;
 }
 
 std::vector<OptionPosition> TradingClient::list_option_positions() {
@@ -96,8 +175,64 @@ void TradingClient::cancel_order(std::string const& order_id) {
     rest_client_.del<void>("/v2/orders/" + order_id);
 }
 
-std::vector<CancelledOrderId> TradingClient::cancel_all_orders() {
-    return rest_client_.del<std::vector<CancelledOrderId>>("/v2/orders");
+BulkCancelOrdersResponse TradingClient::cancel_all_orders() {
+    auto const initial = rest_client_.del<std::vector<CancelledOrderId>>("/v2/orders");
+
+    BulkCancelOrdersResponse result;
+    std::unordered_map<std::string, CancelledOrderId> pending;
+
+    for (auto const& cancelled : initial) {
+        if (cancelled.status == OrderStatus::CANCELED) {
+            result.successful.push_back(cancelled);
+        } else if (is_pending_cancellation(cancelled.status)) {
+            pending.emplace(cancelled.id, cancelled);
+        } else if (is_cancellation_failure(cancelled.status)) {
+            result.failed.push_back(cancelled);
+        } else {
+            pending.emplace(cancelled.id, cancelled);
+        }
+    }
+
+    auto const deadline = std::chrono::steady_clock::now() + kBulkTimeout;
+    ListOrdersRequest poll_request;
+    poll_request.status = OrderStatusFilter::OPEN;
+    poll_request.limit = 500;
+
+    while (!pending.empty() && std::chrono::steady_clock::now() < deadline) {
+        std::this_thread::sleep_for(kBulkPollInterval);
+        auto const open_orders = rest_client_.get<std::vector<Order>>("/v2/orders", poll_request.to_query_params());
+        std::unordered_set<std::string> open_ids;
+        open_ids.reserve(open_orders.size());
+        for (auto const& order : open_orders) {
+            open_ids.insert(order.id);
+            auto const it = pending.find(order.id);
+            if (it == pending.end()) {
+                continue;
+            }
+            if (order.status == OrderStatus::CANCELED) {
+                result.successful.push_back(it->second);
+                pending.erase(it);
+            } else if (is_cancellation_failure(order.status)) {
+                result.failed.push_back(it->second);
+                pending.erase(it);
+            }
+        }
+
+        for (auto it = pending.begin(); it != pending.end();) {
+            if (open_ids.find(it->first) == open_ids.end()) {
+                result.successful.push_back(it->second);
+                it = pending.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
+
+    for (auto& entry : pending) {
+        result.failed.push_back(entry.second);
+    }
+
+    return result;
 }
 
 Order TradingClient::submit_order(NewOrderRequest const& request) {

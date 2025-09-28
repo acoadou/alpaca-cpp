@@ -111,6 +111,17 @@ for (alpaca::Order const& order : trading.list_orders(history)) {
 }
 ```
 
+### Monitoring bulk cancellations and position closures
+
+`alpaca::TradingClient::cancel_all_orders` and `alpaca::TradingClient::close_all_positions` now
+return rich summaries (`alpaca::BulkCancelOrdersResponse` and `alpaca::BulkClosePositionsResponse`)
+that separate the identifiers which were cancelled or closed successfully from those that failed.
+After invoking the respective bulk endpoints the client automatically polls `/v2/orders` and
+`/v2/positions` until outstanding items settle or a timeout elapses, giving you deterministic
+visibility into which symbols require manual follow-up. The response objects expose `successful`
+and `failed` vectors so downstream code can log, retry, or alert on partial failures without
+replaying the entire workflow.
+
 ### Building and running the tests
 
 ```bash

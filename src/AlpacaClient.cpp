@@ -74,7 +74,7 @@ Position AlpacaClient::close_position(std::string const& symbol, ClosePositionRe
     return trading().close_position(symbol, request);
 }
 
-std::vector<ClosePositionResponse> AlpacaClient::close_all_positions(CloseAllPositionsRequest const& request) {
+BulkClosePositionsResponse AlpacaClient::close_all_positions(CloseAllPositionsRequest const& request) {
     return trading().close_all_positions(request);
 }
 
@@ -111,7 +111,7 @@ void AlpacaClient::cancel_order(std::string const& order_id) {
     trading().cancel_order(order_id);
 }
 
-std::vector<CancelledOrderId> AlpacaClient::cancel_all_orders() {
+BulkCancelOrdersResponse AlpacaClient::cancel_all_orders() {
     return trading().cancel_all_orders();
 }
 
