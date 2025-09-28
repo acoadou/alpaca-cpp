@@ -11,6 +11,50 @@
 
 namespace alpaca {
 
+/// Enumerates option contract types supported by Alpaca.
+enum class OptionType {
+    CALL,
+    PUT
+};
+
+/// Enumerates option exercise styles supported by Alpaca.
+enum class OptionStyle {
+    AMERICAN,
+    EUROPEAN
+};
+
+/// Enumerates lifecycle statuses reported for option contracts.
+enum class OptionStatus {
+    ACTIVE,
+    HALTED,
+    INACTIVE
+};
+
+/// Enumerates exchanges on which option contracts are listed.
+enum class OptionExchange {
+    AMEX,
+    ARCA,
+    BATS,
+    BOX,
+    BZX,
+    C2,
+    CBOE,
+    EDGX,
+    GEMINI,
+    ISE,
+    ISE_MERCURY,
+    MIAX,
+    MIAX_EMERALD,
+    MIAX_PEARL,
+    NASDAQ,
+    NASDAQ_BX,
+    NASDAQ_OMX,
+    NASDAQ_PHLX,
+    NYSE,
+    NYSE_ARCA,
+    OPRA
+};
+
 using OptionOrder = Order;
 using NewOptionOrderRequest = NewOrderRequest;
 using ReplaceOptionOrderRequest = ReplaceOrderRequest;
@@ -22,7 +66,7 @@ using CloseOptionPositionRequest = ClosePositionRequest;
 struct OptionPosition {
     std::string asset_id;
     std::string symbol;
-    std::string exchange;
+    std::optional<OptionExchange> exchange{};
     std::string asset_class;
     std::string account_id;
     std::string qty;
@@ -41,8 +85,8 @@ struct OptionPosition {
     std::optional<std::string> contract_multiplier{};
     std::optional<std::string> expiry{};
     std::optional<std::string> strike_price{};
-    std::optional<std::string> style{};
-    std::optional<std::string> type{};
+    std::optional<OptionStyle> style{};
+    std::optional<OptionType> type{};
     std::optional<std::string> underlying_symbol{};
 };
 
@@ -52,16 +96,16 @@ void from_json(Json const& j, OptionPosition& position);
 struct OptionContract {
     std::string id;
     std::string symbol;
-    std::string status;
+    OptionStatus status{OptionStatus::ACTIVE};
     bool tradable{false};
     std::string underlying_symbol;
     std::string expiration_date;
     std::string strike_price;
-    std::string type;
-    std::string style;
+    OptionType type{OptionType::CALL};
+    OptionStyle style{OptionStyle::AMERICAN};
     std::optional<std::string> root_symbol{};
-    std::optional<std::string> exchange{};
-    std::optional<std::string> exercise_style{};
+    std::optional<OptionExchange> exchange{};
+    std::optional<OptionStyle> exercise_style{};
     std::optional<std::string> multiplier{};
     std::optional<std::uint64_t> open_interest{};
     std::optional<std::string> open_interest_date{};
@@ -79,10 +123,10 @@ struct OptionContractsResponse {
 /// Request parameters accepted by the option contract discovery endpoint.
 struct ListOptionContractsRequest {
     std::vector<std::string> underlying_symbols{};
-    std::optional<std::string> status{};
+    std::optional<OptionStatus> status{};
     std::optional<std::string> expiry{};
-    std::optional<std::string> type{};
-    std::optional<std::string> style{};
+    std::optional<OptionType> type{};
+    std::optional<OptionStyle> style{};
     std::optional<std::string> strike{};
     std::optional<std::string> strike_gte{};
     std::optional<std::string> strike_lte{};
@@ -151,5 +195,15 @@ void from_json(Json const& j, OptionRiskParameters& risk);
 void from_json(Json const& j, OptionStrategyLeg& leg);
 void from_json(Json const& j, OptionAnalytics& analytics);
 void from_json(Json const& j, OptionAnalyticsResponse& response);
+
+std::string to_string(OptionType type);
+std::string to_string(OptionStyle style);
+std::string to_string(OptionStatus status);
+std::string to_string(OptionExchange exchange);
+
+OptionType option_type_from_string(std::string const& value);
+OptionStyle option_style_from_string(std::string const& value);
+OptionStatus option_status_from_string(std::string const& value);
+OptionExchange option_exchange_from_string(std::string const& value);
 
 } // namespace alpaca

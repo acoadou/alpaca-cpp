@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cctype>
 #include <iomanip>
+#include <initializer_list>
 #include <mutex>
 #include <optional>
 #include <sstream>
@@ -66,6 +67,82 @@ std::optional<RestClient::RateLimitStatus> extract_rate_limit(HttpHeaders const&
         return std::nullopt;
     }
     return status;
+}
+
+std::string to_lower_copy(std::string_view value) {
+    std::string lowered(value);
+    std::transform(lowered.begin(), lowered.end(), lowered.begin(), [](unsigned char c) {
+        return static_cast<char>(std::tolower(c));
+    });
+    return lowered;
+}
+
+bool message_contains(std::string const& lowered_message, std::initializer_list<std::string_view> fragments) {
+    for (auto fragment : fragments) {
+        if (lowered_message.find(to_lower_copy(fragment)) != std::string::npos) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool code_matches(std::optional<std::string> const& code, std::initializer_list<std::string_view> expected) {
+    if (!code.has_value()) {
+        return false;
+    }
+    auto lowered_code = to_lower_copy(*code);
+    for (auto candidate : expected) {
+        if (lowered_code == to_lower_copy(candidate)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+[[noreturn]] void throw_for_api_error(long status_code, std::string message, std::string body, HttpHeaders headers,
+                                      std::optional<std::string> const& error_code) {
+    std::string lowered_message = to_lower_copy(message);
+
+    if (status_code == 401 ||
+        code_matches(error_code, {"40110000", "authentication_error", "unauthorized"}) ||
+        message_contains(lowered_message, {"authentication", "credential", "unauthorized"})) {
+        throw AuthenticationException(status_code, std::move(message), std::move(body), std::move(headers));
+    }
+
+    if (status_code == 403 ||
+        code_matches(error_code, {"forbidden", "permission_denied", "insufficient_permission"}) ||
+        message_contains(lowered_message, {"forbidden", "permission"})) {
+        throw PermissionException(status_code, std::move(message), std::move(body), std::move(headers));
+    }
+
+    if (status_code == 404 || code_matches(error_code, {"40410000", "not_found", "resource_not_found"}) ||
+        message_contains(lowered_message, {"not found"})) {
+        throw NotFoundException(status_code, std::move(message), std::move(body), std::move(headers));
+    }
+
+    if (status_code == 429 ||
+        code_matches(error_code, {"42910000", "rate_limit", "too_many_requests", "rate_limit_exceeded"}) ||
+        message_contains(lowered_message, {"rate limit", "too many request", "throttle"})) {
+        throw RateLimitException(status_code, std::move(message), std::move(body), std::move(headers));
+    }
+
+    if (status_code >= 500 ||
+        code_matches(error_code, {"50010000", "internal_error", "service_unavailable"}) ||
+        message_contains(lowered_message, {"internal server", "service unavailable", "server error"})) {
+        throw ServerException(status_code, std::move(message), std::move(body), std::move(headers));
+    }
+
+    if (status_code == 422 || status_code == 400 ||
+        code_matches(error_code, {"validation_error", "invalid_request"}) ||
+        message_contains(lowered_message, {"validation", "invalid"})) {
+        throw ValidationException(status_code, std::move(message), std::move(body), std::move(headers));
+    }
+
+    if (status_code >= 400 && status_code < 500) {
+        throw ClientException(status_code, std::move(message), std::move(body), std::move(headers));
+    }
+
+    throw ApiException(status_code, std::move(message), std::move(body), std::move(headers));
 }
 } // namespace
 
@@ -159,18 +236,26 @@ HttpResponse RestClient::perform_request(HttpMethod method, std::string const& p
         }
 
         std::string message = "HTTP " + std::to_string(response.status_code);
+        std::optional<std::string> error_code;
         try {
             Json error_body = Json::parse(response.body);
-            if (error_body.contains("message")) {
+            if (error_body.contains("message") && error_body.at("message").is_string()) {
                 message = error_body.at("message").get<std::string>();
+            }
+            if (error_body.contains("code")) {
+                auto const& node = error_body.at("code");
+                if (node.is_string()) {
+                    error_code = node.get<std::string>();
+                } else if (node.is_number_integer()) {
+                    error_code = std::to_string(node.get<long long>());
+                }
             }
         } catch (std::exception const&) {
             // Ignore parse errors and retain the default message.
         }
 
-        ApiException exception(response.status_code, message, response.body, response.headers);
         if (!should_retry(response.status_code, attempt)) {
-            throw exception;
+            throw_for_api_error(response.status_code, message, response.body, response.headers, error_code);
         }
 
         ++attempt;

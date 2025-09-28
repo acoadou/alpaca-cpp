@@ -123,4 +123,46 @@ class ApiException : public std::runtime_error {
     std::optional<std::chrono::seconds> retry_after_;
 };
 
+/// Raised when the API rejects the provided credentials or authentication data.
+class AuthenticationException : public ApiException {
+  public:
+    using ApiException::ApiException;
+};
+
+/// Raised when the request is understood but fails validation.
+class ValidationException : public ApiException {
+  public:
+    using ApiException::ApiException;
+};
+
+/// Raised when the API refuses the request due to missing permissions.
+class PermissionException : public ApiException {
+  public:
+    using ApiException::ApiException;
+};
+
+/// Raised when the requested resource cannot be located.
+class NotFoundException : public ApiException {
+  public:
+    using ApiException::ApiException;
+};
+
+/// Raised when the API signals that the caller should slow down.
+class RateLimitException : public ApiException {
+  public:
+    using ApiException::ApiException;
+};
+
+/// Raised for other 4xx responses.
+class ClientException : public ApiException {
+  public:
+    using ApiException::ApiException;
+};
+
+/// Raised when the API encounters an internal error.
+class ServerException : public ApiException {
+  public:
+    using ApiException::ApiException;
+};
+
 } // namespace alpaca

@@ -4,6 +4,7 @@
 #include <memory>
 #include <optional>
 #include <queue>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -358,7 +359,12 @@ TEST(AlpacaClientTest, ListOptionContractsParsesResponse) {
     EXPECT_EQ(response.next_page_token, std::make_optional<std::string>("cursor"));
     alpaca::OptionContract const& contract = response.contracts.front();
     EXPECT_EQ(contract.symbol, "AAPL240119C00195000");
+    EXPECT_EQ(contract.status, alpaca::OptionStatus::ACTIVE);
     EXPECT_TRUE(contract.tradable);
+    EXPECT_EQ(contract.type, alpaca::OptionType::CALL);
+    EXPECT_EQ(contract.style, alpaca::OptionStyle::AMERICAN);
+    EXPECT_EQ(contract.exchange, std::make_optional(alpaca::OptionExchange::OPRA));
+    EXPECT_EQ(contract.exercise_style, std::make_optional(alpaca::OptionStyle::AMERICAN));
     EXPECT_EQ(contract.multiplier, std::make_optional<std::string>("100"));
     EXPECT_EQ(contract.open_interest, std::make_optional<std::uint64_t>(1500));
     EXPECT_EQ(contract.open_interest_date, std::make_optional<std::string>("2023-09-14"));
@@ -456,16 +462,57 @@ TEST(AlpacaClientTest, ListOptionPositionsParsesExtendedFields) {
     alpaca::OptionPosition const& position = positions.front();
     EXPECT_EQ(position.symbol, "AAPL240119C00195000");
     EXPECT_EQ(position.account_id, "account-1");
+    EXPECT_EQ(position.exchange, std::make_optional(alpaca::OptionExchange::OPRA));
     EXPECT_EQ(position.contract_multiplier, std::make_optional<std::string>("100"));
     EXPECT_EQ(position.expiry, std::make_optional<std::string>("2024-01-19"));
     EXPECT_EQ(position.strike_price, std::make_optional<std::string>("195"));
-    EXPECT_EQ(position.type, std::make_optional<std::string>("call"));
+    EXPECT_EQ(position.style, std::make_optional(alpaca::OptionStyle::AMERICAN));
+    EXPECT_EQ(position.type, std::make_optional(alpaca::OptionType::CALL));
     EXPECT_EQ(position.underlying_symbol, std::make_optional<std::string>("AAPL"));
 
     ASSERT_EQ(stub->requests().size(), 1U);
     auto const& http_request = stub->requests().front();
     EXPECT_EQ(http_request.method, alpaca::HttpMethod::GET);
     EXPECT_EQ(http_request.url, config.trading_base_url + "/v2/options/positions");
+}
+
+TEST(AlpacaClientTest, ListOptionPositionsRejectsUnknownType) {
+    auto stub = std::make_shared<StubHttpClient>();
+    stub->enqueue_response(alpaca::HttpResponse{200,
+                                                R"([
+            {
+                "asset_id":"asset-1",
+                "account_id":"account-1",
+                "symbol":"AAPL240119C00195000",
+                "exchange":"OPRA",
+                "asset_class":"option",
+                "qty":"1",
+                "qty_available":"1",
+                "avg_entry_price":"1.25",
+                "market_value":"125",
+                "cost_basis":"125",
+                "unrealized_pl":"0",
+                "unrealized_plpc":"0",
+                "unrealized_intraday_pl":"0",
+                "unrealized_intraday_plpc":"0",
+                "current_price":"1.25",
+                "lastday_price":"1.00",
+                "change_today":"0.20",
+                "side":"long",
+                "contract_multiplier":100,
+                "expiry":"2024-01-19",
+                "strike_price":"195",
+                "style":"american",
+                "type":"synthetic",
+                "underlying_symbol":"AAPL"
+            }
+        ])",
+                                                {}});
+
+    alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
+    alpaca::AlpacaClient client(config, stub);
+
+    EXPECT_THROW(client.list_option_positions(), std::invalid_argument);
 }
 
 TEST(AlpacaClientTest, NewsRangeRespectsRetryAfterAndPagination) {

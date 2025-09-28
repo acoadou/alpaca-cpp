@@ -163,6 +163,7 @@ struct ListOrdersRequest {
     std::optional<Timestamp> after{};
     std::optional<Timestamp> until{};
     std::optional<SortDirection> direction{};
+    std::optional<OrderSide> side{};
     std::optional<bool> nested{};
     std::vector<std::string> symbols{};
     std::optional<AssetClass> asset_class{};

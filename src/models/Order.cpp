@@ -388,6 +388,9 @@ QueryParams ListOrdersRequest::to_query_params() const {
     if (direction.has_value()) {
         params.emplace_back("direction", to_string(*direction));
     }
+    if (side.has_value()) {
+        params.emplace_back("side", to_string(*side));
+    }
     if (nested.has_value()) {
         params.emplace_back("nested", *nested ? "true" : "false");
     }

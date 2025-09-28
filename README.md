@@ -79,6 +79,23 @@ alpaca::MarketDataClient market_data(paper);
 You can still override any field on the configuration after construction when targeting custom
 deployments.
 
+### Filtering orders by side
+
+`alpaca::ListOrdersRequest` exposes a `side` filter so you can target only buys or sells when
+inspecting account history. Combine it with existing filters like `status`, `nested`, or specific
+symbols to trim the payload down to just the legs you care about:
+
+```cpp
+alpaca::ListOrdersRequest history{};
+history.status = alpaca::OrderStatusFilter::CLOSED;
+history.side = alpaca::OrderSide::SELL;
+history.nested = true;
+
+for (alpaca::Order const& order : trading.list_orders(history)) {
+    std::cout << order.id << " -> " << to_string(order.side) << '\n';
+}
+```
+
 ### Building and running the tests
 
 ```bash
@@ -351,9 +368,21 @@ content is available.
 
 ## Rate limiting and error handling
 
-All non-success responses raise `alpaca::ApiException`. In addition to the HTTP
-status code and message, the exception now exposes the raw response headers via
-`headers()` and parses numeric `Retry-After` hints into
+All non-success responses raise `alpaca::ApiException` or one of its more
+specific subclasses. The hierarchy allows callers to handle failures with
+additional precision:
+
+* `alpaca::AuthenticationException` – Invalid or missing credentials.
+* `alpaca::PermissionException` – Authenticated but lacking the required scopes.
+* `alpaca::NotFoundException` – Requested resource does not exist.
+* `alpaca::RateLimitException` – Too many requests were issued; examine
+  `retry_after()` when present.
+* `alpaca::ValidationException` – The request payload failed validation.
+* `alpaca::ClientException` – Other 4xx errors that are not covered above.
+* `alpaca::ServerException` – 5xx server side failures.
+
+All of these derive from `alpaca::ApiException`, which still exposes the raw
+response headers via `headers()` and parses numeric `Retry-After` hints into
 `std::optional<std::chrono::seconds>` through `retry_after()`. When you receive
 `429` or `503` responses you can inspect the optional delay to drive a
 backoff strategy:

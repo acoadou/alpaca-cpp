@@ -564,11 +564,12 @@ TEST(ModelSerializationTest, ListOrdersRequestBuildsQueryParams) {
     request.limit = 50;
     request.after = alpaca::parse_timestamp("2023-01-01T00:00:00Z");
     request.direction = alpaca::SortDirection::ASC;
+    request.side = alpaca::OrderSide::SELL;
     request.nested = true;
     request.symbols = {"AAPL", "MSFT"};
 
     auto const params = request.to_query_params();
-    ASSERT_EQ(params.size(), 6U);
+    ASSERT_EQ(params.size(), 7U);
     EXPECT_EQ(params[0].first, "status");
     EXPECT_EQ(params[0].second, "open");
     EXPECT_EQ(params[1].first, "limit");
@@ -577,10 +578,12 @@ TEST(ModelSerializationTest, ListOrdersRequestBuildsQueryParams) {
     EXPECT_EQ(params[2].second, "2023-01-01T00:00:00Z");
     EXPECT_EQ(params[3].first, "direction");
     EXPECT_EQ(params[3].second, "asc");
-    EXPECT_EQ(params[4].first, "nested");
-    EXPECT_EQ(params[4].second, "true");
-    EXPECT_EQ(params[5].first, "symbols");
-    EXPECT_EQ(params[5].second, "AAPL,MSFT");
+    EXPECT_EQ(params[4].first, "side");
+    EXPECT_EQ(params[4].second, "sell");
+    EXPECT_EQ(params[5].first, "nested");
+    EXPECT_EQ(params[5].second, "true");
+    EXPECT_EQ(params[6].first, "symbols");
+    EXPECT_EQ(params[6].second, "AAPL,MSFT");
 }
 
 TEST(ModelSerializationTest, OptionChainRequestIncludesRootSymbolInQueryParams) {

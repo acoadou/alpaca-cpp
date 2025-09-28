@@ -1,10 +1,36 @@
 #include "alpaca/models/Option.hpp"
 
+#include <algorithm>
+#include <cctype>
 #include <cstdint>
+#include <stdexcept>
 #include <utility>
 
 namespace alpaca {
 namespace {
+std::string to_lower_copy(std::string value) {
+    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char ch) {
+        return static_cast<char>(std::tolower(ch));
+    });
+    return value;
+}
+
+std::string to_upper_copy(std::string value) {
+    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char ch) {
+        return static_cast<char>(std::toupper(ch));
+    });
+    return value;
+}
+
+std::string normalize_exchange_code(std::string value) {
+    for (auto& ch : value) {
+        if (ch == '-' || ch == ' ') {
+            ch = '_';
+        }
+    }
+    return to_upper_copy(std::move(value));
+}
+
 std::string extract_string(Json const& value) {
     if (value.is_string()) {
         return value.get<std::string>();
@@ -95,10 +121,198 @@ void append_if_present(QueryParams& params, std::string const& key, std::optiona
 
 } // namespace
 
+std::string to_string(OptionType type) {
+    switch (type) {
+    case OptionType::CALL:
+        return "call";
+    case OptionType::PUT:
+        return "put";
+    }
+    throw std::invalid_argument("Unknown OptionType");
+}
+
+std::string to_string(OptionStyle style) {
+    switch (style) {
+    case OptionStyle::AMERICAN:
+        return "american";
+    case OptionStyle::EUROPEAN:
+        return "european";
+    }
+    throw std::invalid_argument("Unknown OptionStyle");
+}
+
+std::string to_string(OptionStatus status) {
+    switch (status) {
+    case OptionStatus::ACTIVE:
+        return "active";
+    case OptionStatus::HALTED:
+        return "halted";
+    case OptionStatus::INACTIVE:
+        return "inactive";
+    }
+    throw std::invalid_argument("Unknown OptionStatus");
+}
+
+std::string to_string(OptionExchange exchange) {
+    switch (exchange) {
+    case OptionExchange::AMEX:
+        return "AMEX";
+    case OptionExchange::ARCA:
+        return "ARCA";
+    case OptionExchange::BATS:
+        return "BATS";
+    case OptionExchange::BOX:
+        return "BOX";
+    case OptionExchange::BZX:
+        return "BZX";
+    case OptionExchange::C2:
+        return "C2";
+    case OptionExchange::CBOE:
+        return "CBOE";
+    case OptionExchange::EDGX:
+        return "EDGX";
+    case OptionExchange::GEMINI:
+        return "GEMINI";
+    case OptionExchange::ISE:
+        return "ISE";
+    case OptionExchange::ISE_MERCURY:
+        return "ISE_MERCURY";
+    case OptionExchange::MIAX:
+        return "MIAX";
+    case OptionExchange::MIAX_EMERALD:
+        return "MIAX_EMERALD";
+    case OptionExchange::MIAX_PEARL:
+        return "MIAX_PEARL";
+    case OptionExchange::NASDAQ:
+        return "NASDAQ";
+    case OptionExchange::NASDAQ_BX:
+        return "NASDAQ_BX";
+    case OptionExchange::NASDAQ_OMX:
+        return "NASDAQ_OMX";
+    case OptionExchange::NASDAQ_PHLX:
+        return "NASDAQ_PHLX";
+    case OptionExchange::NYSE:
+        return "NYSE";
+    case OptionExchange::NYSE_ARCA:
+        return "NYSE_ARCA";
+    case OptionExchange::OPRA:
+        return "OPRA";
+    }
+    throw std::invalid_argument("Unknown OptionExchange");
+}
+
+OptionType option_type_from_string(std::string const& value) {
+    auto const lower = to_lower_copy(value);
+    if (lower == "call") {
+        return OptionType::CALL;
+    }
+    if (lower == "put") {
+        return OptionType::PUT;
+    }
+    throw std::invalid_argument("Unknown option type: " + value);
+}
+
+OptionStyle option_style_from_string(std::string const& value) {
+    auto const lower = to_lower_copy(value);
+    if (lower == "american") {
+        return OptionStyle::AMERICAN;
+    }
+    if (lower == "european") {
+        return OptionStyle::EUROPEAN;
+    }
+    throw std::invalid_argument("Unknown option style: " + value);
+}
+
+OptionStatus option_status_from_string(std::string const& value) {
+    auto const lower = to_lower_copy(value);
+    if (lower == "active") {
+        return OptionStatus::ACTIVE;
+    }
+    if (lower == "halted") {
+        return OptionStatus::HALTED;
+    }
+    if (lower == "inactive") {
+        return OptionStatus::INACTIVE;
+    }
+    throw std::invalid_argument("Unknown option status: " + value);
+}
+
+OptionExchange option_exchange_from_string(std::string const& value) {
+    auto const normalized = normalize_exchange_code(value);
+    if (normalized == "AMEX") {
+        return OptionExchange::AMEX;
+    }
+    if (normalized == "ARCA") {
+        return OptionExchange::ARCA;
+    }
+    if (normalized == "BATS") {
+        return OptionExchange::BATS;
+    }
+    if (normalized == "BOX") {
+        return OptionExchange::BOX;
+    }
+    if (normalized == "BZX") {
+        return OptionExchange::BZX;
+    }
+    if (normalized == "C2") {
+        return OptionExchange::C2;
+    }
+    if (normalized == "CBOE") {
+        return OptionExchange::CBOE;
+    }
+    if (normalized == "EDGX") {
+        return OptionExchange::EDGX;
+    }
+    if (normalized == "GEMINI") {
+        return OptionExchange::GEMINI;
+    }
+    if (normalized == "ISE") {
+        return OptionExchange::ISE;
+    }
+    if (normalized == "ISE_MERCURY") {
+        return OptionExchange::ISE_MERCURY;
+    }
+    if (normalized == "MIAX") {
+        return OptionExchange::MIAX;
+    }
+    if (normalized == "MIAX_EMERALD") {
+        return OptionExchange::MIAX_EMERALD;
+    }
+    if (normalized == "MIAX_PEARL") {
+        return OptionExchange::MIAX_PEARL;
+    }
+    if (normalized == "NASDAQ") {
+        return OptionExchange::NASDAQ;
+    }
+    if (normalized == "NASDAQ_BX") {
+        return OptionExchange::NASDAQ_BX;
+    }
+    if (normalized == "NASDAQ_OMX" || normalized == "NASDAQ_OMX_BX" || normalized == "NOM") {
+        return OptionExchange::NASDAQ_OMX;
+    }
+    if (normalized == "NASDAQ_PHLX" || normalized == "PHLX") {
+        return OptionExchange::NASDAQ_PHLX;
+    }
+    if (normalized == "NYSE") {
+        return OptionExchange::NYSE;
+    }
+    if (normalized == "NYSE_ARCA") {
+        return OptionExchange::NYSE_ARCA;
+    }
+    if (normalized == "OPRA") {
+        return OptionExchange::OPRA;
+    }
+    throw std::invalid_argument("Unknown option exchange: " + value);
+}
+
 void from_json(Json const& j, OptionPosition& position) {
     j.at("asset_id").get_to(position.asset_id);
     position.symbol = j.value("symbol", std::string{});
-    position.exchange = j.value("exchange", std::string{});
+    if (j.contains("exchange") && !j.at("exchange").is_null()) {
+        position.exchange = option_exchange_from_string(j.at("exchange").get<std::string>());
+    } else {
+        position.exchange.reset();
+    }
     position.asset_class = j.value("asset_class", std::string{});
     position.account_id = j.value("account_id", std::string{});
     position.qty = j.value("qty", std::string{});
@@ -131,12 +345,12 @@ void from_json(Json const& j, OptionPosition& position) {
         position.strike_price.reset();
     }
     if (j.contains("style") && !j.at("style").is_null()) {
-        position.style = j.at("style").get<std::string>();
+        position.style = option_style_from_string(j.at("style").get<std::string>());
     } else {
         position.style.reset();
     }
     if (j.contains("type") && !j.at("type").is_null()) {
-        position.type = j.at("type").get<std::string>();
+        position.type = option_type_from_string(j.at("type").get<std::string>());
     } else {
         position.type.reset();
     }
@@ -150,7 +364,11 @@ void from_json(Json const& j, OptionPosition& position) {
 void from_json(Json const& j, OptionContract& contract) {
     j.at("id").get_to(contract.id);
     contract.symbol = j.value("symbol", std::string{});
-    contract.status = j.value("status", std::string{});
+    if (j.contains("status") && !j.at("status").is_null()) {
+        contract.status = option_status_from_string(j.at("status").get<std::string>());
+    } else {
+        contract.status = OptionStatus::ACTIVE;
+    }
     contract.tradable = j.value("tradable", false);
     contract.underlying_symbol = j.value("underlying_symbol", std::string{});
     contract.expiration_date = j.value("expiration_date", std::string{});
@@ -159,20 +377,28 @@ void from_json(Json const& j, OptionContract& contract) {
     } else {
         contract.strike_price.clear();
     }
-    contract.type = j.value("type", std::string{});
-    contract.style = j.value("style", std::string{});
+    if (j.contains("type") && !j.at("type").is_null()) {
+        contract.type = option_type_from_string(j.at("type").get<std::string>());
+    } else {
+        contract.type = OptionType::CALL;
+    }
+    if (j.contains("style") && !j.at("style").is_null()) {
+        contract.style = option_style_from_string(j.at("style").get<std::string>());
+    } else {
+        contract.style = OptionStyle::AMERICAN;
+    }
     if (j.contains("root_symbol") && !j.at("root_symbol").is_null()) {
         contract.root_symbol = j.at("root_symbol").get<std::string>();
     } else {
         contract.root_symbol.reset();
     }
     if (j.contains("exchange") && !j.at("exchange").is_null()) {
-        contract.exchange = j.at("exchange").get<std::string>();
+        contract.exchange = option_exchange_from_string(j.at("exchange").get<std::string>());
     } else {
         contract.exchange.reset();
     }
     if (j.contains("exercise_style") && !j.at("exercise_style").is_null()) {
-        contract.exercise_style = j.at("exercise_style").get<std::string>();
+        contract.exercise_style = option_style_from_string(j.at("exercise_style").get<std::string>());
     } else {
         contract.exercise_style.reset();
     }
@@ -206,10 +432,16 @@ QueryParams ListOptionContractsRequest::to_query_params() const {
     if (!underlying_symbols.empty()) {
         params.emplace_back("underlying_symbols", join_csv(underlying_symbols));
     }
-    append_if_present(params, "status", status);
+    if (status.has_value()) {
+        params.emplace_back("status", to_string(*status));
+    }
     append_if_present(params, "expiry", expiry);
-    append_if_present(params, "type", type);
-    append_if_present(params, "style", style);
+    if (type.has_value()) {
+        params.emplace_back("type", to_string(*type));
+    }
+    if (style.has_value()) {
+        params.emplace_back("style", to_string(*style));
+    }
     append_if_present(params, "strike", strike);
     append_if_present(params, "strike_gte", strike_gte);
     append_if_present(params, "strike_lte", strike_lte);
