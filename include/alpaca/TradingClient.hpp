@@ -102,8 +102,11 @@ class TradingClient {
     [[nodiscard]] Watchlist create_watchlist(CreateWatchlistRequest const& request);
     [[nodiscard]] Watchlist update_watchlist(std::string const& id, UpdateWatchlistRequest const& request);
     [[nodiscard]] Watchlist add_asset_to_watchlist(std::string const& id, std::string const& symbol);
+    [[nodiscard]] Watchlist add_asset_to_watchlist_by_name(std::string const& name, std::string const& symbol);
     [[nodiscard]] Watchlist remove_asset_from_watchlist(std::string const& id, std::string const& symbol);
+    [[nodiscard]] Watchlist remove_asset_from_watchlist_by_name(std::string const& name, std::string const& symbol);
     void delete_watchlist(std::string const& id);
+    void delete_watchlist_by_name(std::string const& name);
 
   private:
     RestClient rest_client_;

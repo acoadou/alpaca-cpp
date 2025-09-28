@@ -267,12 +267,30 @@ Watchlist TradingClient::add_asset_to_watchlist(std::string const& id, std::stri
     return rest_client_.post<Watchlist>("/v2/watchlists/" + id, symbol_payload(symbol));
 }
 
+Watchlist TradingClient::add_asset_to_watchlist_by_name(std::string const& name, std::string const& symbol) {
+    return rest_client_.post<Watchlist>("/v2/watchlists:by_name", symbol_payload(symbol), {
+                                                                                              {"name", name}
+    });
+}
+
 Watchlist TradingClient::remove_asset_from_watchlist(std::string const& id, std::string const& symbol) {
     return rest_client_.del<Watchlist>("/v2/watchlists/" + id + "/" + symbol);
 }
 
+Watchlist TradingClient::remove_asset_from_watchlist_by_name(std::string const& name, std::string const& symbol) {
+    return rest_client_.del<Watchlist>("/v2/watchlists:by_name/" + symbol, {
+                                                                                {"name", name}
+    });
+}
+
 void TradingClient::delete_watchlist(std::string const& id) {
     rest_client_.del<void>("/v2/watchlists/" + id);
+}
+
+void TradingClient::delete_watchlist_by_name(std::string const& name) {
+    rest_client_.del<void>("/v2/watchlists:by_name", {
+                                                        {"name", name}
+    });
 }
 
 } // namespace alpaca

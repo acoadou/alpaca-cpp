@@ -213,6 +213,64 @@ TEST(AlpacaClientTest, SubmitOptionOrderTargetsOptionsEndpoint) {
     EXPECT_EQ(json.at("qty"), "1");
 }
 
+TEST(AlpacaClientTest, AddAssetToWatchlistByNameTargetsNamedEndpoint) {
+    auto stub = std::make_shared<StubHttpClient>();
+    stub->enqueue_response(alpaca::HttpResponse{
+        200,
+        R"({"id":"wl-1","name":"Tech","account_id":"acct","created_at":"2023-01-01T00:00:00Z","updated_at":"2023-01-02T00:00:00Z","assets":[]})",
+        {}});
+
+    alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
+    alpaca::AlpacaClient client(config, stub);
+
+    auto const watchlist = client.add_asset_to_watchlist_by_name("Tech", "AAPL");
+    EXPECT_EQ(watchlist.id, "wl-1");
+
+    ASSERT_EQ(stub->requests().size(), 1U);
+    auto const& http_request = stub->requests().front();
+    EXPECT_EQ(http_request.method, alpaca::HttpMethod::POST);
+    EXPECT_EQ(http_request.url, config.trading_base_url + "/v2/watchlists:by_name?name=Tech");
+
+    auto const payload = alpaca::Json::parse(http_request.body);
+    EXPECT_EQ(payload.at("symbol"), "AAPL");
+}
+
+TEST(AlpacaClientTest, RemoveAssetFromWatchlistByNameTargetsNamedEndpoint) {
+    auto stub = std::make_shared<StubHttpClient>();
+    stub->enqueue_response(alpaca::HttpResponse{
+        200,
+        R"({"id":"wl-1","name":"Tech","account_id":"acct","created_at":"2023-01-01T00:00:00Z","updated_at":"2023-01-02T00:00:00Z","assets":[]})",
+        {}});
+
+    alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
+    alpaca::AlpacaClient client(config, stub);
+
+    auto const watchlist = client.remove_asset_from_watchlist_by_name("Tech", "AAPL");
+    EXPECT_EQ(watchlist.id, "wl-1");
+
+    ASSERT_EQ(stub->requests().size(), 1U);
+    auto const& http_request = stub->requests().front();
+    EXPECT_EQ(http_request.method, alpaca::HttpMethod::DELETE_);
+    EXPECT_EQ(http_request.url, config.trading_base_url + "/v2/watchlists:by_name/AAPL?name=Tech");
+    EXPECT_TRUE(http_request.body.empty());
+}
+
+TEST(AlpacaClientTest, DeleteWatchlistByNameTargetsNamedEndpoint) {
+    auto stub = std::make_shared<StubHttpClient>();
+    stub->enqueue_response(alpaca::HttpResponse{204, std::string{}, {}});
+
+    alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
+    alpaca::AlpacaClient client(config, stub);
+
+    client.delete_watchlist_by_name("Tech");
+
+    ASSERT_EQ(stub->requests().size(), 1U);
+    auto const& http_request = stub->requests().front();
+    EXPECT_EQ(http_request.method, alpaca::HttpMethod::DELETE_);
+    EXPECT_EQ(http_request.url, config.trading_base_url + "/v2/watchlists:by_name?name=Tech");
+    EXPECT_TRUE(http_request.body.empty());
+}
+
 TEST(AlpacaClientTest, ListOptionOrdersExpandsNestedLegsWhenRequested) {
     auto stub = std::make_shared<StubHttpClient>();
     stub->enqueue_response(alpaca::HttpResponse{200,

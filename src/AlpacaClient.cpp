@@ -271,12 +271,24 @@ Watchlist AlpacaClient::add_asset_to_watchlist(std::string const& id, std::strin
     return trading().add_asset_to_watchlist(id, symbol);
 }
 
+Watchlist AlpacaClient::add_asset_to_watchlist_by_name(std::string const& name, std::string const& symbol) {
+    return trading().add_asset_to_watchlist_by_name(name, symbol);
+}
+
 Watchlist AlpacaClient::remove_asset_from_watchlist(std::string const& id, std::string const& symbol) {
     return trading().remove_asset_from_watchlist(id, symbol);
 }
 
+Watchlist AlpacaClient::remove_asset_from_watchlist_by_name(std::string const& name, std::string const& symbol) {
+    return trading().remove_asset_from_watchlist_by_name(name, symbol);
+}
+
 void AlpacaClient::delete_watchlist(std::string const& id) {
     trading().delete_watchlist(id);
+}
+
+void AlpacaClient::delete_watchlist_by_name(std::string const& name) {
+    trading().delete_watchlist_by_name(name);
 }
 
 LatestStockTrade AlpacaClient::get_latest_stock_trade(std::string const& symbol) {

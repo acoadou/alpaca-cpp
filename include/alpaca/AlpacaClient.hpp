@@ -222,11 +222,20 @@ class AlpacaClient {
     /// Adds an asset to the watchlist.
     [[nodiscard]] Watchlist add_asset_to_watchlist(std::string const& id, std::string const& symbol);
 
+    /// Adds an asset to the watchlist identified by name.
+    [[nodiscard]] Watchlist add_asset_to_watchlist_by_name(std::string const& name, std::string const& symbol);
+
     /// Removes an asset from the watchlist.
     [[nodiscard]] Watchlist remove_asset_from_watchlist(std::string const& id, std::string const& symbol);
 
+    /// Removes an asset from the watchlist identified by name.
+    [[nodiscard]] Watchlist remove_asset_from_watchlist_by_name(std::string const& name, std::string const& symbol);
+
     /// Deletes an existing watchlist.
     void delete_watchlist(std::string const& id);
+
+    /// Deletes an existing watchlist identified by name.
+    void delete_watchlist_by_name(std::string const& name);
 
     /// Returns the latest reported trade for the supplied stock symbol.
     [[nodiscard]] LatestStockTrade get_latest_stock_trade(std::string const& symbol);

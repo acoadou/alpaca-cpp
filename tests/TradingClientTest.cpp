@@ -240,4 +240,62 @@ TEST(TradingClientTest, CustomRetryOptionsPropagateToRestClient) {
     ASSERT_EQ(http->requests().size(), 1U);
 }
 
+TEST(TradingClientTest, AddAssetToWatchlistByNameTargetsNamedEndpoint) {
+    auto http = std::make_shared<FakeHttpClient>();
+    http->push_response(alpaca::HttpResponse{
+        200,
+        R"({"id":"wl-1","name":"Tech","account_id":"acct","created_at":"2023-01-01T00:00:00Z","updated_at":"2023-01-02T00:00:00Z","assets":[]})",
+        {}});
+
+    alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
+    alpaca::TradingClient client(config, http);
+
+    auto const watchlist = client.add_asset_to_watchlist_by_name("Tech", "AAPL");
+    EXPECT_EQ(watchlist.id, "wl-1");
+
+    ASSERT_EQ(http->requests().size(), 1U);
+    auto const& recorded = http->requests().front().request;
+    EXPECT_EQ(recorded.method, alpaca::HttpMethod::POST);
+    EXPECT_EQ(recorded.url, config.trading_base_url + "/v2/watchlists:by_name?name=Tech");
+
+    auto const payload = alpaca::Json::parse(recorded.body);
+    EXPECT_EQ(payload.at("symbol"), "AAPL");
+}
+
+TEST(TradingClientTest, RemoveAssetFromWatchlistByNameTargetsNamedEndpoint) {
+    auto http = std::make_shared<FakeHttpClient>();
+    http->push_response(alpaca::HttpResponse{
+        200,
+        R"({"id":"wl-1","name":"Tech","account_id":"acct","created_at":"2023-01-01T00:00:00Z","updated_at":"2023-01-02T00:00:00Z","assets":[]})",
+        {}});
+
+    alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
+    alpaca::TradingClient client(config, http);
+
+    auto const watchlist = client.remove_asset_from_watchlist_by_name("Tech", "AAPL");
+    EXPECT_EQ(watchlist.id, "wl-1");
+
+    ASSERT_EQ(http->requests().size(), 1U);
+    auto const& recorded = http->requests().front().request;
+    EXPECT_EQ(recorded.method, alpaca::HttpMethod::DELETE_);
+    EXPECT_EQ(recorded.url, config.trading_base_url + "/v2/watchlists:by_name/AAPL?name=Tech");
+    EXPECT_TRUE(recorded.body.empty());
+}
+
+TEST(TradingClientTest, DeleteWatchlistByNameTargetsNamedEndpoint) {
+    auto http = std::make_shared<FakeHttpClient>();
+    http->push_response(alpaca::HttpResponse{204, std::string{}, {}});
+
+    alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
+    alpaca::TradingClient client(config, http);
+
+    client.delete_watchlist_by_name("Tech");
+
+    ASSERT_EQ(http->requests().size(), 1U);
+    auto const& recorded = http->requests().front().request;
+    EXPECT_EQ(recorded.method, alpaca::HttpMethod::DELETE_);
+    EXPECT_EQ(recorded.url, config.trading_base_url + "/v2/watchlists:by_name?name=Tech");
+    EXPECT_TRUE(recorded.body.empty());
+}
+
 } // namespace
