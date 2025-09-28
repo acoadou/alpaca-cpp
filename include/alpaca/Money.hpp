@@ -8,10 +8,10 @@
 #include <limits>
 #include <ostream>
 #include <sstream>
-#include <stdexcept>
 #include <string>
 #include <string_view>
 
+#include "alpaca/Exceptions.hpp"
 #include "alpaca/Json.hpp"
 
 namespace alpaca {
@@ -30,13 +30,24 @@ class Money {
 
     explicit Money(std::int64_t dollars, std::int64_t fractional) {
         if (fractional >= kScale || fractional <= -kScale) {
-            throw std::invalid_argument("Fractional component out of range");
+            throw InvalidArgumentException("fractional", "Fractional component out of range");
         }
         micro_units_ = dollars * kScale + fractional;
     }
 
     Money(double value) {
-        micro_units_ = static_cast<std::int64_t>(std::llround(value * static_cast<double>(kScale)));
+        if (!std::isfinite(value)) {
+            throw InvalidArgumentException("value", "Money cannot be constructed from non-finite doubles");
+        }
+
+        long double const scaled = static_cast<long double>(value) * static_cast<long double>(kScale);
+        long double const max_micro = static_cast<long double>(std::numeric_limits<std::int64_t>::max());
+        long double const min_micro = static_cast<long double>(std::numeric_limits<std::int64_t>::min());
+        if (scaled >= max_micro + 0.5L || scaled <= min_micro - 0.5L) {
+            throw InvalidArgumentException("value", "Money double value exceeds representable range");
+        }
+
+        micro_units_ = static_cast<std::int64_t>(std::llround(scaled));
     }
 
     explicit Money(std::string_view text) {
@@ -124,36 +135,87 @@ class Money {
 
   private:
     static std::int64_t parse(std::string_view text) {
-        if (text.empty()) {
+        auto const trim = [](std::string_view value) {
+            auto const is_space = [](unsigned char ch) { return std::isspace(ch) != 0; };
+            while (!value.empty() && is_space(static_cast<unsigned char>(value.front()))) {
+                value.remove_prefix(1);
+            }
+            while (!value.empty() && is_space(static_cast<unsigned char>(value.back()))) {
+                value.remove_suffix(1);
+            }
+            return value;
+        };
+
+        std::string_view const trimmed = trim(text);
+        if (trimmed.empty()) {
             return 0;
         }
 
         bool negative = false;
         std::size_t index = 0;
-        if (text[index] == '+') {
+        if (trimmed[index] == '+') {
             ++index;
-        } else if (text[index] == '-') {
+        } else if (trimmed[index] == '-') {
             negative = true;
             ++index;
         }
 
-        std::int64_t integer_part = 0;
-        for (; index < text.size() && std::isdigit(static_cast<unsigned char>(text[index])); ++index) {
-            integer_part = integer_part * 10 + (text[index] - '0');
-        }
+        constexpr std::uint64_t kMaxPositive = static_cast<std::uint64_t>(std::numeric_limits<std::int64_t>::max());
+        constexpr std::uint64_t kMaxNegative = kMaxPositive + 1ULL;
+        std::uint64_t const max_micro_units = negative ? kMaxNegative : kMaxPositive;
+        std::uint64_t const max_integer_part = max_micro_units / static_cast<std::uint64_t>(kScale);
 
-        std::int64_t fractional_part = 0;
-        std::int64_t scale = kScale / 10;
-        if (index < text.size() && text[index] == '.') {
-            ++index;
-            for (; index < text.size() && std::isdigit(static_cast<unsigned char>(text[index])) && scale > 0; ++index) {
-                fractional_part += static_cast<std::int64_t>(text[index] - '0') * scale;
-                scale /= 10;
+        std::uint64_t integer_part = 0;
+        bool saw_integer_digit = false;
+        for (; index < trimmed.size() && std::isdigit(static_cast<unsigned char>(trimmed[index])); ++index) {
+            saw_integer_digit = true;
+            integer_part = integer_part * 10 + static_cast<std::uint64_t>(trimmed[index] - '0');
+            if (integer_part > max_integer_part) {
+                throw InvalidArgumentException("text", "Money integer component exceeds representable range");
             }
         }
 
-        std::int64_t result = integer_part * kScale + fractional_part;
-        return negative ? -result : result;
+        std::uint64_t fractional_part = 0;
+        std::uint64_t scale = static_cast<std::uint64_t>(kScale / 10);
+        bool saw_fractional_digit = false;
+        if (index < trimmed.size() && trimmed[index] == '.') {
+            ++index;
+            for (; index < trimmed.size() && std::isdigit(static_cast<unsigned char>(trimmed[index])) && scale > 0; ++index) {
+                saw_fractional_digit = true;
+                fractional_part += static_cast<std::uint64_t>(trimmed[index] - '0') * scale;
+                scale /= 10;
+            }
+            if (!saw_fractional_digit) {
+                throw InvalidArgumentException("text", "Money fractional component missing digits");
+            }
+            if (scale == 0 && index < trimmed.size() && std::isdigit(static_cast<unsigned char>(trimmed[index]))) {
+                throw InvalidArgumentException("text", "Money supports up to six fractional digits");
+            }
+        }
+
+        bool const saw_any_digit = saw_integer_digit || saw_fractional_digit;
+        if (!saw_any_digit) {
+            throw InvalidArgumentException("text", "Money text must contain digits");
+        }
+
+        std::uint64_t magnitude = integer_part * static_cast<std::uint64_t>(kScale);
+        std::uint64_t const fractional_limit = max_micro_units - magnitude;
+        if (fractional_part > fractional_limit) {
+            throw InvalidArgumentException("text", "Money fractional component exceeds representable range");
+        }
+        magnitude += fractional_part;
+
+        if (index != trimmed.size()) {
+            throw InvalidArgumentException("text", "Unexpected trailing characters in Money text");
+        }
+
+        if (negative) {
+            if (magnitude == kMaxNegative) {
+                return std::numeric_limits<std::int64_t>::min();
+            }
+            return -static_cast<std::int64_t>(magnitude);
+        }
+        return static_cast<std::int64_t>(magnitude);
     }
 
     std::int64_t micro_units_{0};
@@ -180,7 +242,7 @@ inline void from_json(Json const& j, Money& value) {
         value = Money{j.get<std::string>()};
         return;
     }
-    throw std::invalid_argument("Unsupported JSON type for Money");
+    throw InvalidArgumentException("value", "Unsupported JSON type for Money");
 }
 
 } // namespace alpaca

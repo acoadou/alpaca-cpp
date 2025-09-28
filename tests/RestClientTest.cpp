@@ -136,7 +136,7 @@ TEST(RestClientTest, RetriesNetworkErrorsForIdempotentRequests) {
             requests.push_back(request);
             if (!failed_) {
                 failed_ = true;
-                throw std::runtime_error("connection reset");
+                throw alpaca::CurlException(alpaca::ErrorCode::CurlPerformFailure, "connection reset", "send");
             }
             return success_;
         }

@@ -32,10 +32,10 @@ client while embracing contemporary C++ idioms. The codebase builds a compiled l
 
 | Domain           | REST | Streaming | Notes |
 |------------------|:----:|:---------:|-------|
-| Trading          | OK   | OK        | Equities, options, crypto, and OTC order workflows, option analytics/contracts, positions, activities, clock, watchlists, and `trade_updates` / `account_updates` streams. |
-| Market Data      | OK   | OK        | Trades, quotes, bars, order books, corporate actions, market movers, single/multi snapshots, options snapshots/chains, and automatic pagination via `PaginatedVectorRange`. |
-| Broker / Connect | OK   | N/A       | Account onboarding, documents, transfers, journals, banking relationships, watchlists, rebalancing portfolios/subscriptions, and managed portfolio history. |
-| Options          | OK   | OK        | REST aggregates/quotes/trades, option analytics (with greeks + strategy legs), contracts, and trading endpoints for submitting, replacing, and cancelling single or multi-leg options orders. |
+| Trading          | OK   | OK        | Equities/options/crypto/OTC workflows; option analytics; positions; activities; clock; watchlists; and `trade_updates` / `account_updates` streams. |
+| Market Data      | OK   | OK        | Trades, quotes, bars, order books, corporate actions, market movers, single/multi snapshots, options snapshots/chains, and pagination via `PaginatedVectorRange`. |
+| Broker / Connect | OK   | N/A       | Account onboarding, documents, transfers, journals, banking relationships, watchlists, rebalancing, and managed portfolio history. |
+| Options          | OK   | OK        | REST aggregates/quotes/trades; option analytics with greeks and strategy legs; contracts; and single or multi-leg order submission/replacement/cancellation. |
 | News             | OK   | OK        | REST `get_news`, the `news_range` paginator, and websocket `news` channels on the market data feed. |
 | Crypto           | OK   | OK        | REST aggregates/quotes/trades, order books, and dedicated crypto streaming feed. |
 

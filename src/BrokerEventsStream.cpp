@@ -11,7 +11,6 @@
 #include <optional>
 #include <random>
 #include <sstream>
-#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <thread>
@@ -86,7 +85,7 @@ class CurlBrokerEventsTransport : public detail::BrokerEventsTransport {
 
         std::unique_ptr<CURL, decltype(&curl_easy_cleanup)> handle(curl_easy_init(), &curl_easy_cleanup);
         if (!handle) {
-            throw std::runtime_error("curl_easy_init failed");
+            throw CurlException(ErrorCode::CurlHandleCreationFailure, "curl_easy_init failed", "curl_easy_init");
         }
 
         struct curl_slist* header_list = nullptr;
@@ -96,7 +95,8 @@ class CurlBrokerEventsTransport : public detail::BrokerEventsTransport {
                 std::string header = name + ": " + value;
                 header_list = curl_slist_append(header_list, header.c_str());
                 if (!header_list) {
-                    throw std::runtime_error("curl_slist_append failed");
+                    throw CurlException(ErrorCode::CurlHeaderAppendFailure, "curl_slist_append failed",
+                                        "curl_slist_append");
                 }
             }
             header_guard.reset(header_list);
@@ -131,7 +131,9 @@ class CurlBrokerEventsTransport : public detail::BrokerEventsTransport {
             }
 
             if (result != CURLE_OK && result != CURLE_WRITE_ERROR) {
-                throw std::runtime_error(std::string{"curl_easy_perform failed: "} + curl_easy_strerror(result));
+                auto const message = std::string{"curl_easy_perform failed: "} + curl_easy_strerror(result);
+                throw CurlException(ErrorCode::CurlPerformFailure, message, "curl_easy_perform",
+                                    std::optional<long>{static_cast<long>(result)});
             }
 
             if (!stop_requested_.load()) {
@@ -209,7 +211,10 @@ BrokerEventsStream::~BrokerEventsStream() {
 void BrokerEventsStream::start() {
     std::lock_guard<std::mutex> lock(state_mutex_);
     if (running_) {
-        throw std::runtime_error("BrokerEventsStream already running");
+        throw StreamingException(ErrorCode::InvalidArgument, "BrokerEventsStream already running",
+                                 {
+                                     {"operation", "start"}
+        });
     }
     stop_requested_.store(false);
     running_.store(true);
@@ -258,7 +263,11 @@ void BrokerEventsStream::set_error_handler(ErrorHandler handler) {
 void BrokerEventsStream::set_transport_factory_for_testing(TransportFactory factory) {
     std::lock_guard<std::mutex> lock(state_mutex_);
     if (running_) {
-        throw std::runtime_error("transport factory cannot be changed while running");
+        throw StreamingException(ErrorCode::InvalidArgument,
+                                 "transport factory cannot be changed while running",
+                                 {
+                                     {"operation", "set_transport_factory"}
+        });
     }
     transport_factory_ = std::move(factory);
 }

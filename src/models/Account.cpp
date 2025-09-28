@@ -2,8 +2,9 @@
 
 #include <charconv>
 #include <optional>
-#include <stdexcept>
 #include <string>
+
+#include "alpaca/Exceptions.hpp"
 
 namespace {
 
@@ -50,7 +51,8 @@ int parse_int_field(alpaca::Json const& json, char const* key, int default_value
         }
     }
 
-    throw std::invalid_argument(std::string{"Expected integer for field '"} + key + "'");
+    auto const field = std::string{key};
+    throw alpaca::InvalidArgumentException(field, std::string{"Expected integer for field '"} + field + "'");
 }
 
 std::optional<int> parse_optional_int(alpaca::Json const& json, char const* key) {
@@ -74,7 +76,8 @@ std::optional<int> parse_optional_int(alpaca::Json const& json, char const* key)
         }
     }
 
-    throw std::invalid_argument(std::string{"Expected integer for field '"} + key + "'");
+    auto const field = std::string{key};
+    throw alpaca::InvalidArgumentException(field, std::string{"Expected integer for field '"} + field + "'");
 }
 
 alpaca::AccountStatus parse_account_status(alpaca::Json const& json, char const* key) {
@@ -84,7 +87,8 @@ alpaca::AccountStatus parse_account_status(alpaca::Json const& json, char const*
     }
 
     if (!it->is_string()) {
-        throw std::invalid_argument(std::string{"Expected string for field '"} + key + "'");
+        auto const field = std::string{key};
+        throw alpaca::InvalidArgumentException(field, std::string{"Expected string for field '"} + field + "'");
     }
 
     auto const text = it->get<std::string>();
@@ -98,7 +102,8 @@ std::optional<alpaca::AccountCryptoStatus> parse_optional_crypto_status(alpaca::
     }
 
     if (!it->is_string()) {
-        throw std::invalid_argument(std::string{"Expected string for field '"} + key + "'");
+        auto const field = std::string{key};
+        throw alpaca::InvalidArgumentException(field, std::string{"Expected string for field '"} + field + "'");
     }
 
     auto const text = it->get<std::string>();
@@ -129,7 +134,7 @@ AccountStatus account_status_from_string(std::string_view value) {
         return AccountStatus::SUBMITTED;
     }
 
-    throw std::invalid_argument("Unrecognized account status: " + std::string{value});
+    throw InvalidArgumentException("value", "Unrecognized account status: " + std::string{value});
 }
 
 std::string to_string(AccountStatus status) {
@@ -148,7 +153,7 @@ std::string to_string(AccountStatus status) {
         return "SUBMITTED";
     }
 
-    throw std::invalid_argument("Invalid account status value");
+    throw InvalidArgumentException("status", "Invalid account status value");
 }
 
 AccountCryptoStatus account_crypto_status_from_string(std::string_view value) {
@@ -162,7 +167,7 @@ AccountCryptoStatus account_crypto_status_from_string(std::string_view value) {
         return AccountCryptoStatus::INACTIVE;
     }
 
-    throw std::invalid_argument("Unrecognized crypto account status: " + std::string{value});
+    throw InvalidArgumentException("value", "Unrecognized crypto account status: " + std::string{value});
 }
 
 std::string to_string(AccountCryptoStatus status) {
@@ -175,7 +180,7 @@ std::string to_string(AccountCryptoStatus status) {
         return "INACTIVE";
     }
 
-    throw std::invalid_argument("Invalid crypto account status value");
+    throw InvalidArgumentException("status", "Invalid crypto account status value");
 }
 
 void from_json(Json const& j, Account& account) {

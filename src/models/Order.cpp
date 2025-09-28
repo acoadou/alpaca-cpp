@@ -238,7 +238,7 @@ std::string to_string(OrderStatus status) {
     case OrderStatus::UNKNOWN:
         return "unknown";
     }
-    throw std::invalid_argument("Unknown OrderStatus");
+    throw InvalidArgumentException("status", "Unknown OrderStatus");
 }
 
 OrderStatus order_status_from_string(std::string const& value) {

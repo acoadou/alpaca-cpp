@@ -6,12 +6,12 @@
 #include <condition_variable>
 #include <mutex>
 #include <optional>
-#include <stdexcept>
 #include <string>
 #include <thread>
 #include <utility>
 #include <vector>
 
+#include "alpaca/Exceptions.hpp"
 #include "alpaca/Streaming.hpp"
 
 using namespace std::chrono_literals;
@@ -42,7 +42,7 @@ class ScriptedTransport : public detail::BrokerEventsTransport {
             on_data(chunk);
         }
         if (script_.throw_error && !stop_requested_.load()) {
-            throw std::runtime_error("scripted failure");
+            throw alpaca::StreamingException(alpaca::ErrorCode::Unknown, "scripted failure");
         }
         if (!stop_requested_.load() && !script_.throw_error) {
             on_close();
