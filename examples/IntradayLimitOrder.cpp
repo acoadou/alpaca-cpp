@@ -3,20 +3,17 @@
 #include <alpaca/Environments.hpp>
 #include <alpaca/Exceptions.hpp>
 #include <alpaca/MarketDataClient.hpp>
+#include <alpaca/Money.hpp>
 #include <alpaca/TradingClient.hpp>
 
 #include <chrono>
-#include <iomanip>
 #include <iostream>
-#include <sstream>
 #include <string>
 #include <thread>
 
 namespace {
-std::string format_price(double value) {
-    std::ostringstream stream;
-    stream << std::fixed << std::setprecision(2) << value;
-    return stream.str();
+std::string format_price(alpaca::Money const& value) {
+    return value.to_string();
 }
 } // namespace
 
@@ -35,7 +32,7 @@ int main() {
     bars_request.start = alpaca::since(std::chrono::hours{2});
     bars_request.limit = 50;
 
-    double last_close = 0.0;
+    alpaca::Money last_close{};
     try {
         for (auto const& bar : market.stock_bars_range("AAPL", bars_request)) {
             last_close = bar.close;
@@ -46,7 +43,7 @@ int main() {
         return 1;
     }
 
-    if (last_close == 0.0) {
+    if (last_close == alpaca::Money{}) {
         std::cerr << "No market data received, aborting." << std::endl;
         return 1;
     }
@@ -57,7 +54,7 @@ int main() {
     order.type = alpaca::OrderType::LIMIT;
     order.time_in_force = alpaca::TimeInForce::DAY;
     order.quantity = "1";
-    order.limit_price = format_price(last_close - 0.10);
+    order.limit_price = format_price(last_close - alpaca::Money{0.10});
 
     bool submitted = false;
     int attempt = 0;

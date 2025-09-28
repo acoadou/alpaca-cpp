@@ -56,6 +56,26 @@ std::string extract_string(Json const& value) {
     return value.dump();
 }
 
+std::optional<Money> parse_optional_money(Json const& j, char const *key) {
+    if (!j.contains(key) || j.at(key).is_null()) {
+        return std::nullopt;
+    }
+    if (j.at(key).is_string()) {
+        auto const value = j.at(key).get<std::string>();
+        if (value.empty()) {
+            return std::nullopt;
+        }
+        return Money{value};
+    }
+    if (j.at(key).is_number_float()) {
+        return Money{j.at(key).get<double>()};
+    }
+    if (j.at(key).is_number_integer()) {
+        return Money{static_cast<double>(j.at(key).get<std::int64_t>())};
+    }
+    return std::nullopt;
+}
+
 std::optional<double> parse_optional_double(Json const& j, char const *key) {
     if (!j.contains(key) || j.at(key).is_null()) {
         return std::nullopt;
@@ -445,7 +465,7 @@ void from_json(Json const& j, OptionContract& contract) {
     }
     contract.open_interest = parse_optional_uint64(j, "open_interest");
     contract.open_interest_date = optional_string_from_any(j, "open_interest_date");
-    contract.close_price = parse_optional_double(j, "close_price");
+    contract.close_price = parse_optional_money(j, "close_price");
     contract.contract_size = optional_string_from_any(j, "contract_size");
     contract.underlying_asset_id = optional_string_from_any(j, "underlying_asset_id");
 }
@@ -501,9 +521,9 @@ void from_json(Json const& j, OptionGreeks& greeks) {
 
 void from_json(Json const& j, OptionRiskParameters& risk) {
     risk.implied_volatility = parse_optional_double(j, "implied_volatility");
-    risk.theoretical_price = parse_optional_double(j, "theoretical_price");
-    risk.underlying_price = parse_optional_double(j, "underlying_price");
-    risk.breakeven_price = parse_optional_double(j, "breakeven_price");
+    risk.theoretical_price = parse_optional_money(j, "theoretical_price");
+    risk.underlying_price = parse_optional_money(j, "underlying_price");
+    risk.breakeven_price = parse_optional_money(j, "breakeven_price");
 }
 
 void from_json(Json const& j, OptionStrategyLeg& leg) {

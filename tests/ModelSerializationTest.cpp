@@ -183,11 +183,11 @@ TEST(ModelSerializationTest, AccountDeserializesExtendedFields) {
     EXPECT_EQ(account.cash_withdrawable, "450");
     EXPECT_TRUE(account.trade_suspended_by_user);
     ASSERT_TRUE(account.accrued_fees.has_value());
-    EXPECT_DOUBLE_EQ(*account.accrued_fees, 12.34);
+    EXPECT_DOUBLE_EQ(account.accrued_fees->to_double(), 12.34);
     ASSERT_TRUE(account.pending_transfer_out.has_value());
-    EXPECT_DOUBLE_EQ(*account.pending_transfer_out, 25.5);
+    EXPECT_DOUBLE_EQ(account.pending_transfer_out->to_double(), 25.5);
     ASSERT_TRUE(account.pending_transfer_in.has_value());
-    EXPECT_DOUBLE_EQ(*account.pending_transfer_in, 10.25);
+    EXPECT_DOUBLE_EQ(account.pending_transfer_in->to_double(), 10.25);
     EXPECT_EQ(account.sma, "200");
     EXPECT_EQ(account.options_buying_power, "300");
     ASSERT_TRUE(account.options_approved_level.has_value());
@@ -421,7 +421,7 @@ TEST(ModelSerializationTest, LatestCryptoTradesParseSymbolMap) {
 
     auto const response = json.get<alpaca::LatestCryptoTrades>();
     ASSERT_EQ(response.trades.size(), 2U);
-    EXPECT_DOUBLE_EQ(response.trades.at("BTC/USD").price, 25000.5);
+    EXPECT_DOUBLE_EQ(response.trades.at("BTC/USD").price.to_double(), 25000.5);
     EXPECT_EQ(response.trades.at("ETH/USD").exchange, "ERSX");
 }
 
@@ -436,7 +436,7 @@ TEST(ModelSerializationTest, LatestCryptoBarsParseSymbolMap) {
 
     auto const response = json.get<alpaca::LatestCryptoBars>();
     ASSERT_EQ(response.bars.size(), 2U);
-    EXPECT_DOUBLE_EQ(response.bars.at("BTC/USD").close, 25000.0);
+    EXPECT_DOUBLE_EQ(response.bars.at("BTC/USD").close.to_double(), 25000.0);
     EXPECT_EQ(response.bars.at("ETH/USD").volume, 20U);
 }
 
@@ -463,8 +463,8 @@ TEST(ModelSerializationTest, LatestCryptoQuotesParseSymbolMap) {
 
     auto const response = json.get<alpaca::LatestCryptoQuotes>();
     ASSERT_EQ(response.quotes.size(), 2U);
-    EXPECT_DOUBLE_EQ(response.quotes.at("BTC/USD").ask_price, 25001.0);
-    EXPECT_DOUBLE_EQ(response.quotes.at("ETH/USD").bid_price, 1799.0);
+    EXPECT_DOUBLE_EQ(response.quotes.at("BTC/USD").ask_price.to_double(), 25001.0);
+    EXPECT_DOUBLE_EQ(response.quotes.at("ETH/USD").bid_price.to_double(), 1799.0);
 }
 
 TEST(ModelSerializationTest, LatestCryptoOrderbooksParseBidsAndAsks) {
@@ -481,7 +481,7 @@ TEST(ModelSerializationTest, LatestCryptoOrderbooksParseBidsAndAsks) {
     auto const& book = response.orderbooks.at("BTC/USD");
     ASSERT_EQ(book.bids.size(), 1U);
     ASSERT_EQ(book.asks.size(), 1U);
-    EXPECT_DOUBLE_EQ(book.bids.front().price, 24999.0);
+    EXPECT_DOUBLE_EQ(book.bids.front().price.to_double(), 24999.0);
     EXPECT_DOUBLE_EQ(book.asks.front().size, 0.5);
 }
 
@@ -515,7 +515,7 @@ TEST(ModelSerializationTest, LatestStockTradeParsesCoreFields) {
     EXPECT_EQ(latest.symbol, "AAPL");
     EXPECT_EQ(latest.trade.id, "t1");
     EXPECT_EQ(latest.trade.exchange, "P");
-    EXPECT_DOUBLE_EQ(latest.trade.price, 123.45);
+    EXPECT_DOUBLE_EQ(latest.trade.price.to_double(), 123.45);
     EXPECT_EQ(latest.trade.size, 25U);
     EXPECT_EQ(latest.trade.timestamp, alpaca::parse_timestamp("2023-01-01T14:30:00Z"));
     ASSERT_EQ(latest.trade.conditions.size(), 2U);
@@ -542,10 +542,10 @@ TEST(ModelSerializationTest, StockBarsParseOptionalFields) {
     EXPECT_EQ(bars.symbol, "AAPL");
     ASSERT_EQ(bars.bars.size(), 1U);
     EXPECT_EQ(bars.bars.front().timestamp, alpaca::parse_timestamp("2023-01-01T14:30:00Z"));
-    EXPECT_DOUBLE_EQ(bars.bars.front().open, 120.0);
+    EXPECT_DOUBLE_EQ(bars.bars.front().open.to_double(), 120.0);
     EXPECT_EQ(bars.bars.front().trade_count, 10U);
     ASSERT_TRUE(bars.bars.front().vwap.has_value());
-    EXPECT_DOUBLE_EQ(*bars.bars.front().vwap, 120.25);
+    EXPECT_DOUBLE_EQ(bars.bars.front().vwap->to_double(), 120.25);
     EXPECT_FALSE(bars.next_page_token.has_value());
 }
 
@@ -577,7 +577,7 @@ TEST(ModelSerializationTest, StockSnapshotHandlesMissingAggregates) {
     EXPECT_FALSE(snapshot.minute_bar.has_value());
     ASSERT_TRUE(snapshot.previous_daily_bar.has_value());
     EXPECT_EQ(snapshot.previous_daily_bar->timestamp, alpaca::parse_timestamp("2022-12-30T21:00:00Z"));
-    EXPECT_DOUBLE_EQ(snapshot.previous_daily_bar->close, 241.5);
+    EXPECT_DOUBLE_EQ(snapshot.previous_daily_bar->close.to_double(), 241.5);
 }
 
 TEST(ModelSerializationTest, ListOrdersRequestBuildsQueryParams) {
@@ -760,11 +760,11 @@ TEST(ModelSerializationTest, MultiStockResponsesMapSymbols) {
 
     auto const quotes = json.get<alpaca::MultiStockQuotes>();
     ASSERT_EQ(quotes.quotes.size(), 1U);
-    EXPECT_DOUBLE_EQ(quotes.quotes.at("AAPL").front().ask_price, 1.1);
+    EXPECT_DOUBLE_EQ(quotes.quotes.at("AAPL").front().ask_price.to_double(), 1.1);
 
     auto const trades = json.get<alpaca::MultiStockTrades>();
     ASSERT_EQ(trades.trades.size(), 1U);
-    EXPECT_DOUBLE_EQ(trades.trades.at("MSFT").front().price, 2.1);
+    EXPECT_DOUBLE_EQ(trades.trades.at("MSFT").front().price.to_double(), 2.1);
     ASSERT_TRUE(trades.next_page_token.has_value());
     EXPECT_EQ(*trades.next_page_token, "token");
 }

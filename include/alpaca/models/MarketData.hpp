@@ -49,7 +49,7 @@ class TimeFrame {
 struct StockTrade {
     std::string id;
     std::string exchange;
-    double price{0.0};
+    Money price{};
     std::uint64_t size{0};
     Timestamp timestamp{};
     std::vector<std::string> conditions{};
@@ -61,10 +61,10 @@ void from_json(Json const& j, StockTrade& trade);
 /// Represents an individual quote returned by Alpaca Market Data.
 struct StockQuote {
     std::string ask_exchange;
-    double ask_price{0.0};
+    Money ask_price{};
     std::uint64_t ask_size{0};
     std::string bid_exchange;
-    double bid_price{0.0};
+    Money bid_price{};
     std::uint64_t bid_size{0};
     Timestamp timestamp{};
     std::vector<std::string> conditions{};
@@ -76,13 +76,13 @@ void from_json(Json const& j, StockQuote& quote);
 /// Represents an OHLCV bar from Alpaca Market Data.
 struct StockBar {
     Timestamp timestamp{};
-    double open{0.0};
-    double high{0.0};
-    double low{0.0};
-    double close{0.0};
+    Money open{};
+    Money high{};
+    Money low{};
+    Money close{};
     std::uint64_t volume{0};
     std::uint64_t trade_count{0};
-    std::optional<double> vwap{};
+    std::optional<Money> vwap{};
 };
 
 void from_json(Json const& j, StockBar& bar);
@@ -179,7 +179,7 @@ using CryptoQuote = StockQuote;
 using CryptoTrade = StockTrade;
 
 struct CryptoOrderBookEntry {
-    double price{0.0};
+    Money price{};
     double size{0.0};
 };
 
@@ -263,12 +263,12 @@ void from_json(Json const& j, MultiOptionTrades& response);
 
 /// Collection of intraday metrics exposed via the options snapshot endpoint.
 struct OptionSnapshotDaySummary {
-    std::optional<double> open{};
-    std::optional<double> high{};
-    std::optional<double> low{};
-    std::optional<double> close{};
+    std::optional<Money> open{};
+    std::optional<Money> high{};
+    std::optional<Money> low{};
+    std::optional<Money> close{};
     std::optional<double> volume{};
-    std::optional<double> change{};
+    std::optional<Money> change{};
     std::optional<double> change_percent{};
 };
 
@@ -365,7 +365,7 @@ void from_json(Json const& j, MultiCryptoTrades& response);
 
 /// Single bid or ask level within an orderbook snapshot.
 struct OrderbookQuote {
-    double price{0.0};
+    Money price{};
     double size{0.0};
     std::optional<std::string> exchange{};
 };
@@ -466,13 +466,13 @@ struct StockAuction {
     Timestamp timestamp{};
     std::optional<std::string> auction_type{};
     std::optional<std::string> exchange{};
-    std::optional<double> price{};
+    std::optional<Money> price{};
     std::optional<std::uint64_t> size{};
     std::optional<double> imbalance{};
     std::optional<std::string> imbalance_side{};
-    std::optional<double> clearing_price{};
-    std::optional<double> open_price{};
-    std::optional<double> close_price{};
+    std::optional<Money> clearing_price{};
+    std::optional<Money> open_price{};
+    std::optional<Money> close_price{};
     std::optional<std::uint64_t> order_imbalance{};
     std::optional<std::uint64_t> matched_quantity{};
 };
@@ -768,8 +768,8 @@ void from_json(Json const& j, ListTradeConditionsResponse& response);
 struct MarketMover {
     std::string symbol;
     double percent_change{0.0};
-    double change{0.0};
-    double price{0.0};
+    Money change{};
+    Money price{};
 };
 
 void from_json(Json const& j, MarketMover& mover);

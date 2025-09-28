@@ -442,7 +442,7 @@ TEST(AlpacaClientTest, ListOptionContractsParsesResponse) {
     EXPECT_EQ(contract.open_interest, std::make_optional<std::uint64_t>(1500));
     EXPECT_EQ(contract.open_interest_date, std::make_optional<std::string>("2023-09-14"));
     ASSERT_TRUE(contract.close_price.has_value());
-    EXPECT_NEAR(*contract.close_price, 5.25, 1e-9);
+    EXPECT_NEAR(contract.close_price->to_double(), 5.25, 1e-9);
     EXPECT_EQ(contract.contract_size, std::make_optional<std::string>("100"));
     EXPECT_EQ(contract.underlying_asset_id, std::make_optional<std::string>("asset-1"));
 
@@ -485,7 +485,7 @@ TEST(AlpacaClientTest, GetOptionAnalyticsParsesGreeksAndLegs) {
     ASSERT_TRUE(analytics.greeks.has_value());
     EXPECT_NEAR(*analytics.greeks->delta, 0.55, 1e-9);
     ASSERT_TRUE(analytics.risk_parameters.has_value());
-    EXPECT_NEAR(*analytics.risk_parameters->theoretical_price, 5.23, 1e-9);
+    EXPECT_NEAR(analytics.risk_parameters->theoretical_price->to_double(), 5.23, 1e-9);
     ASSERT_EQ(analytics.legs.size(), 1U);
     EXPECT_EQ(analytics.legs.front().side, alpaca::OrderSide::BUY);
 
@@ -679,7 +679,7 @@ TEST(AlpacaClientTest, LatestStockTradeUsesMarketDataEndpoint) {
 
     auto const latest = client.get_latest_stock_trade("AAPL");
     EXPECT_EQ(latest.symbol, "AAPL");
-    EXPECT_DOUBLE_EQ(latest.trade.price, 123.45);
+    EXPECT_DOUBLE_EQ(latest.trade.price.to_double(), 123.45);
     EXPECT_EQ(latest.trade.size, 10U);
 
     ASSERT_EQ(stub->requests().size(), 1U);
@@ -702,7 +702,7 @@ TEST(AlpacaClientTest, LatestCryptoTradeUsesBetaV3Endpoint) {
 
     auto const latest = client.get_latest_crypto_trade("us", request);
     ASSERT_EQ(latest.trades.size(), 1U);
-    EXPECT_DOUBLE_EQ(latest.trades.at("BTC/USD").price, 25000.5);
+    EXPECT_DOUBLE_EQ(latest.trades.at("BTC/USD").price.to_double(), 25000.5);
 
     ASSERT_EQ(stub->requests().size(), 1U);
     auto const& http_request = stub->requests().front();
@@ -755,7 +755,7 @@ TEST(AlpacaClientTest, LatestCryptoQuoteIncludesCurrencyFilter) {
 
     auto const quotes = client.get_latest_crypto_quote("us", request);
     ASSERT_EQ(quotes.quotes.size(), 1U);
-    EXPECT_DOUBLE_EQ(quotes.quotes.at("BTC/USD").ask_price, 25001.0);
+    EXPECT_DOUBLE_EQ(quotes.quotes.at("BTC/USD").ask_price.to_double(), 25001.0);
 
     ASSERT_EQ(stub->requests().size(), 1U);
     auto const& http_request = stub->requests().front();
@@ -780,7 +780,7 @@ TEST(AlpacaClientTest, LatestCryptoBarUsesBetaV3Endpoint) {
 
     auto const bars = client.get_latest_crypto_bar("us", request);
     ASSERT_EQ(bars.bars.size(), 1U);
-    EXPECT_DOUBLE_EQ(bars.bars.at("BTC/USD").close, 25000.0);
+    EXPECT_DOUBLE_EQ(bars.bars.at("BTC/USD").close.to_double(), 25000.0);
 
     ASSERT_EQ(stub->requests().size(), 1U);
     auto const& http_request = stub->requests().front();

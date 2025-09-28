@@ -322,7 +322,7 @@ StreamMessage build_bar_message(Json const& payload) {
     } else {
         message.trade_count = payload.value("n", std::uint64_t{0});
     }
-    if (auto vwap = parse_optional<double>(payload, "vw")) {
+    if (auto vwap = parse_optional<Money>(payload, "vw")) {
         message.vwap = vwap;
     }
     return message;
@@ -342,7 +342,7 @@ StreamMessage build_updated_bar_message(Json const& payload) {
     if (auto count = parse_optional_uint64(payload, "n")) {
         message.trade_count = *count;
     }
-    message.vwap = parse_optional<double>(payload, "vw");
+    message.vwap = parse_optional<Money>(payload, "vw");
     return message;
 }
 
@@ -360,7 +360,7 @@ StreamMessage build_daily_bar_message(Json const& payload) {
     if (auto count = parse_optional_uint64(payload, "n")) {
         message.trade_count = *count;
     }
-    message.vwap = parse_optional<double>(payload, "vw");
+    message.vwap = parse_optional<Money>(payload, "vw");
     return message;
 }
 
@@ -418,9 +418,9 @@ StreamMessage build_auction_message(Json const& payload) {
         message.auction_type = parse_optional<std::string>(payload, "type");
     }
     message.condition = parse_optional<std::string>(payload, "c");
-    if (auto price = parse_optional<double>(payload, "p")) {
+    if (auto price = parse_optional<Money>(payload, "p")) {
         message.price = price;
-    } else if (auto open_price = parse_optional<double>(payload, "o")) {
+    } else if (auto open_price = parse_optional<Money>(payload, "o")) {
         message.price = open_price;
     }
     if (auto size = parse_optional<std::uint64_t>(payload, "s")) {
@@ -475,7 +475,7 @@ StreamMessage build_trade_cancel_message(Json const& payload) {
     message.symbol = payload.value("S", "");
     message.timestamp = parse_timestamp_field_or_default(payload, "t");
     message.exchange = payload.value("x", "");
-    message.price = parse_optional<double>(payload, "p");
+    message.price = parse_optional<Money>(payload, "p");
     message.size = parse_optional_uint64(payload, "s");
     message.id = parse_optional_string_like(payload, "i");
     message.action = parse_optional<std::string>(payload, "a");
@@ -489,11 +489,11 @@ StreamMessage build_trade_correction_message(Json const& payload) {
     message.timestamp = parse_timestamp_field_or_default(payload, "t");
     message.exchange = payload.value("x", "");
     message.original_id = parse_optional_string_like(payload, "oi");
-    message.original_price = parse_optional<double>(payload, "op");
+    message.original_price = parse_optional<Money>(payload, "op");
     message.original_size = parse_optional_uint64(payload, "os");
     message.original_conditions = parse_conditions(payload, "oc");
     message.corrected_id = parse_optional_string_like(payload, "ci");
-    message.corrected_price = parse_optional<double>(payload, "cp");
+    message.corrected_price = parse_optional<Money>(payload, "cp");
     message.corrected_size = parse_optional_uint64(payload, "cs");
     message.corrected_conditions = parse_conditions(payload, "cc");
     message.tape = parse_optional<std::string>(payload, "z");
@@ -517,29 +517,29 @@ StreamMessage build_imbalance_message(Json const& payload) {
     } else if (auto paired = parse_optional_uint64(payload, "pa")) {
         message.paired = paired;
     }
-    if (auto reference_price = parse_optional<double>(payload, "reference_price")) {
+    if (auto reference_price = parse_optional<Money>(payload, "reference_price")) {
         message.reference_price = reference_price;
-    } else if (auto reference_price = parse_optional<double>(payload, "rp")) {
+    } else if (auto reference_price = parse_optional<Money>(payload, "rp")) {
         message.reference_price = reference_price;
     }
-    if (auto near_price = parse_optional<double>(payload, "near_price")) {
+    if (auto near_price = parse_optional<Money>(payload, "near_price")) {
         message.near_price = near_price;
-    } else if (auto near_price = parse_optional<double>(payload, "np")) {
+    } else if (auto near_price = parse_optional<Money>(payload, "np")) {
         message.near_price = near_price;
     }
-    if (auto far_price = parse_optional<double>(payload, "far_price")) {
+    if (auto far_price = parse_optional<Money>(payload, "far_price")) {
         message.far_price = far_price;
-    } else if (auto far_price = parse_optional<double>(payload, "fp")) {
+    } else if (auto far_price = parse_optional<Money>(payload, "fp")) {
         message.far_price = far_price;
     }
-    if (auto current_price = parse_optional<double>(payload, "current_price")) {
+    if (auto current_price = parse_optional<Money>(payload, "current_price")) {
         message.current_price = current_price;
-    } else if (auto current_price = parse_optional<double>(payload, "cp")) {
+    } else if (auto current_price = parse_optional<Money>(payload, "cp")) {
         message.current_price = current_price;
     }
-    if (auto clearing_price = parse_optional<double>(payload, "clearing_price")) {
+    if (auto clearing_price = parse_optional<Money>(payload, "clearing_price")) {
         message.clearing_price = clearing_price;
-    } else if (auto clearing_price = parse_optional<double>(payload, "p")) {
+    } else if (auto clearing_price = parse_optional<Money>(payload, "p")) {
         message.clearing_price = clearing_price;
     }
     message.imbalance_side = parse_optional<std::string>(payload, "imbalance_side");

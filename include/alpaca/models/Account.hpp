@@ -4,6 +4,7 @@
 #include <string>
 
 #include "alpaca/Json.hpp"
+#include "alpaca/Money.hpp"
 
 namespace alpaca {
 
@@ -28,12 +29,12 @@ struct Account {
     std::string equity;
     std::string last_equity;
     std::string cash;
-    std::optional<double> accrued_fees;
+    std::optional<Money> accrued_fees;
     std::string cash_long;
     std::string cash_short;
     std::string cash_withdrawable;
-    std::optional<double> pending_transfer_out;
-    std::optional<double> pending_transfer_in;
+    std::optional<Money> pending_transfer_out;
+    std::optional<Money> pending_transfer_in;
     std::string portfolio_value;
     std::string long_market_value;
     std::string short_market_value;

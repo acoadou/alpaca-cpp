@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "alpaca/Json.hpp"
+#include "alpaca/Money.hpp"
 #include "alpaca/models/Order.hpp"
 #include "alpaca/models/Position.hpp"
 
@@ -109,7 +110,7 @@ struct OptionContract {
     std::optional<std::string> multiplier{};
     std::optional<std::uint64_t> open_interest{};
     std::optional<std::string> open_interest_date{};
-    std::optional<double> close_price{};
+    std::optional<Money> close_price{};
     std::optional<std::string> contract_size{};
     std::optional<std::string> underlying_asset_id{};
 };
@@ -149,9 +150,9 @@ struct OptionGreeks {
 /// Risk parameters provided by the option analytics endpoint.
 struct OptionRiskParameters {
     std::optional<double> implied_volatility{};
-    std::optional<double> theoretical_price{};
-    std::optional<double> underlying_price{};
-    std::optional<double> breakeven_price{};
+    std::optional<Money> theoretical_price{};
+    std::optional<Money> underlying_price{};
+    std::optional<Money> breakeven_price{};
 };
 
 /// A single leg that composes a multi-leg options strategy.

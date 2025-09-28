@@ -37,10 +37,10 @@ QueryParams ClosePositionRequest::to_query_params() const {
         params.emplace_back("time_in_force", to_string(*time_in_force));
     }
     if (limit_price.has_value()) {
-        params.emplace_back("limit_price", std::to_string(*limit_price));
+        params.emplace_back("limit_price", limit_price->to_string());
     }
     if (stop_price.has_value()) {
-        params.emplace_back("stop_price", std::to_string(*stop_price));
+        params.emplace_back("stop_price", stop_price->to_string());
     }
     return params;
 }

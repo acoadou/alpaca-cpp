@@ -38,7 +38,7 @@ TEST(MarketDataClientTest, MultiLatestStockTradesSerializesSymbols) {
 
     alpaca::LatestStockTrades trades = client.get_latest_stock_trades(request);
     ASSERT_EQ(trades.trades.size(), 2U);
-    EXPECT_DOUBLE_EQ(trades.trades.at("AAPL").price, 150.25);
+    EXPECT_DOUBLE_EQ(trades.trades.at("AAPL").price.to_double(), 150.25);
     EXPECT_EQ(trades.trades.at("MSFT").exchange, "Q");
 
     ASSERT_EQ(fake->requests().size(), 1U);
@@ -170,7 +170,7 @@ TEST(MarketDataClientTest, GetStockAuctionsParsesResponse) {
     auto const& auction = response.auctions.front();
     EXPECT_EQ(auction.symbol, "AAPL");
     ASSERT_TRUE(auction.price.has_value());
-    EXPECT_NEAR(*auction.price, 170.25, 1e-9);
+    EXPECT_NEAR(auction.price->to_double(), 170.25, 1e-9);
     ASSERT_TRUE(auction.size.has_value());
     EXPECT_EQ(*auction.size, 1000U);
     ASSERT_TRUE(auction.imbalance.has_value());
@@ -206,7 +206,7 @@ TEST(MarketDataClientTest, CryptoOrderbooksParseSnapshots) {
     ASSERT_EQ(orderbooks.orderbooks.size(), 1U);
     auto const& snapshot = orderbooks.orderbooks.at("BTC/USD");
     ASSERT_EQ(snapshot.bids.size(), 1U);
-    EXPECT_DOUBLE_EQ(snapshot.bids.front().price, 27000.0);
+    EXPECT_DOUBLE_EQ(snapshot.bids.front().price.to_double(), 27000.0);
     ASSERT_EQ(snapshot.asks.size(), 1U);
     EXPECT_DOUBLE_EQ(snapshot.asks.front().size, 0.25);
 

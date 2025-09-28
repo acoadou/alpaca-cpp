@@ -7,14 +7,14 @@
 
 namespace {
 
-std::optional<double> parse_optional_double(alpaca::Json const& json, char const *key) {
+std::optional<alpaca::Money> parse_optional_money(alpaca::Json const& json, char const* key) {
     auto it = json.find(key);
     if (it == json.end() || it->is_null()) {
         return std::nullopt;
     }
 
     if (it->is_number()) {
-        return it->get<double>();
+        return alpaca::Money{it->get<double>()};
     }
 
     if (it->is_string()) {
@@ -27,7 +27,7 @@ std::optional<double> parse_optional_double(alpaca::Json const& json, char const
             std::size_t processed = 0;
             double value = std::stod(text, &processed);
             if (processed == text.size()) {
-                return value;
+                return alpaca::Money{value};
             }
         } catch (std::exception const&) {
         }
@@ -36,7 +36,7 @@ std::optional<double> parse_optional_double(alpaca::Json const& json, char const
     return std::nullopt;
 }
 
-std::optional<int> parse_optional_int(alpaca::Json const& json, char const *key) {
+std::optional<int> parse_optional_int(alpaca::Json const& json, char const* key) {
     auto it = json.find(key);
     if (it == json.end() || it->is_null()) {
         return std::nullopt;
@@ -65,7 +65,7 @@ std::optional<int> parse_optional_int(alpaca::Json const& json, char const *key)
     return std::nullopt;
 }
 
-std::optional<std::string> parse_optional_string(alpaca::Json const& json, char const *key) {
+std::optional<std::string> parse_optional_string(alpaca::Json const& json, char const* key) {
     auto it = json.find(key);
     if (it == json.end() || it->is_null()) {
         return std::nullopt;
@@ -102,12 +102,12 @@ void from_json(Json const& j, Account& account) {
     account.equity = j.value("equity", std::string{});
     account.last_equity = j.value("last_equity", std::string{});
     account.cash = j.value("cash", std::string{});
-    account.accrued_fees = parse_optional_double(j, "accrued_fees");
+    account.accrued_fees = parse_optional_money(j, "accrued_fees");
     account.cash_long = j.value("cash_long", std::string{});
     account.cash_short = j.value("cash_short", std::string{});
     account.cash_withdrawable = j.value("cash_withdrawable", std::string{});
-    account.pending_transfer_out = parse_optional_double(j, "pending_transfer_out");
-    account.pending_transfer_in = parse_optional_double(j, "pending_transfer_in");
+    account.pending_transfer_out = parse_optional_money(j, "pending_transfer_out");
+    account.pending_transfer_in = parse_optional_money(j, "pending_transfer_in");
     account.portfolio_value = j.value("portfolio_value", std::string{});
     account.long_market_value = j.value("long_market_value", std::string{});
     account.short_market_value = j.value("short_market_value", std::string{});

@@ -229,7 +229,7 @@ void from_json(Json const& j, StockBar& bar) {
     } else {
         bar.trade_count = 0;
     }
-    bar.vwap = optional_field<double>(j, "vw");
+    bar.vwap = optional_field<Money>(j, "vw");
 }
 
 void from_json(Json const& j, LatestStockTrade& response) {
@@ -316,12 +316,12 @@ void from_json(Json const& j, MultiOptionTrades& response) {
 }
 
 void from_json(Json const& j, OptionSnapshotDaySummary& summary) {
-    summary.open = optional_field<double>(j, "open");
-    summary.high = optional_field<double>(j, "high");
-    summary.low = optional_field<double>(j, "low");
-    summary.close = optional_field<double>(j, "close");
+    summary.open = optional_field<Money>(j, "open");
+    summary.high = optional_field<Money>(j, "high");
+    summary.low = optional_field<Money>(j, "low");
+    summary.close = optional_field<Money>(j, "close");
     summary.volume = optional_field<double>(j, "volume");
-    summary.change = optional_field<double>(j, "change");
+    summary.change = optional_field<Money>(j, "change");
     summary.change_percent = optional_field<double>(j, "changePercent");
 }
 
@@ -569,6 +569,7 @@ template <typename Orderbooks> void parse_orderbooks(Json const& j, Orderbooks& 
     }
 }
 
+std::optional<Money> parse_optional_money(Json const& j, char const *key);
 std::optional<double> parse_optional_double(Json const& j, char const *key);
 std::optional<std::uint64_t> parse_optional_uint64(Json const& j, char const *key);
 std::optional<std::string> parse_optional_string(Json const& j, char const *key);
@@ -595,13 +596,13 @@ void from_json(Json const& j, StockAuction& auction) {
     }
     auction.auction_type = parse_optional_string(j, "auction_type");
     auction.exchange = parse_optional_string(j, "exchange");
-    auction.price = parse_optional_double(j, "price");
+    auction.price = parse_optional_money(j, "price");
     auction.size = parse_optional_uint64(j, "size");
     auction.imbalance = parse_optional_double(j, "imbalance");
     auction.imbalance_side = parse_optional_string(j, "imbalance_side");
-    auction.clearing_price = parse_optional_double(j, "clearing_price");
-    auction.open_price = parse_optional_double(j, "open_price");
-    auction.close_price = parse_optional_double(j, "close_price");
+    auction.clearing_price = parse_optional_money(j, "clearing_price");
+    auction.open_price = parse_optional_money(j, "open_price");
+    auction.close_price = parse_optional_money(j, "close_price");
     auction.order_imbalance = parse_optional_uint64(j, "order_imbalance");
     auction.matched_quantity = parse_optional_uint64(j, "matched_quantity");
 }
@@ -692,13 +693,13 @@ void from_json(Json const& j, MarketMover& mover) {
         j.at("price_change").get_to(mover.change);
     }
     if (j.contains("price")) {
-        mover.price = j.at("price").get<double>();
+        mover.price = j.at("price").get<Money>();
     } else if (j.contains("last_price")) {
-        mover.price = j.at("last_price").get<double>();
+        mover.price = j.at("last_price").get<Money>();
     } else if (j.contains("current_price")) {
-        mover.price = j.at("current_price").get<double>();
+        mover.price = j.at("current_price").get<Money>();
     } else {
-        mover.price = 0.0;
+        mover.price = Money{};
     }
 }
 
@@ -794,6 +795,27 @@ void append_sort(QueryParams& params, std::optional<SortDirection> const& sort) 
     if (sort.has_value()) {
         params.emplace_back("sort", to_string(*sort));
     }
+}
+
+std::optional<Money> parse_optional_money(Json const& j, char const *key) {
+    if (!j.contains(key) || j.at(key).is_null()) {
+        return std::nullopt;
+    }
+    auto const& value = j.at(key);
+    if (value.is_string()) {
+        auto const text = value.get<std::string>();
+        if (text.empty()) {
+            return std::nullopt;
+        }
+        return Money{text};
+    }
+    if (value.is_number_float()) {
+        return Money{value.get<double>()};
+    }
+    if (value.is_number_integer()) {
+        return Money{static_cast<double>(value.get<std::int64_t>())};
+    }
+    return std::nullopt;
 }
 
 std::optional<double> parse_optional_double(Json const& j, char const *key) {

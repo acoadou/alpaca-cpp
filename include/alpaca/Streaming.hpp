@@ -28,6 +28,7 @@
 // applications without an existing event loop, hence the dependency choice.
 
 #include "alpaca/Json.hpp"
+#include "alpaca/Money.hpp"
 #include "alpaca/models/Account.hpp"
 #include "alpaca/models/Common.hpp"
 #include "alpaca/models/MarketData.hpp"
@@ -75,7 +76,7 @@ struct TradeMessage {
     std::string symbol;
     std::string id;
     std::string exchange;
-    double price{0.0};
+    Money price{};
     std::uint64_t size{0};
     Timestamp timestamp{};
     std::vector<std::string> conditions{};
@@ -86,10 +87,10 @@ struct TradeMessage {
 struct QuoteMessage {
     std::string symbol;
     std::string ask_exchange;
-    double ask_price{0.0};
+    Money ask_price{};
     std::uint64_t ask_size{0};
     std::string bid_exchange;
-    double bid_price{0.0};
+    Money bid_price{};
     std::uint64_t bid_size{0};
     Timestamp timestamp{};
     std::vector<std::string> conditions{};
@@ -100,39 +101,39 @@ struct QuoteMessage {
 struct BarMessage {
     std::string symbol;
     Timestamp timestamp{};
-    double open{0.0};
-    double high{0.0};
-    double low{0.0};
-    double close{0.0};
+    Money open{};
+    Money high{};
+    Money low{};
+    Money close{};
     std::uint64_t volume{0};
     std::uint64_t trade_count{0};
-    std::optional<double> vwap{};
+    std::optional<Money> vwap{};
 };
 
 /// Near-real-time update to an in-flight minute bar.
 struct UpdatedBarMessage {
     std::string symbol;
     Timestamp timestamp{};
-    double open{0.0};
-    double high{0.0};
-    double low{0.0};
-    double close{0.0};
+    Money open{};
+    Money high{};
+    Money low{};
+    Money close{};
     std::uint64_t volume{0};
     std::uint64_t trade_count{0};
-    std::optional<double> vwap{};
+    std::optional<Money> vwap{};
 };
 
 /// End-of-day bar aggregated across the full trading session.
 struct DailyBarMessage {
     std::string symbol;
     Timestamp timestamp{};
-    double open{0.0};
-    double high{0.0};
-    double low{0.0};
-    double close{0.0};
+    Money open{};
+    Money high{};
+    Money low{};
+    Money close{};
     std::uint64_t volume{0};
     std::uint64_t trade_count{0};
-    std::optional<double> vwap{};
+    std::optional<Money> vwap{};
 };
 
 /// Market status or halt/resume notification delivered through market data
@@ -148,7 +149,7 @@ struct StatusMessage {
 
 /// Represents a single level within an order book side.
 struct OrderBookLevel {
-    double price{0.0};
+    Money price{};
     double size{0.0};
     std::string exchange;
 };
@@ -167,8 +168,8 @@ struct OrderBookMessage {
 struct LuldMessage {
     std::string symbol;
     Timestamp timestamp{};
-    double limit_up{0.0};
-    double limit_down{0.0};
+    Money limit_up{};
+    Money limit_down{};
     std::optional<std::string> indicator{};
     std::optional<std::string> tape{};
 };
@@ -179,7 +180,7 @@ struct AuctionMessage {
     Timestamp timestamp{};
     std::optional<std::string> auction_type{};
     std::optional<std::string> condition{};
-    std::optional<double> price{};
+    std::optional<Money> price{};
     std::optional<std::uint64_t> size{};
     std::optional<double> imbalance{};
     std::optional<std::string> imbalance_side{};
@@ -204,7 +205,7 @@ struct UnderlyingMessage {
     std::string symbol;
     std::string underlying_symbol;
     Timestamp timestamp{};
-    double price{0.0};
+    Money price{};
 };
 
 /// Notification emitted when a previously reported trade is cancelled.
@@ -212,7 +213,7 @@ struct TradeCancelMessage {
     std::string symbol;
     Timestamp timestamp{};
     std::string exchange;
-    std::optional<double> price{};
+    std::optional<Money> price{};
     std::optional<std::uint64_t> size{};
     std::optional<std::string> id{};
     std::optional<std::string> action{};
@@ -225,11 +226,11 @@ struct TradeCorrectionMessage {
     Timestamp timestamp{};
     std::string exchange;
     std::optional<std::string> original_id{};
-    std::optional<double> original_price{};
+    std::optional<Money> original_price{};
     std::optional<std::uint64_t> original_size{};
     std::vector<std::string> original_conditions{};
     std::optional<std::string> corrected_id{};
-    std::optional<double> corrected_price{};
+    std::optional<Money> corrected_price{};
     std::optional<std::uint64_t> corrected_size{};
     std::vector<std::string> corrected_conditions{};
     std::optional<std::string> tape{};
@@ -243,11 +244,11 @@ struct ImbalanceMessage {
     std::optional<std::string> imbalance_side{};
     std::optional<std::uint64_t> imbalance{};
     std::optional<std::uint64_t> paired{};
-    std::optional<double> reference_price{};
-    std::optional<double> near_price{};
-    std::optional<double> far_price{};
-    std::optional<double> current_price{};
-    std::optional<double> clearing_price{};
+    std::optional<Money> reference_price{};
+    std::optional<Money> near_price{};
+    std::optional<Money> far_price{};
+    std::optional<Money> current_price{};
+    std::optional<Money> clearing_price{};
     std::optional<std::string> auction_type{};
     std::optional<std::string> tape{};
     Json raw_payload{};
@@ -283,9 +284,9 @@ struct ControlMessage {
 
 /// Strongly typed representation of an Alpaca websocket payload.
 using StreamMessage = std::variant<TradeMessage, QuoteMessage, BarMessage, StatusMessage, OrderUpdateMessage,
-                                   UpdatedBarMessage, DailyBarMessage, OrderBookMessage, LuldMessage, AuctionMessage,
-                                   GreeksMessage, UnderlyingMessage, TradeCancelMessage, TradeCorrectionMessage,
-                                   ImbalanceMessage, NewsMessage, AccountUpdateMessage, ErrorMessage, ControlMessage>;
+    UpdatedBarMessage, DailyBarMessage, OrderBookMessage, LuldMessage, AuctionMessage,
+    GreeksMessage, UnderlyingMessage, TradeCancelMessage, TradeCorrectionMessage,
+    ImbalanceMessage, NewsMessage, AccountUpdateMessage, ErrorMessage, ControlMessage>;
 
 /// Subscription helper for market data feeds.
 struct MarketSubscription {
@@ -371,7 +372,7 @@ class WebSocketClientHarness;
 /// Lightweight websocket client capable of connecting to Alpaca's streaming
 /// APIs.
 class WebSocketClient {
-  public:
+public:
     WebSocketClient(std::string url, std::string key, std::string secret, StreamFeed feed = StreamFeed::MarketData);
     ~WebSocketClient();
 
@@ -447,7 +448,7 @@ class WebSocketClient {
     /// Disables automatic backfills and restores the previous replay handler.
     void disable_automatic_backfill();
 
-  private:
+private:
     friend class WebSocketClientHarness;
 
     void authenticate();

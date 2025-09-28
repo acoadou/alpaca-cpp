@@ -5,6 +5,7 @@
 #include <variant>
 
 #include "alpaca/Json.hpp"
+#include "alpaca/Money.hpp"
 #include "alpaca/RestClient.hpp"
 #include "alpaca/models/Common.hpp"
 #include "alpaca/models/Order.hpp"
@@ -36,8 +37,8 @@ struct ClosePositionRequest {
     std::optional<std::string> quantity{};
     std::optional<double> percentage{};
     std::optional<TimeInForce> time_in_force{};
-    std::optional<double> limit_price{};
-    std::optional<double> stop_price{};
+    std::optional<Money> limit_price{};
+    std::optional<Money> stop_price{};
 
     [[nodiscard]] QueryParams to_query_params() const;
 };

@@ -202,7 +202,7 @@ TEST(StreamingTest, RoutesUpdatedBarMessages) {
     EXPECT_EQ(message->volume, 1000U);
     EXPECT_EQ(message->trade_count, 12U);
     ASSERT_TRUE(message->vwap.has_value());
-    EXPECT_DOUBLE_EQ(*message->vwap, 150.2);
+    EXPECT_DOUBLE_EQ(message->vwap->to_double(), 150.2);
     EXPECT_EQ(message->timestamp, parse_timestamp("2024-05-01T12:34:56.123456789Z"));
 }
 
@@ -271,7 +271,7 @@ TEST(StreamingTest, RoutesTradeCancelMessages) {
     EXPECT_EQ(message->symbol, "NFLX");
     EXPECT_EQ(message->exchange, "XNYS");
     ASSERT_TRUE(message->price.has_value());
-    EXPECT_DOUBLE_EQ(*message->price, 550.25);
+    EXPECT_DOUBLE_EQ(message->price->to_double(), 550.25);
     ASSERT_TRUE(message->size.has_value());
     EXPECT_EQ(*message->size, 25U);
     ASSERT_TRUE(message->id.has_value());
@@ -320,7 +320,7 @@ TEST(StreamingTest, RoutesTradeCorrectionMessages) {
     ASSERT_TRUE(message->original_id.has_value());
     EXPECT_EQ(*message->original_id, "111");
     ASSERT_TRUE(message->original_price.has_value());
-    EXPECT_DOUBLE_EQ(*message->original_price, 800.5);
+    EXPECT_DOUBLE_EQ(message->original_price->to_double(), 800.5);
     ASSERT_TRUE(message->original_size.has_value());
     EXPECT_EQ(*message->original_size, 10U);
     ASSERT_EQ(message->original_conditions.size(), 1U);
@@ -328,7 +328,7 @@ TEST(StreamingTest, RoutesTradeCorrectionMessages) {
     ASSERT_TRUE(message->corrected_id.has_value());
     EXPECT_EQ(*message->corrected_id, "222");
     ASSERT_TRUE(message->corrected_price.has_value());
-    EXPECT_DOUBLE_EQ(*message->corrected_price, 802.25);
+    EXPECT_DOUBLE_EQ(message->corrected_price->to_double(), 802.25);
     ASSERT_TRUE(message->corrected_size.has_value());
     EXPECT_EQ(*message->corrected_size, 12U);
     ASSERT_EQ(message->corrected_conditions.size(), 2U);
@@ -440,15 +440,15 @@ TEST(StreamingTest, RoutesImbalanceMessages) {
     ASSERT_TRUE(message->paired.has_value());
     EXPECT_EQ(*message->paired, 12500U);
     ASSERT_TRUE(message->reference_price.has_value());
-    EXPECT_DOUBLE_EQ(*message->reference_price, 180.25);
+    EXPECT_DOUBLE_EQ(message->reference_price->to_double(), 180.25);
     ASSERT_TRUE(message->near_price.has_value());
-    EXPECT_DOUBLE_EQ(*message->near_price, 180.1);
+    EXPECT_DOUBLE_EQ(message->near_price->to_double(), 180.1);
     ASSERT_TRUE(message->far_price.has_value());
-    EXPECT_DOUBLE_EQ(*message->far_price, 180.4);
+    EXPECT_DOUBLE_EQ(message->far_price->to_double(), 180.4);
     ASSERT_TRUE(message->current_price.has_value());
-    EXPECT_DOUBLE_EQ(*message->current_price, 180.3);
+    EXPECT_DOUBLE_EQ(message->current_price->to_double(), 180.3);
     ASSERT_TRUE(message->clearing_price.has_value());
-    EXPECT_DOUBLE_EQ(*message->clearing_price, 180.35);
+    EXPECT_DOUBLE_EQ(message->clearing_price->to_double(), 180.35);
     ASSERT_TRUE(message->imbalance_side.has_value());
     EXPECT_EQ(*message->imbalance_side, "B");
     ASSERT_TRUE(message->auction_type.has_value());
@@ -485,7 +485,7 @@ TEST(StreamingTest, RoutesUnderlyingWhenPayloadIncludesUnderlyingSymbol) {
     ASSERT_TRUE(message.has_value());
     EXPECT_EQ(message->symbol, "AAPL240621C00150000");
     EXPECT_EQ(message->underlying_symbol, "AAPL");
-    EXPECT_DOUBLE_EQ(message->price, 150.0);
+    EXPECT_DOUBLE_EQ(message->price.to_double(), 150.0);
     EXPECT_EQ(message->timestamp, parse_timestamp("2024-05-01T16:00:00Z"));
 }
 
