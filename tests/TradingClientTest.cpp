@@ -231,6 +231,8 @@ TEST(TradingClientTest, CustomRetryOptionsPropagateToRestClient) {
     options.retry.retry_status_codes = {500};
     options.retry.initial_backoff = std::chrono::milliseconds{0};
     options.retry.max_backoff = std::chrono::milliseconds{0};
+    options.retry.max_jitter = std::chrono::milliseconds{0};
+    options.retry.retry_after_max = std::chrono::milliseconds{0};
 
     alpaca::TradingClient client(config, http, options);
 

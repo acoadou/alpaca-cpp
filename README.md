@@ -432,16 +432,30 @@ outages.
 `alpaca::RestClient` now mirrors the retry defaults used across Alpaca SDKs.
 Synchronous requests automatically retry at least three times with an
 exponential backoff that starts at 100&nbsp;ms and doubles between attempts up to a
-five-second ceiling. The defaults are exposed through
+five-second ceiling. Each delay is decorrelated with up to 250&nbsp;ms of full jitter
+to avoid synchronized retries, and `Retry-After` hints are respected (capped at
+30 seconds to keep clients responsive). The defaults are exposed through
 `alpaca::RestClient::default_retry_options()` so applications can introspect or
 clone them. Higher-level clients—`TradingClient`, `MarketDataClient`,
 `BrokerClient`, and `AlpacaClient`—forward a `RestClient::Options` parameter so
-you can override the behaviour without re-implementing the transport layer.
+you can override the behaviour without re-implementing the transport layer. The
+retry policy is idempotency aware and can be replaced entirely with a custom
+classifier when endpoints need bespoke handling.
 
 ```cpp
 alpaca::RestClient::Options options = alpaca::RestClient::default_options();
 options.retry.max_attempts = 5; // pessimistic retry policy
 options.retry.initial_backoff = std::chrono::milliseconds{250};
+options.retry.max_jitter = std::chrono::milliseconds{100};
+options.retry.retry_after_max = std::chrono::seconds{10};
+options.retry.retry_classifier = [](alpaca::HttpMethod method,
+                                    std::optional<long> status,
+                                    std::size_t attempt) {
+  if (status == 429) {
+    return true; // always retry rate limits
+  }
+  return alpaca::HttpMethod::POST != method && attempt < 4;
+};
 
 alpaca::TradingClient trading(config, /*http_client=*/nullptr, options);
 ```

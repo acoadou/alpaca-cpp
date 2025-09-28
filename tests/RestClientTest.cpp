@@ -60,6 +60,8 @@ TEST(RestClientTest, DefaultRetryOptionsFollowAlpacaDefaults) {
     EXPECT_EQ(defaults.initial_backoff, std::chrono::milliseconds{100});
     EXPECT_DOUBLE_EQ(defaults.backoff_multiplier, 2.0);
     EXPECT_EQ(defaults.max_backoff, std::chrono::seconds{5});
+    EXPECT_EQ(defaults.max_jitter, std::chrono::milliseconds{250});
+    EXPECT_EQ(defaults.retry_after_max, std::chrono::seconds{30});
     EXPECT_THAT(defaults.retry_status_codes, ::testing::Contains(429));
 }
 
@@ -86,6 +88,8 @@ TEST(RestClientTest, RetriesFailedRequests) {
     options.retry.max_attempts = 2;
     options.retry.initial_backoff = std::chrono::milliseconds{0};
     options.retry.max_backoff = std::chrono::milliseconds{0};
+    options.retry.max_jitter = std::chrono::milliseconds{0};
+    options.retry.retry_after_max = std::chrono::milliseconds{0};
     options.retry.retry_status_codes = {500};
 
     alpaca::RestClient client(config, fake_client, config.trading_base_url, options);
@@ -120,6 +124,103 @@ TEST(RestClientTest, DefaultRetriesCoverMultipleAttempts) {
 
     EXPECT_EQ(account.id, "test");
     ASSERT_THAT(fake_client->requests(), SizeIs(3));
+}
+
+TEST(RestClientTest, RetriesNetworkErrorsForIdempotentRequests) {
+    class FlakyHttpClient : public alpaca::HttpClient {
+      public:
+        explicit FlakyHttpClient(alpaca::HttpResponse success) : success_(std::move(success)) {}
+
+        alpaca::HttpResponse send(alpaca::HttpRequest const& request) override {
+            requests.push_back(request);
+            if (!failed_) {
+                failed_ = true;
+                throw std::runtime_error("connection reset");
+            }
+            return success_;
+        }
+
+        std::vector<alpaca::HttpRequest> requests;
+
+      private:
+        bool failed_{false};
+        alpaca::HttpResponse success_;
+    };
+
+    alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
+    alpaca::Json account_json = {
+        {"id", "network"},
+    };
+
+    auto flaky = std::make_shared<FlakyHttpClient>(alpaca::HttpResponse{200, account_json.dump(), {}});
+
+    alpaca::RestClient::Options options;
+    options.retry.initial_backoff = std::chrono::milliseconds{0};
+    options.retry.max_backoff = std::chrono::milliseconds{0};
+    options.retry.max_jitter = std::chrono::milliseconds{0};
+    options.retry.retry_after_max = std::chrono::milliseconds{0};
+
+    alpaca::RestClient client(config, flaky, config.trading_base_url, options);
+    EXPECT_NO_THROW(client.get<alpaca::Account>("/v2/account"));
+    EXPECT_THAT(flaky->requests, SizeIs(2));
+}
+
+TEST(RestClientTest, DoesNotRetryNonIdempotentRequestsByDefault) {
+    alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
+    auto fake_client = std::make_shared<FakeHttpClient>();
+
+    alpaca::Json order_json = {
+        {"id", "post"},
+    };
+
+    fake_client->push_response(alpaca::HttpResponse{500, alpaca::Json{{"message", "fail"}}.dump(), {}});
+    fake_client->push_response(alpaca::HttpResponse{200, order_json.dump(), {}});
+
+    alpaca::RestClient::Options options;
+    options.retry.initial_backoff = std::chrono::milliseconds{0};
+    options.retry.max_backoff = std::chrono::milliseconds{0};
+    options.retry.max_jitter = std::chrono::milliseconds{0};
+    options.retry.retry_after_max = std::chrono::milliseconds{0};
+    options.retry.retry_status_codes = {500};
+
+    alpaca::RestClient client(config, fake_client, config.trading_base_url, options);
+    EXPECT_THROW(client.post<alpaca::Account>("/v2/account", alpaca::Json::object()), alpaca::ServerException);
+    ASSERT_THAT(fake_client->requests(), SizeIs(1));
+}
+
+TEST(RestClientTest, RespectsRetryAfterCeiling) {
+    alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
+    auto fake_client = std::make_shared<FakeHttpClient>();
+
+    alpaca::Json account_json = {
+        {"id", "retry-after"},
+    };
+
+    alpaca::HttpHeaders headers{{"Retry-After", "60"}};
+
+    fake_client->push_response(alpaca::HttpResponse{429, alpaca::Json{{"message", "slow"}}.dump(), headers});
+    fake_client->push_response(alpaca::HttpResponse{200, account_json.dump(), {}});
+
+    alpaca::RestClient::Options options;
+    options.retry.initial_backoff = std::chrono::milliseconds{0};
+    options.retry.max_backoff = std::chrono::milliseconds{0};
+    options.retry.max_jitter = std::chrono::milliseconds{0};
+    options.retry.retry_after_max = std::chrono::milliseconds{0};
+
+    alpaca::RestClient client(config, fake_client, config.trading_base_url, options);
+
+    auto const start = std::chrono::steady_clock::now();
+    alpaca::Account account = client.get<alpaca::Account>("/v2/account");
+    auto const elapsed = std::chrono::steady_clock::now() - start;
+
+    EXPECT_EQ(account.id, "retry-after");
+    ASSERT_THAT(fake_client->requests(), SizeIs(2));
+    EXPECT_LT(elapsed, std::chrono::milliseconds{500});
+
+    ASSERT_THAT(fake_client->requests(), SizeIs(2));
+    auto const& first = fake_client->requests()[0];
+    auto const& second = fake_client->requests()[1];
+    EXPECT_LT(second.timestamp - first.timestamp, std::chrono::milliseconds{500});
 }
 
 TEST(RestClientTest, InvokesRequestInterceptors) {

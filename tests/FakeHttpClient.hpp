@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <deque>
 #include <utility>
 #include <vector>
@@ -8,6 +9,7 @@
 
 struct RecordedRequest {
     alpaca::HttpRequest request;
+    std::chrono::steady_clock::time_point timestamp;
 };
 
 struct FakeHttpResponse {
@@ -28,7 +30,7 @@ class FakeHttpClient : public alpaca::HttpClient {
     }
 
     alpaca::HttpResponse send(alpaca::HttpRequest const& request) override {
-        requests_.push_back(RecordedRequest{request});
+        requests_.push_back(RecordedRequest{request, std::chrono::steady_clock::now()});
         if (responses_.empty()) {
             return alpaca::HttpResponse{};
         }

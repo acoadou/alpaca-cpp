@@ -38,12 +38,17 @@ public:
         std::optional<std::chrono::system_clock::time_point> reset{};
     };
 
+    using RetryClassifier = std::function<bool(HttpMethod method, std::optional<long> status_code, std::size_t attempt)>;
+
     struct RetryOptions {
         std::size_t max_attempts{3};
         std::chrono::milliseconds initial_backoff{std::chrono::milliseconds{100}};
         double backoff_multiplier{2.0};
         std::chrono::milliseconds max_backoff{std::chrono::seconds{5}};
+        std::chrono::milliseconds max_jitter{std::chrono::milliseconds{250}};
+        std::chrono::milliseconds retry_after_max{std::chrono::seconds{30}};
         std::vector<long> retry_status_codes{429, 500, 502, 503, 504};
+        RetryClassifier retry_classifier{};
     };
 
     using PreRequestHook = std::function<void(HttpRequest&)>;
@@ -199,8 +204,11 @@ private:
     HttpResponse perform_request(HttpMethod method, std::string const& path, QueryParams const& params,
                                  std::optional<std::string> payload) const;
     void apply_authentication(HttpRequest& request) const;
-    [[nodiscard]] bool should_retry(long status_code, std::size_t attempt) const;
+    [[nodiscard]] bool should_retry(HttpMethod method, std::optional<long> status_code, std::size_t attempt) const;
     [[nodiscard]] std::chrono::milliseconds next_backoff(std::chrono::milliseconds current) const;
+    [[nodiscard]] std::chrono::milliseconds compute_retry_delay(std::optional<std::chrono::seconds> retry_after,
+                                                                std::chrono::milliseconds backoff) const;
+    [[nodiscard]] std::chrono::milliseconds apply_jitter(std::chrono::milliseconds base) const;
 
     template <typename T>
     std::future<T> request_json_async(HttpMethod method, std::string path, QueryParams params,
