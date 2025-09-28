@@ -470,6 +470,24 @@ int main() {
 }
 ```
 
+### Advanced order payloads
+
+`alpaca::TradingClient` forwards the complete advanced order payload to the REST
+API. Equity orders can opt into OCO/OTO/Bracket behaviour by setting
+`order_class` alongside nested `take_profit` / `stop_loss` instructions and can
+be funded via `notional` instead of a raw share quantity. When replacing an
+order the client also honours a custom `client_order_id`, making it possible to
+track the entire lifecycle using your own identifiers. The SDK does not perform
+any domain validation beyond serialising these fields, so combinations that the
+trading API rejects (for example, missing legs on bracket orders) still surface
+as HTTP errors.
+
+Crypto and OTC payloads expose the same routing switches as the REST API:
+`quote_symbol`, `venue`, and `reduce_only` are emitted whenever they are set on
+`NewCryptoOrderRequest`, `NewOtcOrderRequest`, or their replace equivalents. The
+library does not resolve venue names or infer when `reduce_only` is applicable;
+it simply serialises the values and leaves final validation to Alpaca.
+
 ### Selecting an equities market data plan
 
 The Market Data API exposes different equities feeds depending on your data plan.
