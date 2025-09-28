@@ -4,11 +4,12 @@
 #include <cctype>
 #include <iterator>
 #include <optional>
-#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
+
+#include "alpaca/Exceptions.hpp"
 
 namespace alpaca {
 
@@ -117,7 +118,7 @@ class HttpHeaders {
     [[nodiscard]] std::string const& at(std::string_view name) const {
         auto it = find(name);
         if (it == entries_.end()) {
-            throw std::out_of_range("header not found");
+            throw HeaderNotFoundException(std::string{name});
         }
         return it->second;
     }
@@ -125,7 +126,7 @@ class HttpHeaders {
     [[nodiscard]] std::string& at(std::string_view name) {
         auto it = find(name);
         if (it == entries_.end()) {
-            throw std::out_of_range("header not found");
+            throw HeaderNotFoundException(std::string{name});
         }
         return it->second;
     }

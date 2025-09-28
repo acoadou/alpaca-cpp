@@ -3,11 +3,11 @@
 #include <algorithm>
 #include <cctype>
 #include <optional>
-#include <stdexcept>
 #include <string_view>
 #include <type_traits>
 #include <utility>
 
+#include "alpaca/Exceptions.hpp"
 #include "alpaca/HttpClientFactory.hpp"
 
 namespace alpaca {
@@ -44,6 +44,13 @@ bool path_contains_segment(std::string const& path, std::string_view segment) {
         pos = path.find(needle, pos + 1);
     }
     return false;
+}
+
+[[noreturn]] void throw_empty_feed(std::string_view context) {
+    throw InvalidArgumentException("feed", "feed must not be empty", ErrorCode::InvalidArgument,
+                                   {
+                                       {"context", std::string(context)}
+    });
 }
 
 std::optional<MarketDataPlan> plan_hint_from_url(std::string const& url) {
@@ -120,12 +127,24 @@ MarketDataPlan resolve_market_data_plan(Configuration const& config) {
     switch (config.market_data_plan) {
     case MarketDataPlan::IEX:
         if (hint.has_value() && *hint == MarketDataPlan::SIP) {
-            throw std::invalid_argument("market_data_plan is set to IEX but configuration URLs reference the SIP feed");
+            throw InvalidArgumentException(
+            "market_data_plan", "market_data_plan is set to IEX but configuration URLs reference the SIP feed",
+            ErrorCode::MarketDataConfigurationError,
+            {
+                {"configured_plan", "IEX"},
+                {"detected_feed",   "SIP"}
+            });
         }
         return MarketDataPlan::IEX;
     case MarketDataPlan::SIP:
         if (hint.has_value() && *hint == MarketDataPlan::IEX) {
-            throw std::invalid_argument("market_data_plan is set to SIP but configuration URLs reference the IEX feed");
+            throw InvalidArgumentException(
+            "market_data_plan", "market_data_plan is set to SIP but configuration URLs reference the IEX feed",
+            ErrorCode::MarketDataConfigurationError,
+            {
+                {"configured_plan", "SIP"},
+                {"detected_feed",   "IEX"}
+            });
         }
         return MarketDataPlan::SIP;
     case MarketDataPlan::Auto:
@@ -151,9 +170,14 @@ Request prepare_stock_request(Request request, MarketDataPlan plan, std::string 
             if (request.feed.has_value()) {
                 auto normalized = to_lower_copy(*request.feed);
                 if (plan == MarketDataPlan::IEX && normalized == "sip") {
-                    throw std::invalid_argument(
-                    "SIP market data feed requires the SIP data plan. "
-                    "Update Configuration::market_data_plan to MarketDataPlan::SIP or adjust the request feed.");
+                    throw InvalidArgumentException(
+                    "feed",
+                    "SIP market data feed requires the SIP data plan. Update Configuration::market_data_plan to "
+                    "MarketDataPlan::SIP or adjust the request feed.",
+                    ErrorCode::MarketDataConfigurationError,
+                    {
+                        {"requested_feed", "sip"}
+                    });
                 }
                 request.feed = std::move(normalized);
             } else {
@@ -243,7 +267,7 @@ LatestOptionBars MarketDataClient::get_latest_option_bars(LatestOptionsRequest c
 LatestCryptoTrades MarketDataClient::get_latest_crypto_trades(std::string const& feed,
                                                               LatestCryptoRequest const& request) const {
     if (feed.empty()) {
-        throw std::invalid_argument("feed must not be empty");
+        throw_empty_feed("latest_crypto_trades");
     }
     return beta_client_.get<LatestCryptoTrades>("crypto/" + to_lower_copy(feed) + "/latest/trades",
                                                 request.to_query_params());
@@ -252,7 +276,7 @@ LatestCryptoTrades MarketDataClient::get_latest_crypto_trades(std::string const&
 LatestCryptoQuotes MarketDataClient::get_latest_crypto_quotes(std::string const& feed,
                                                               LatestCryptoRequest const& request) const {
     if (feed.empty()) {
-        throw std::invalid_argument("feed must not be empty");
+        throw_empty_feed("latest_crypto_quotes");
     }
     return beta_client_.get<LatestCryptoQuotes>("crypto/" + to_lower_copy(feed) + "/latest/quotes",
                                                 request.to_query_params());
@@ -261,7 +285,7 @@ LatestCryptoQuotes MarketDataClient::get_latest_crypto_quotes(std::string const&
 LatestCryptoBars MarketDataClient::get_latest_crypto_bars(std::string const& feed,
                                                           LatestCryptoRequest const& request) const {
     if (feed.empty()) {
-        throw std::invalid_argument("feed must not be empty");
+        throw_empty_feed("latest_crypto_bars");
     }
     return beta_client_.get<LatestCryptoBars>("crypto/" + to_lower_copy(feed) + "/latest/bars",
                                               request.to_query_params());
@@ -279,7 +303,7 @@ MultiOptionOrderbooks MarketDataClient::get_option_orderbooks(LatestOptionOrderb
 MultiCryptoOrderbooks MarketDataClient::get_crypto_orderbooks(std::string const& feed,
                                                               LatestCryptoOrderbooksRequest const& request) const {
     if (feed.empty()) {
-        throw std::invalid_argument("feed must not be empty");
+        throw_empty_feed("latest_crypto_orderbooks");
     }
     return beta_client_.get<MultiCryptoOrderbooks>("crypto/" + to_lower_copy(feed) + "/latest/orderbooks",
                                                    request.to_query_params());
@@ -313,7 +337,7 @@ MultiStockSnapshots MarketDataClient::get_stock_snapshots(MultiStockSnapshotsReq
 CryptoSnapshot MarketDataClient::get_crypto_snapshot(std::string const& feed, std::string const& symbol,
                                                      CryptoSnapshotRequest const& request) const {
     if (feed.empty()) {
-        throw std::invalid_argument("feed must not be empty");
+        throw_empty_feed("crypto_snapshot");
     }
     return beta_v3_client_.get<CryptoSnapshot>("crypto/" + to_lower_copy(feed) + "/snapshots/" + symbol,
                                                request.to_query_params());
@@ -322,7 +346,7 @@ CryptoSnapshot MarketDataClient::get_crypto_snapshot(std::string const& feed, st
 MultiCryptoSnapshots MarketDataClient::get_crypto_snapshots(std::string const& feed,
                                                             MultiCryptoSnapshotsRequest const& request) const {
     if (feed.empty()) {
-        throw std::invalid_argument("feed must not be empty");
+        throw_empty_feed("multi_crypto_snapshots");
     }
     return beta_v3_client_.get<MultiCryptoSnapshots>("crypto/" + to_lower_copy(feed) + "/snapshots",
                                                      request.to_query_params());
@@ -499,7 +523,10 @@ MarketDataClient::get_latest_crypto_orderbook(std::string const& feed,
 
 ListExchangesResponse MarketDataClient::list_exchanges(ListExchangesRequest const& request) const {
     if (request.asset_class.empty()) {
-        throw std::invalid_argument("asset_class must not be empty");
+        throw InvalidArgumentException("asset_class", "asset_class must not be empty", ErrorCode::InvalidArgument,
+                                       {
+                                           {"context", "list_exchanges"}
+        });
     }
     return v2_client_.get<ListExchangesResponse>("meta/exchanges/" + to_lower_copy(request.asset_class),
                                                  request.to_query_params());
@@ -507,10 +534,16 @@ ListExchangesResponse MarketDataClient::list_exchanges(ListExchangesRequest cons
 
 ListTradeConditionsResponse MarketDataClient::list_trade_conditions(ListTradeConditionsRequest const& request) const {
     if (request.asset_class.empty()) {
-        throw std::invalid_argument("asset_class must not be empty");
+        throw InvalidArgumentException("asset_class", "asset_class must not be empty", ErrorCode::InvalidArgument,
+                                       {
+                                           {"context", "list_trade_conditions"}
+        });
     }
     if (request.condition_type.empty()) {
-        throw std::invalid_argument("condition_type must not be empty");
+        throw InvalidArgumentException("condition_type", "condition_type must not be empty", ErrorCode::InvalidArgument,
+                                       {
+                                           {"context", "list_trade_conditions"}
+        });
     }
     std::string asset_class = to_lower_copy(request.asset_class);
     std::string condition_type = to_lower_copy(request.condition_type);
@@ -520,7 +553,10 @@ ListTradeConditionsResponse MarketDataClient::list_trade_conditions(ListTradeCon
 
 MarketMoversResponse MarketDataClient::get_top_market_movers(MarketMoversRequest const& request) const {
     if (request.market_type.empty()) {
-        throw std::invalid_argument("market_type must not be empty");
+        throw InvalidArgumentException("market_type", "market_type must not be empty", ErrorCode::InvalidArgument,
+                                       {
+                                           {"context", "get_top_market_movers"}
+        });
     }
     std::string market_type = to_lower_copy(request.market_type);
     return beta_client_.get<MarketMoversResponse>("screener/" + market_type + "/movers", request.to_query_params());

@@ -5,8 +5,8 @@
 #include <ctime>
 #include <iomanip>
 #include <sstream>
-#include <stdexcept>
 
+#include "alpaca/Exceptions.hpp"
 namespace alpaca {
 namespace {
 std::string to_lower(std::string value) {
@@ -60,15 +60,22 @@ std::string format_fractional_microseconds(std::chrono::microseconds fractional)
     return formatted;
 }
 
+[[noreturn]] void throw_timestamp_error(char const *message, std::string_view stage) {
+    throw InvalidArgumentException("timestamp", message, ErrorCode::InvalidArgument,
+                                   {
+                                       {"stage", std::string(stage)}
+    });
+}
+
 int parse_number(std::string_view value, std::size_t& pos, std::size_t count, char const *error_message) {
     if (pos + count > value.size()) {
-        throw std::invalid_argument(error_message);
+        throw_timestamp_error(error_message, "parse_number");
     }
     int result = 0;
     for (std::size_t i = 0; i < count; ++i) {
         char const ch = value[pos + i];
         if (!std::isdigit(static_cast<unsigned char>(ch))) {
-            throw std::invalid_argument(error_message);
+            throw_timestamp_error(error_message, "parse_number");
         }
         result = result * 10 + (ch - '0');
     }
@@ -78,7 +85,7 @@ int parse_number(std::string_view value, std::size_t& pos, std::size_t count, ch
 
 void expect_char(std::string_view value, std::size_t& pos, char expected, char const *error_message) {
     if (pos >= value.size() || value[pos] != expected) {
-        throw std::invalid_argument(error_message);
+        throw_timestamp_error(error_message, "expect_char");
     }
     ++pos;
 }
@@ -92,7 +99,7 @@ std::chrono::sys_days parse_date(std::string_view value, std::size_t& pos) {
     std::chrono::year_month_day ymd{std::chrono::year{year} / std::chrono::month{static_cast<unsigned>(month)} /
                                     std::chrono::day{static_cast<unsigned>(day)}};
     if (!ymd.ok()) {
-        throw std::invalid_argument("Invalid calendar date in timestamp");
+        throw_timestamp_error("Invalid calendar date in timestamp", "parse_date");
     }
     return std::chrono::sys_days{ymd};
 }
@@ -120,14 +127,14 @@ std::chrono::nanoseconds parse_fraction(std::string_view value, std::size_t& pos
 
 std::chrono::seconds parse_timezone(std::string_view value, std::size_t& pos) {
     if (pos >= value.size()) {
-        throw std::invalid_argument("Missing timezone specifier in timestamp");
+        throw_timestamp_error("Missing timezone specifier in timestamp", "parse_timezone");
     }
     char const indicator = value[pos++];
     if (indicator == 'Z' || indicator == 'z') {
         return std::chrono::seconds{0};
     }
     if (indicator != '+' && indicator != '-') {
-        throw std::invalid_argument("Invalid timezone specifier in timestamp");
+        throw_timestamp_error("Invalid timezone specifier in timestamp", "parse_timezone");
     }
     int const sign = indicator == '+' ? 1 : -1;
     int const hours = parse_number(value, pos, 2, "Invalid timezone hour in timestamp");
@@ -156,7 +163,11 @@ std::string to_string(OrderType type) {
     case OrderType::TRAILING_STOP:
         return "trailing_stop";
     }
-    throw std::invalid_argument("Unknown OrderType");
+    throw InvalidArgumentException("order_type", "Unknown OrderType", ErrorCode::InvalidArgument,
+                                   {
+                                       {"context", "to_string"                           },
+                                       {"value",   std::to_string(static_cast<int>(type))}
+    });
 }
 
 std::string to_string(TimeInForce tif) {
@@ -174,7 +185,11 @@ std::string to_string(TimeInForce tif) {
     case TimeInForce::GTD:
         return "gtd";
     }
-    throw std::invalid_argument("Unknown TimeInForce");
+    throw InvalidArgumentException("time_in_force", "Unknown TimeInForce", ErrorCode::InvalidArgument,
+                                   {
+                                       {"context", "to_string"                          },
+                                       {"value",   std::to_string(static_cast<int>(tif))}
+    });
 }
 
 std::string to_string(OrderClass order_class) {
@@ -188,7 +203,12 @@ std::string to_string(OrderClass order_class) {
     case OrderClass::ONE_TRIGGERS_OTHER:
         return "oto";
     }
-    throw std::invalid_argument("Unknown OrderClass");
+    throw InvalidArgumentException(
+    "order_class", "Unknown OrderClass", ErrorCode::InvalidArgument,
+    {
+        {"context", "to_string"                                  },
+        {"value",   std::to_string(static_cast<int>(order_class))}
+    });
 }
 
 std::string to_string(AssetStatus status) {
@@ -208,7 +228,12 @@ std::string to_string(AssetClass asset_class) {
     case AssetClass::OPTION:
         return "option";
     }
-    throw std::invalid_argument("Unknown AssetClass");
+    throw InvalidArgumentException(
+    "asset_class", "Unknown AssetClass", ErrorCode::InvalidArgument,
+    {
+        {"context", "to_string"                                  },
+        {"value",   std::to_string(static_cast<int>(asset_class))}
+    });
 }
 
 std::string to_string(SortDirection direction) {
@@ -218,7 +243,12 @@ std::string to_string(SortDirection direction) {
     case SortDirection::DESC:
         return "desc";
     }
-    throw std::invalid_argument("Unknown SortDirection");
+    throw InvalidArgumentException(
+    "sort_direction", "Unknown SortDirection", ErrorCode::InvalidArgument,
+    {
+        {"context", "to_string"                                },
+        {"value",   std::to_string(static_cast<int>(direction))}
+    });
 }
 
 OrderSide order_side_from_string(std::string const& value) {
@@ -229,7 +259,11 @@ OrderSide order_side_from_string(std::string const& value) {
     if (lower == "sell") {
         return OrderSide::SELL;
     }
-    throw std::invalid_argument("Unknown order side: " + value);
+    throw InvalidArgumentException("order_side", "Unknown order side: " + value, ErrorCode::InvalidArgument,
+                                   {
+                                       {"value",   value                   },
+                                       {"context", "order_side_from_string"}
+    });
 }
 
 OrderType order_type_from_string(std::string const& value) {
@@ -249,7 +283,11 @@ OrderType order_type_from_string(std::string const& value) {
     if (lower == "trailing_stop") {
         return OrderType::TRAILING_STOP;
     }
-    throw std::invalid_argument("Unknown order type: " + value);
+    throw InvalidArgumentException("order_type", "Unknown order type: " + value, ErrorCode::InvalidArgument,
+                                   {
+                                       {"value",   value                   },
+                                       {"context", "order_type_from_string"}
+    });
 }
 
 TimeInForce time_in_force_from_string(std::string const& value) {
@@ -272,7 +310,11 @@ TimeInForce time_in_force_from_string(std::string const& value) {
     if (lower == "gtd") {
         return TimeInForce::GTD;
     }
-    throw std::invalid_argument("Unknown time in force: " + value);
+    throw InvalidArgumentException("time_in_force", "Unknown time in force: " + value, ErrorCode::InvalidArgument,
+                                   {
+                                       {"value",   value                      },
+                                       {"context", "time_in_force_from_string"}
+    });
 }
 
 OrderClass order_class_from_string(std::string const& value) {
@@ -289,7 +331,11 @@ OrderClass order_class_from_string(std::string const& value) {
     if (lower == "oto") {
         return OrderClass::ONE_TRIGGERS_OTHER;
     }
-    throw std::invalid_argument("Unknown order class: " + value);
+    throw InvalidArgumentException("order_class", "Unknown order class: " + value, ErrorCode::InvalidArgument,
+                                   {
+                                       {"value",   value                    },
+                                       {"context", "order_class_from_string"}
+    });
 }
 
 AssetStatus asset_status_from_string(std::string const& value) {
@@ -300,7 +346,11 @@ AssetStatus asset_status_from_string(std::string const& value) {
     if (lower == "inactive") {
         return AssetStatus::INACTIVE;
     }
-    throw std::invalid_argument("Unknown asset status: " + value);
+    throw InvalidArgumentException("asset_status", "Unknown asset status: " + value, ErrorCode::InvalidArgument,
+                                   {
+                                       {"value",   value                     },
+                                       {"context", "asset_status_from_string"}
+    });
 }
 
 AssetClass asset_class_from_string(std::string const& value) {
@@ -320,7 +370,11 @@ AssetClass asset_class_from_string(std::string const& value) {
     if (lower == "option") {
         return AssetClass::OPTION;
     }
-    throw std::invalid_argument("Unknown asset class: " + value);
+    throw InvalidArgumentException("asset_class", "Unknown asset class: " + value, ErrorCode::InvalidArgument,
+                                   {
+                                       {"value",   value                    },
+                                       {"context", "asset_class_from_string"}
+    });
 }
 
 SortDirection sort_direction_from_string(std::string const& value) {
@@ -331,7 +385,11 @@ SortDirection sort_direction_from_string(std::string const& value) {
     if (lower == "desc") {
         return SortDirection::DESC;
     }
-    throw std::invalid_argument("Unknown sort direction: " + value);
+    throw InvalidArgumentException("sort_direction", "Unknown sort direction: " + value, ErrorCode::InvalidArgument,
+                                   {
+                                       {"value",   value                       },
+                                       {"context", "sort_direction_from_string"}
+    });
 }
 
 void to_json(Json& j, PageToken const& token) {
@@ -369,20 +427,20 @@ void from_json(Json const& j, CancelledOrderId& id) {
 
 Timestamp parse_timestamp(std::string_view value) {
     if (value.empty()) {
-        throw std::invalid_argument("Unable to parse timestamp: empty");
+        throw_timestamp_error("Unable to parse timestamp: empty", "parse_timestamp");
     }
 
     std::size_t pos = 0;
     auto const date = parse_date(value, pos);
     if (!has_time_portion(value)) {
         if (pos != value.size()) {
-            throw std::invalid_argument("Unexpected trailing characters in timestamp");
+            throw_timestamp_error("Unexpected trailing characters in timestamp", "parse_timestamp_date_only");
         }
         return Timestamp{std::chrono::duration_cast<Timestamp::duration>(date.time_since_epoch())};
     }
 
     if (pos >= value.size() || (value[pos] != 'T' && value[pos] != 't' && value[pos] != ' ')) {
-        throw std::invalid_argument("Expected 'T' separator in timestamp");
+        throw_timestamp_error("Expected 'T' separator in timestamp", "parse_timestamp_separator");
     }
     ++pos;
     int const hour = parse_number(value, pos, 2, "Invalid hour in timestamp");
@@ -393,7 +451,7 @@ Timestamp parse_timestamp(std::string_view value) {
     auto const fractional = parse_fraction(value, pos);
     auto const offset = parse_timezone(value, pos);
     if (pos != value.size()) {
-        throw std::invalid_argument("Unexpected trailing characters in timestamp");
+        throw_timestamp_error("Unexpected trailing characters in timestamp", "parse_timestamp_trailing");
     }
 
     auto time_of_day =

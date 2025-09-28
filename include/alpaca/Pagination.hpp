@@ -8,31 +8,30 @@
 #include <utility>
 #include <vector>
 
-#include "alpaca/ApiException.hpp"
+#include "alpaca/Exceptions.hpp"
 
 namespace alpaca {
 
 /// Single-pass range adaptor that iterates over paginated Alpaca endpoints while handling
 /// rate limiting via Retry-After headers.
 template <typename Request, typename Page, typename Value> class PaginatedVectorRange {
-  public:
+public:
     using FetchPage = std::function<Page(Request const&)>;
-    using Extractor = std::function<std::vector<Value> const&(Page const&)>;
+    using Extractor = std::function<std::vector<Value> const& (Page const&)>;
     using CursorAccessor = std::function<std::optional<std::string>(Page const&)>;
     using CursorMutator = std::function<void(Request&, std::optional<std::string> const&)>;
 
     PaginatedVectorRange(Request request, FetchPage fetch_page, Extractor extractor, CursorAccessor get_cursor,
                          CursorMutator set_cursor)
-      : request_(std::move(request)), fetch_(std::move(fetch_page)), extractor_(std::move(extractor)),
-        cursor_getter_(std::move(get_cursor)), cursor_setter_(std::move(set_cursor)) {
-    }
+        : request_(std::move(request)), fetch_(std::move(fetch_page)), extractor_(std::move(extractor)),
+        cursor_getter_(std::move(get_cursor)), cursor_setter_(std::move(set_cursor)) {}
 
     class iterator {
-      public:
+    public:
         using iterator_category = std::input_iterator_tag;
         using value_type = Value;
         using difference_type = std::ptrdiff_t;
-        using pointer = Value const *;
+        using pointer = Value const*;
         using reference = Value const&;
 
         iterator() = default;
@@ -67,13 +66,12 @@ template <typename Request, typename Page, typename Value> class PaginatedVector
             return !(lhs == rhs);
         }
 
-      private:
+    private:
         friend class PaginatedVectorRange;
 
-        iterator(PaginatedVectorRange *range, bool end) : range_(range), end_(end) {
-        }
+        iterator(PaginatedVectorRange* range, bool end) : range_(range), end_(end) {}
 
-        PaginatedVectorRange *range_{nullptr};
+        PaginatedVectorRange* range_{nullptr};
         bool end_{true};
     };
 
@@ -94,7 +92,7 @@ template <typename Request, typename Page, typename Value> class PaginatedVector
         return request_;
     }
 
-  private:
+private:
     void ensure_started() {
         if (!started_) {
             fetch_page();
@@ -121,7 +119,7 @@ template <typename Request, typename Page, typename Value> class PaginatedVector
         while (true) {
             try {
                 current_page_ = fetch_(request_);
-            } catch (ApiException const& ex) {
+            } catch (Exception const& ex) {
                 if (auto retry = ex.retry_after()) {
                     std::this_thread::sleep_for(*retry);
                     continue;
@@ -164,7 +162,7 @@ template <typename Request, typename Page, typename Value> class PaginatedVector
     CursorMutator cursor_setter_;
 
     std::optional<Page> current_page_{};
-    std::vector<Value> const *current_items_{nullptr};
+    std::vector<Value> const* current_items_{nullptr};
     std::size_t index_{0};
     bool finished_{false};
     bool started_{false};

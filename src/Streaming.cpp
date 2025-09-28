@@ -9,12 +9,12 @@
 #include <future>
 #include <limits>
 #include <random>
-#include <stdexcept>
 #include <thread>
 #include <utility>
 #include <vector>
 
 #include "alpaca/BackfillCoordinator.hpp"
+#include "alpaca/Exceptions.hpp"
 #include "alpaca/models/Account.hpp"
 #include "alpaca/models/Common.hpp"
 
@@ -989,7 +989,7 @@ void WebSocketClient::send_raw(Json const& message) {
             if (error_handler_) {
                 error_handler_("websocket send queue limit reached; rejecting message");
             }
-            throw std::runtime_error("websocket send queue limit reached");
+            throw WebSocketQueueLimitException(pending_message_limit_);
         }
         pending_messages_.push_back(message);
         if (test_hooks_.on_send_raw) {
@@ -1045,7 +1045,8 @@ void WebSocketClient::set_reconnect_policy(ReconnectPolicy policy) {
 
 void WebSocketClient::set_ping_interval(std::chrono::seconds interval) {
     if (interval.count() <= 0) {
-        throw std::invalid_argument("ping interval must be positive");
+        throw InvalidArgumentException("ping_interval", "ping interval must be positive",
+                                       ErrorCode::InvalidPingInterval);
     }
     ping_interval_ = interval;
     socket_.setPingInterval(static_cast<uint32_t>(ping_interval_.count()));
@@ -1109,7 +1110,8 @@ void WebSocketClient::clear_latency_monitor() {
 
 void WebSocketClient::enable_automatic_backfill(std::shared_ptr<BackfillCoordinator> coordinator) {
     if (!coordinator) {
-        throw std::invalid_argument("backfill coordinator must not be null");
+        throw InvalidArgumentException("backfill_coordinator", "backfill coordinator must not be null",
+                                       ErrorCode::NullBackfillCoordinator);
     }
 
     std::lock_guard<std::mutex> lock(sequence_mutex_);

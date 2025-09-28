@@ -11,8 +11,8 @@
 #include <utility>
 #include <vector>
 
-#include "alpaca/ApiException.hpp"
 #include "alpaca/Configuration.hpp"
+#include "alpaca/Exceptions.hpp"
 #include "alpaca/HttpClient.hpp"
 #include "alpaca/Json.hpp"
 namespace alpaca {
@@ -30,7 +30,7 @@ template <typename T> inline constexpr bool is_optional_v = is_optional<T>::valu
 
 /// Lightweight REST client responsible for communicating with Alpaca endpoints.
 class RestClient {
-  public:
+public:
     struct RateLimitStatus {
         std::optional<long> limit{};
         std::optional<long> remaining{};
@@ -182,7 +182,7 @@ class RestClient {
         return request_raw_async(HttpMethod::PATCH, std::move(path), std::move(params), payload.dump());
     }
 
-  private:
+private:
     Configuration config_;
     HttpClientPtr http_client_;
     std::string base_url_;
@@ -206,7 +206,7 @@ class RestClient {
     std::future<T> request_json_async(HttpMethod method, std::string path, QueryParams params,
                                       std::optional<std::string> payload) const {
         return std::async(std::launch::async, [this, method, path = std::move(path), params = std::move(params),
-                                               payload = std::move(payload)]() mutable {
+                          payload = std::move(payload)]() mutable {
             return this->request_json<T>(method, path, params, std::move(payload));
         });
     }
@@ -214,7 +214,7 @@ class RestClient {
     std::future<std::optional<std::string>> request_raw_async(HttpMethod method, std::string path, QueryParams params,
                                                               std::optional<std::string> payload) const {
         return std::async(std::launch::async, [this, method, path = std::move(path), params = std::move(params),
-                                               payload = std::move(payload)]() mutable {
+                          payload = std::move(payload)]() mutable {
             return this->request_raw(method, path, params, std::move(payload));
         });
     }
@@ -234,10 +234,10 @@ class RestClient {
             } else if constexpr (std::is_default_constructible_v<T>) {
                 return T{};
             } else {
-                throw ApiException(204,
-                                   "Empty response body cannot be deserialized "
-                                   "into requested type",
-                                   std::string{}, {});
+                throw Exception(204,
+                                "Empty response body cannot be deserialized "
+                                "into requested type",
+                                std::string{}, {});
             }
         }
 

@@ -2,9 +2,10 @@
 
 #include <algorithm>
 #include <cctype>
-#include <stdexcept>
+#include <optional>
 #include <type_traits>
 
+#include "alpaca/Exceptions.hpp"
 namespace alpaca {
 
 namespace {
@@ -19,6 +20,9 @@ template <typename Duration> [[nodiscard]] constexpr int to_int(Duration duratio
     return static_cast<int>(duration.count());
 }
 
+[[noreturn]] void throw_timeframe_error(std::string message, std::string_view context,
+                                        std::optional<std::string> value = std::nullopt);
+
 TimeFrame parse_timeframe(int amount, std::string const& normalized_unit, std::string const& original) {
     if (normalized_unit == "min" || normalized_unit == "minute") {
         return TimeFrame::minute(amount);
@@ -28,21 +32,35 @@ TimeFrame parse_timeframe(int amount, std::string const& normalized_unit, std::s
     }
     if (normalized_unit == "day") {
         if (amount != 1) {
-            throw std::invalid_argument("Day and Week units can only be used with amount 1.");
+            throw_timeframe_error("Day and Week units can only be used with amount 1.", "parse_timeframe", original);
         }
         return TimeFrame::day();
     }
     if (normalized_unit == "week") {
         if (amount != 1) {
-            throw std::invalid_argument("Day and Week units can only be used with amount 1.");
+            throw_timeframe_error("Day and Week units can only be used with amount 1.", "parse_timeframe", original);
         }
         return TimeFrame::week();
     }
     if (normalized_unit == "month") {
+        if (amount != 1 && amount != 2 && amount != 3 && amount != 6 && amount != 12) {
+            throw_timeframe_error("Month units can only be used with amount 1, 2, 3, 6 and 12.", "parse_timeframe",
+                                  original);
+        }
         return TimeFrame::month(amount);
     }
+    throw_timeframe_error("Unknown timeframe string: " + original, "parse_timeframe", original);
+}
 
-    throw std::invalid_argument("Unknown timeframe string: " + original);
+[[noreturn]] void throw_timeframe_error(std::string message, std::string_view context,
+                                        std::optional<std::string> value) {
+    InvalidArgumentException::Metadata metadata{
+        {"context", std::string(context)}
+    };
+    if (value.has_value()) {
+        metadata.emplace("value", *value);
+    }
+    throw InvalidArgumentException("timeframe", std::move(message), ErrorCode::InvalidArgument, std::move(metadata));
 }
 
 } // namespace
@@ -102,21 +120,25 @@ void TimeFrame::validate(DurationVariant const& duration) {
 
         auto const count = value.count();
         if (count <= 0) {
-            throw std::invalid_argument("TimeFrame amount must be a positive integer value.");
+            throw_timeframe_error("TimeFrame amount must be a positive integer value.", "validate",
+                                  std::to_string(count));
         }
 
         if constexpr (std::is_same_v<Duration, std::chrono::minutes>) {
             if (count > 59) {
-                throw std::invalid_argument("Minute units can only be used with amounts between 1-59.");
+                throw_timeframe_error("Minute units can only be used with amounts between 1-59.", "validate",
+                                      std::to_string(count));
             }
         } else if constexpr (std::is_same_v<Duration, std::chrono::hours>) {
             if (count > 23) {
-                throw std::invalid_argument("Hour units can only be used with amounts 1-23.");
+                throw_timeframe_error("Hour units can only be used with amounts 1-23.", "validate",
+                                      std::to_string(count));
             }
         } else if constexpr (std::is_same_v<Duration, std::chrono::days> ||
                              std::is_same_v<Duration, std::chrono::weeks>) {
             if (count != 1) {
-                throw std::invalid_argument("Day and Week units can only be used with amount 1.");
+                throw_timeframe_error("Day and Week units can only be used with amount 1.", "validate",
+                                      std::to_string(count));
             }
         } else if constexpr (std::is_same_v<Duration, std::chrono::months>) {
             switch (count) {
@@ -127,7 +149,8 @@ void TimeFrame::validate(DurationVariant const& duration) {
             case 12:
                 break;
             default:
-                throw std::invalid_argument("Month units can only be used with amount 1, 2, 3, 6 and 12.");
+                throw_timeframe_error("Month units can only be used with amount 1, 2, 3, 6 and 12.", "validate",
+                                      std::to_string(count));
             }
         }
     },
@@ -759,7 +782,10 @@ void append_limit(QueryParams& params, std::optional<int> const& limit) {
         return;
     }
     if (*limit <= 0) {
-        throw std::invalid_argument("limit must be positive");
+        throw InvalidArgumentException("limit", "limit must be positive", ErrorCode::InvalidArgument,
+                                       {
+                                           {"context", "append_limit"}
+        });
     }
     params.emplace_back("limit", std::to_string(*limit));
 }
@@ -849,14 +875,14 @@ std::string to_string(TimeFrame const& timeframe) {
         } else if constexpr (std::is_same_v<Duration, std::chrono::months>) {
             return std::to_string(amount) + "Month";
         }
-        throw std::invalid_argument("Unknown timeframe unit");
+        throw_timeframe_error("Unknown timeframe unit", "to_string");
     },
     duration);
 }
 
 TimeFrame time_frame_from_string(std::string const& value) {
     if (value.empty()) {
-        throw std::invalid_argument("Unknown timeframe string: " + value);
+        throw_timeframe_error("Unknown timeframe string: " + value, "time_frame_from_string", value);
     }
 
     auto is_space = [](char c) {
@@ -869,7 +895,7 @@ TimeFrame time_frame_from_string(std::string const& value) {
     auto first = std::find_if_not(value.begin(), value.end(), is_space);
     auto last = std::find_if_not(value.rbegin(), value.rend(), is_space).base();
     if (first >= last) {
-        throw std::invalid_argument("Unknown timeframe string: " + value);
+        throw_timeframe_error("Unknown timeframe string: " + value, "time_frame_from_string", value);
     }
 
     std::string trimmed(first, last);
@@ -879,7 +905,7 @@ TimeFrame time_frame_from_string(std::string const& value) {
     }
 
     if (pos == 0) {
-        throw std::invalid_argument("Unknown timeframe string: " + value);
+        throw_timeframe_error("Unknown timeframe string: " + value, "time_frame_from_string", value);
     }
 
     int amount = std::stoi(trimmed.substr(0, pos));
@@ -919,7 +945,10 @@ QueryParams NewsRequest::to_query_params() const {
     append_timestamp(params, "start", start);
     append_timestamp(params, "end", end);
     if (start.has_value() && end.has_value() && *start > *end) {
-        throw std::invalid_argument("news request start must be <= end");
+        throw InvalidArgumentException("start", "news request start must be <= end", ErrorCode::InvalidArgument,
+                                       {
+                                           {"context", "NewsRequest::to_query_params"}
+        });
     }
     append_limit(params, limit);
     append_sort(params, sort);
@@ -941,7 +970,10 @@ QueryParams HistoricalAuctionsRequest::to_query_params() const {
     append_timestamp(params, "start", start);
     append_timestamp(params, "end", end);
     if (start.has_value() && end.has_value() && *start > *end) {
-        throw std::invalid_argument("historical auctions start must be <= end");
+        throw InvalidArgumentException("start", "historical auctions start must be <= end", ErrorCode::InvalidArgument,
+                                       {
+                                           {"context", "HistoricalAuctionsRequest::to_query_params"}
+        });
     }
     append_limit(params, limit);
     append_sort(params, sort);
@@ -958,7 +990,10 @@ QueryParams CorporateActionAnnouncementsRequest::to_query_params() const {
     append_timestamp(params, "since", since);
     append_timestamp(params, "until", until);
     if (since.has_value() && until.has_value() && *since > *until) {
-        throw std::invalid_argument("announcements since must be <= until");
+        throw InvalidArgumentException("since", "announcements since must be <= until", ErrorCode::InvalidArgument,
+                                       {
+                                           {"context", "CorporateActionAnnouncementsRequest::to_query_params"}
+        });
     }
     append_limit(params, limit);
     append_sort(params, sort);
@@ -975,7 +1010,10 @@ QueryParams CorporateActionEventsRequest::to_query_params() const {
     append_timestamp(params, "since", since);
     append_timestamp(params, "until", until);
     if (since.has_value() && until.has_value() && *since > *until) {
-        throw std::invalid_argument("events since must be <= until");
+        throw InvalidArgumentException("since", "events since must be <= until", ErrorCode::InvalidArgument,
+                                       {
+                                           {"context", "CorporateActionEventsRequest::to_query_params"}
+        });
     }
     append_limit(params, limit);
     append_sort(params, sort);
@@ -988,7 +1026,10 @@ QueryParams CorporateActionEventsRequest::to_query_params() const {
 namespace {
 void validate_symbols(std::vector<std::string> const& symbols) {
     if (symbols.empty()) {
-        throw std::invalid_argument("at least one symbol must be provided");
+        throw InvalidArgumentException("symbols", "at least one symbol must be provided", ErrorCode::InvalidArgument,
+                                       {
+                                           {"context", "validate_symbols"}
+        });
     }
 }
 } // namespace
@@ -1003,7 +1044,10 @@ QueryParams MultiBarsRequest::to_query_params() const {
     append_timestamp(params, "start", start);
     append_timestamp(params, "end", end);
     if (start.has_value() && end.has_value() && *start > *end) {
-        throw std::invalid_argument("bars start must be <= end");
+        throw InvalidArgumentException("start", "bars start must be <= end", ErrorCode::InvalidArgument,
+                                       {
+                                           {"context", "MultiBarsRequest::to_query_params"}
+        });
     }
     append_limit(params, limit);
     append_sort(params, sort);
@@ -1027,7 +1071,10 @@ QueryParams MultiQuotesRequest::to_query_params() const {
     append_timestamp(params, "start", start);
     append_timestamp(params, "end", end);
     if (start.has_value() && end.has_value() && *start > *end) {
-        throw std::invalid_argument("quotes start must be <= end");
+        throw InvalidArgumentException("start", "quotes start must be <= end", ErrorCode::InvalidArgument,
+                                       {
+                                           {"context", "MultiQuotesRequest::to_query_params"}
+        });
     }
     append_limit(params, limit);
     append_sort(params, sort);
@@ -1047,7 +1094,10 @@ QueryParams MultiTradesRequest::to_query_params() const {
     append_timestamp(params, "start", start);
     append_timestamp(params, "end", end);
     if (start.has_value() && end.has_value() && *start > *end) {
-        throw std::invalid_argument("trades start must be <= end");
+        throw InvalidArgumentException("start", "trades start must be <= end", ErrorCode::InvalidArgument,
+                                       {
+                                           {"context", "MultiTradesRequest::to_query_params"}
+        });
     }
     append_limit(params, limit);
     append_sort(params, sort);
@@ -1262,7 +1312,10 @@ QueryParams MarketMoversRequest::to_query_params() const {
     QueryParams params;
     if (top.has_value()) {
         if (*top <= 0) {
-            throw std::invalid_argument("top must be positive");
+            throw InvalidArgumentException("top", "top must be positive", ErrorCode::InvalidArgument,
+                                           {
+                                               {"context", "MarketMoversRequest::to_query_params"}
+            });
         }
         params.emplace_back("top", std::to_string(*top));
     }
@@ -1272,12 +1325,18 @@ QueryParams MarketMoversRequest::to_query_params() const {
 QueryParams MostActiveStocksRequest::to_query_params() const {
     QueryParams params;
     if (by.empty()) {
-        throw std::invalid_argument("by must not be empty");
+        throw InvalidArgumentException("by", "by must not be empty", ErrorCode::InvalidArgument,
+                                       {
+                                           {"context", "MostActiveStocksRequest::to_query_params"}
+        });
     }
     params.emplace_back("by", by);
     if (top.has_value()) {
         if (*top <= 0) {
-            throw std::invalid_argument("top must be positive");
+            throw InvalidArgumentException("top", "top must be positive", ErrorCode::InvalidArgument,
+                                           {
+                                               {"context", "MostActiveStocksRequest::to_query_params"}
+            });
         }
         params.emplace_back("top", std::to_string(*top));
     }

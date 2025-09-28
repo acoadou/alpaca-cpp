@@ -4,15 +4,16 @@
 #include <array>
 #include <cctype>
 #include <iomanip>
+#include <optional>
 #include <random>
 #include <span>
 #include <sstream>
-#include <stdexcept>
 #include <string_view>
 
 #include <openssl/sha.h>
 
-#include "alpaca/ApiException.hpp"
+#include "alpaca/Exceptions.hpp"
+#include "alpaca/Exceptions.hpp"
 #include "alpaca/Json.hpp"
 
 namespace alpaca {
@@ -46,8 +47,8 @@ std::string base64_url_encode(std::span<unsigned char const> data) {
     std::size_t i = 0;
     while (i + 3 <= data.size()) {
         unsigned int const chunk = (static_cast<unsigned int>(data[i]) << 16) |
-                                   (static_cast<unsigned int>(data[i + 1]) << 8) |
-                                   static_cast<unsigned int>(data[i + 2]);
+            (static_cast<unsigned int>(data[i + 1]) << 8) |
+            static_cast<unsigned int>(data[i + 2]);
         encoded.push_back(table[(chunk >> 18) & 0x3F]);
         encoded.push_back(table[(chunk >> 12) & 0x3F]);
         encoded.push_back(table[(chunk >> 6) & 0x3F]);
@@ -88,7 +89,7 @@ Json parse_body(std::string const& body) {
     try {
         return Json::parse(body);
     } catch (Json::parse_error const&) {
-        throw ApiException(500, "Unable to parse OAuth token response", body, {});
+        throw Exception(500, "Unable to parse OAuth token response", body, {});
     }
 }
 
@@ -107,7 +108,7 @@ PkcePair GeneratePkcePair(std::size_t verifier_length) {
     }
 
     std::array<unsigned char, SHA256_DIGEST_LENGTH> digest{};
-    SHA256(reinterpret_cast<unsigned char const *>(verifier.data()), verifier.size(), digest.data());
+    SHA256(reinterpret_cast<unsigned char const*>(verifier.data()), verifier.size(), digest.data());
     std::string challenge = base64_url_encode(std::span<unsigned char const>{digest.data(), digest.size()});
 
     return PkcePair{std::move(verifier), std::move(challenge)};
@@ -115,16 +116,19 @@ PkcePair GeneratePkcePair(std::size_t verifier_length) {
 
 std::string BuildAuthorizationUrl(AuthorizationUrlRequest const& request) {
     if (request.authorize_endpoint.empty()) {
-        throw std::invalid_argument("authorize_endpoint must not be empty");
+        throw InvalidArgumentException("authorize_endpoint", "authorize_endpoint must not be empty",
+                                       ErrorCode::OAuthConfigurationError);
     }
     if (request.client_id.empty()) {
-        throw std::invalid_argument("client_id must not be empty");
+        throw InvalidArgumentException("client_id", "client_id must not be empty", ErrorCode::OAuthConfigurationError);
     }
     if (request.redirect_uri.empty()) {
-        throw std::invalid_argument("redirect_uri must not be empty");
+        throw InvalidArgumentException("redirect_uri", "redirect_uri must not be empty",
+                                       ErrorCode::OAuthConfigurationError);
     }
     if (request.code_challenge.empty()) {
-        throw std::invalid_argument("code_challenge must not be empty");
+        throw InvalidArgumentException("code_challenge", "code_challenge must not be empty",
+                                       ErrorCode::OAuthConfigurationError);
     }
 
     std::vector<std::pair<std::string, std::string>> params;
@@ -171,31 +175,34 @@ void OAuthTokenResponse::apply(Configuration& configuration) const {
 }
 
 OAuthClient::OAuthClient(std::string token_endpoint, HttpClientPtr http_client)
-  : OAuthClient(std::move(token_endpoint), std::move(http_client), Options{}) {
-}
+    : OAuthClient(std::move(token_endpoint), std::move(http_client), Options{}) {}
 
 OAuthClient::OAuthClient(std::string token_endpoint, HttpClientPtr http_client, Options options)
-  : token_endpoint_(std::move(token_endpoint)), http_client_(std::move(http_client)), options_(std::move(options)) {
+    : token_endpoint_(std::move(token_endpoint)), http_client_(std::move(http_client)), options_(std::move(options)) {
     if (!http_client_) {
-        throw std::invalid_argument("OAuthClient requires a non-null HttpClient");
+        throw InvalidArgumentException("http_client", "OAuthClient requires a non-null HttpClient",
+                                       ErrorCode::HttpClientRequired);
     }
     if (token_endpoint_.empty()) {
-        throw std::invalid_argument("token_endpoint must not be empty");
+        throw InvalidArgumentException("token_endpoint", "token_endpoint must not be empty",
+                                       ErrorCode::OAuthConfigurationError);
     }
 }
 
 OAuthTokenResponse OAuthClient::ExchangeAuthorizationCode(AuthorizationCodeTokenRequest const& request) const {
     if (request.client_id.empty()) {
-        throw std::invalid_argument("client_id must not be empty");
+        throw InvalidArgumentException("client_id", "client_id must not be empty", ErrorCode::OAuthConfigurationError);
     }
     if (request.redirect_uri.empty()) {
-        throw std::invalid_argument("redirect_uri must not be empty");
+        throw InvalidArgumentException("redirect_uri", "redirect_uri must not be empty",
+                                       ErrorCode::OAuthConfigurationError);
     }
     if (request.code.empty()) {
-        throw std::invalid_argument("code must not be empty");
+        throw InvalidArgumentException("code", "code must not be empty", ErrorCode::OAuthConfigurationError);
     }
     if (request.code_verifier.empty()) {
-        throw std::invalid_argument("code_verifier must not be empty");
+        throw InvalidArgumentException("code_verifier", "code_verifier must not be empty",
+                                       ErrorCode::OAuthConfigurationError);
     }
 
     std::vector<std::pair<std::string, std::string>> params{
@@ -211,19 +218,23 @@ OAuthTokenResponse OAuthClient::ExchangeAuthorizationCode(AuthorizationCodeToken
 
     HttpResponse response = post_form(params);
     if (response.status_code >= 400) {
-        Json error_body;
         std::string message = "HTTP " + std::to_string(response.status_code);
+        std::optional<std::string> error_code;
         try {
-            error_body = Json::parse(response.body);
-            if (error_body.contains("error_description")) {
+            Json error_body = Json::parse(response.body);
+            if (error_body.contains("error") && error_body.at("error").is_string()) {
+                error_code = error_body.at("error").get<std::string>();
+            }
+            if (error_body.contains("error_description") && error_body.at("error_description").is_string()) {
                 message = error_body.at("error_description").get<std::string>();
-            } else if (error_body.contains("error")) {
+            } else if (error_body.contains("error") && error_body.at("error").is_string()) {
                 message = error_body.at("error").get<std::string>();
             }
         } catch (std::exception const&) {
             // Keep default message
         }
-        throw ApiException(response.status_code, message, response.body, response.headers);
+        ThrowException(response.status_code, std::move(message), std::move(response.body), std::move(response.headers),
+                       error_code);
     }
 
     return parse_token_response(response.body);
@@ -231,10 +242,11 @@ OAuthTokenResponse OAuthClient::ExchangeAuthorizationCode(AuthorizationCodeToken
 
 OAuthTokenResponse OAuthClient::RefreshAccessToken(RefreshTokenRequest const& request) const {
     if (request.client_id.empty()) {
-        throw std::invalid_argument("client_id must not be empty");
+        throw InvalidArgumentException("client_id", "client_id must not be empty", ErrorCode::OAuthConfigurationError);
     }
     if (request.refresh_token.empty()) {
-        throw std::invalid_argument("refresh_token must not be empty");
+        throw InvalidArgumentException("refresh_token", "refresh_token must not be empty",
+                                       ErrorCode::OAuthConfigurationError);
     }
 
     std::vector<std::pair<std::string, std::string>> params{
@@ -248,19 +260,23 @@ OAuthTokenResponse OAuthClient::RefreshAccessToken(RefreshTokenRequest const& re
 
     HttpResponse response = post_form(params);
     if (response.status_code >= 400) {
-        Json error_body;
         std::string message = "HTTP " + std::to_string(response.status_code);
+        std::optional<std::string> error_code;
         try {
-            error_body = Json::parse(response.body);
-            if (error_body.contains("error_description")) {
+            Json error_body = Json::parse(response.body);
+            if (error_body.contains("error") && error_body.at("error").is_string()) {
+                error_code = error_body.at("error").get<std::string>();
+            }
+            if (error_body.contains("error_description") && error_body.at("error_description").is_string()) {
                 message = error_body.at("error_description").get<std::string>();
-            } else if (error_body.contains("error")) {
+            } else if (error_body.contains("error") && error_body.at("error").is_string()) {
                 message = error_body.at("error").get<std::string>();
             }
         } catch (std::exception const&) {
             // Keep default message
         }
-        throw ApiException(response.status_code, message, response.body, response.headers);
+        ThrowException(response.status_code, std::move(message), std::move(response.body), std::move(response.headers),
+                       error_code);
     }
 
     return parse_token_response(response.body);
@@ -270,7 +286,7 @@ OAuthTokenResponse OAuthClient::parse_token_response(std::string const& body) co
     Json payload = parse_body(body);
 
     if (!payload.contains("access_token")) {
-        throw ApiException(500, "OAuth response missing access_token", body, {});
+        throw Exception(500, "OAuth response missing access_token", body, {});
     }
 
     OAuthTokenResponse token{};

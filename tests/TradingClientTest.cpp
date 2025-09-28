@@ -4,8 +4,8 @@
 #include <memory>
 
 #include "FakeHttpClient.hpp"
-#include "alpaca/ApiException.hpp"
 #include "alpaca/Configuration.hpp"
+#include "alpaca/Exceptions.hpp"
 #include "alpaca/Json.hpp"
 #include "alpaca/TradingClient.hpp"
 
@@ -234,7 +234,7 @@ TEST(TradingClientTest, CustomRetryOptionsPropagateToRestClient) {
 
     alpaca::TradingClient client(config, http, options);
 
-    EXPECT_THROW(client.get_account(), alpaca::ApiException);
+    EXPECT_THROW(client.get_account(), alpaca::Exception);
     ASSERT_EQ(http->requests().size(), 1U);
 }
 

@@ -1,7 +1,7 @@
-#include <alpaca/ApiException.hpp>
 #include <alpaca/Chrono.hpp>
 #include <alpaca/Configuration.hpp>
 #include <alpaca/Environments.hpp>
+#include <alpaca/Exceptions.hpp>
 #include <alpaca/MarketDataClient.hpp>
 #include <alpaca/TradingClient.hpp>
 
@@ -41,7 +41,7 @@ int main() {
             last_close = bar.close;
             std::cout << bar.timestamp << " close=" << bar.close << " volume=" << bar.volume << std::endl;
         }
-    } catch (alpaca::ApiException const& ex) {
+    } catch (alpaca::Exception const& ex) {
         std::cerr << "Failed to retrieve bars: " << ex.what() << std::endl;
         return 1;
     }
@@ -66,9 +66,9 @@ int main() {
             ++attempt;
             auto placed = trading.submit_order(order);
             std::cout << "Order " << placed.id << " accepted at limit price " << *order.limit_price << " after "
-                      << attempt << " attempt(s)." << std::endl;
+                << attempt << " attempt(s)." << std::endl;
             submitted = true;
-        } catch (alpaca::ApiException const& ex) {
+        } catch (alpaca::Exception const& ex) {
             std::cerr << "Attempt " << attempt << " failed (" << ex.status_code() << "): " << ex.what() << std::endl;
             if (ex.status_code() == 429 || ex.status_code() == 503) {
                 if (auto const delay = ex.retry_after()) {

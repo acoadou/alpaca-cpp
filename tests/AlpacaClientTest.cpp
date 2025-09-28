@@ -5,13 +5,13 @@
 #include <memory>
 #include <optional>
 #include <queue>
-#include <stdexcept>
 #include <string>
 #include <vector>
 
 #include <chrono>
 
 #include "alpaca/AlpacaClient.hpp"
+#include "alpaca/Exceptions.hpp"
 #include "alpaca/Json.hpp"
 
 namespace {
@@ -585,7 +585,7 @@ TEST(AlpacaClientTest, ListOptionPositionsRejectsUnknownType) {
     alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
     alpaca::AlpacaClient client(config, stub);
 
-    EXPECT_THROW(client.list_option_positions(), std::invalid_argument);
+    EXPECT_THROW(client.list_option_positions(), alpaca::InvalidArgumentException);
 }
 
 TEST(AlpacaClientTest, NewsRangeRespectsRetryAfterAndPagination) {

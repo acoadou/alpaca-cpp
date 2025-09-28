@@ -1,4 +1,5 @@
 #include "alpaca/internal/CurlHttpClient.hpp"
+#include "alpaca/Exceptions.hpp"
 #include "alpaca/HttpClientFactory.hpp"
 
 #include <curl/curl.h>
@@ -7,7 +8,6 @@
 #include <cstdlib>
 #include <memory>
 #include <mutex>
-#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -20,7 +20,8 @@ std::once_flag g_curl_cleanup_flag;
 void ensure_curl_global_init() {
     std::call_once(g_curl_init_flag, []() {
         if (curl_global_init(CURL_GLOBAL_ALL) != 0) {
-            throw std::runtime_error("Failed to initialize libcurl");
+            throw CurlException(ErrorCode::CurlInitializationFailure, "Failed to initialize libcurl",
+                                "curl_global_init");
         }
         std::call_once(g_curl_cleanup_flag, []() {
             std::atexit([]() {
@@ -144,7 +145,8 @@ struct CurlHttpClient::Impl {
         for (std::size_t i = 0; i < options_.connection_pool_size; ++i) {
             std::unique_ptr<CURL, CurlEasyDeleter> handle(curl_easy_init());
             if (!handle) {
-                throw std::runtime_error("Failed to create CURL handle");
+                throw CurlException(ErrorCode::CurlHandleCreationFailure, "Failed to create CURL handle",
+                                    "curl_easy_init");
             }
             handles_.push_back(std::move(handle));
             available_indices_.push_back(i);
@@ -190,7 +192,7 @@ HttpResponse CurlHttpClient::send(HttpRequest const& request) {
     auto lease = impl_->acquire_handle();
     CURL *handle = lease.get();
     if (!handle) {
-        throw std::runtime_error("CURL handle is not initialized");
+        throw CurlException(ErrorCode::CurlHandleNotInitialized, "CURL handle is not initialized", "acquire_handle");
     }
 
     curl_easy_reset(handle);
@@ -259,7 +261,8 @@ HttpResponse CurlHttpClient::send(HttpRequest const& request) {
         curl_slist *raw = headers.release();
         raw = curl_slist_append(raw, header_line.c_str());
         if (!raw) {
-            throw std::runtime_error("Failed to append HTTP header");
+            throw CurlException(ErrorCode::CurlHeaderAppendFailure, "Failed to append HTTP header",
+                                "curl_slist_append");
         }
         headers.reset(raw);
     }
@@ -271,7 +274,9 @@ HttpResponse CurlHttpClient::send(HttpRequest const& request) {
     long status_code = 0;
     curl_easy_getinfo(handle, CURLINFO_RESPONSE_CODE, &status_code);
     if (result != CURLE_OK) {
-        throw std::runtime_error(std::string("curl_easy_perform failed: ") + curl_easy_strerror(result));
+        throw CurlException(ErrorCode::CurlPerformFailure,
+                            std::string("curl_easy_perform failed: ") + curl_easy_strerror(result), "curl_easy_perform",
+                            result);
     }
 
     curl_easy_setopt(handle, CURLOPT_HTTPHEADER, nullptr);

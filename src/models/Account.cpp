@@ -7,7 +7,7 @@
 
 namespace {
 
-std::optional<double> parse_optional_double(alpaca::Json const& json, char const* key) {
+std::optional<double> parse_optional_double(alpaca::Json const& json, char const *key) {
     auto it = json.find(key);
     if (it == json.end() || it->is_null()) {
         return std::nullopt;
@@ -36,7 +36,7 @@ std::optional<double> parse_optional_double(alpaca::Json const& json, char const
     return std::nullopt;
 }
 
-std::optional<int> parse_optional_int(alpaca::Json const& json, char const* key) {
+std::optional<int> parse_optional_int(alpaca::Json const& json, char const *key) {
     auto it = json.find(key);
     if (it == json.end() || it->is_null()) {
         return std::nullopt;
@@ -65,7 +65,7 @@ std::optional<int> parse_optional_int(alpaca::Json const& json, char const* key)
     return std::nullopt;
 }
 
-std::optional<std::string> parse_optional_string(alpaca::Json const& json, char const* key) {
+std::optional<std::string> parse_optional_string(alpaca::Json const& json, char const *key) {
     auto it = json.find(key);
     if (it == json.end() || it->is_null()) {
         return std::nullopt;

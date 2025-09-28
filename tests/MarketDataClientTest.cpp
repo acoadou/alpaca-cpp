@@ -2,12 +2,12 @@
 
 #include <chrono>
 #include <memory>
-#include <stdexcept>
 #include <string>
 
 #include "FakeHttpClient.hpp"
-#include "alpaca/ApiException.hpp"
 #include "alpaca/Configuration.hpp"
+#include "alpaca/Exceptions.hpp"
+#include "alpaca/Exceptions.hpp"
 #include "alpaca/MarketDataClient.hpp"
 #include "alpaca/models/MarketData.hpp"
 
@@ -102,11 +102,11 @@ TEST(MarketDataClientTest, RejectsSipFeedWithoutSipPlan) {
     request.feed = "sip";
 
     EXPECT_THROW(
-    {
-        auto result = client.get_latest_stock_trades(request);
-        (void)result;
-    },
-    std::invalid_argument);
+        {
+            auto result = client.get_latest_stock_trades(request);
+            (void)result;
+        },
+        alpaca::InvalidArgumentException);
 }
 
 TEST(MarketDataClientTest, MultiLatestOptionQuotesTargetsBetaEndpoint) {
@@ -225,7 +225,7 @@ TEST(MarketDataClientTest, GetLatestCryptoTradesThrowsOnEmptyFeed) {
     alpaca::LatestCryptoRequest request;
     request.symbols = {"BTC/USD"};
 
-    EXPECT_THROW(client.get_latest_crypto_trades("", request), std::invalid_argument);
+    EXPECT_THROW(client.get_latest_crypto_trades("", request), alpaca::InvalidArgumentException);
 }
 
 TEST(MarketDataClientTest, ListExchangesFormatsPath) {
@@ -340,6 +340,6 @@ TEST(MarketDataClientTest, CustomRetryOptionsPropagateToRestClients) {
     alpaca::LatestStocksRequest request;
     request.symbols = {"AAPL"};
 
-    EXPECT_THROW(client.get_latest_stock_trades(request), alpaca::ApiException);
+    EXPECT_THROW(client.get_latest_stock_trades(request), alpaca::Exception);
     ASSERT_EQ(fake->requests().size(), 1U);
 }

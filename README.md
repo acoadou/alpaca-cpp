@@ -191,8 +191,8 @@ yourself.
 
 ```cpp
 #include <iostream>
-#include <stdexcept>
 
+#include "alpaca/Exceptions.hpp"
 #include "alpaca/Configuration.hpp"
 #include "alpaca/TradingClient.hpp"
 
@@ -209,7 +209,14 @@ chain.strike_lte = "200";
 
 alpaca::OptionContractsResponse contracts = trading.list_option_contracts(chain);
 if (contracts.contracts.empty()) {
-    throw std::runtime_error("No matching contracts");
+    throw alpaca::InvalidArgumentException{
+        "symbol",
+        "No option contracts matched the requested filters",
+        alpaca::ErrorCode::InvalidArgument,
+        {
+            {"underlying", "AAPL"},
+            {"expiry", "2024-01-19"},
+        }};
 }
 
 // 2. Pull analytics (greeks, risk metrics, and strategy legs) for the legs you
@@ -383,7 +390,7 @@ content is available.
 
 ## Rate limiting and error handling
 
-All non-success responses raise `alpaca::ApiException` or one of its more
+All non-success responses raise `alpaca::Exception` or one of its more
 specific subclasses. The hierarchy allows callers to handle failures with
 additional precision:
 
@@ -396,7 +403,7 @@ additional precision:
 * `alpaca::ClientException` – Other 4xx errors that are not covered above.
 * `alpaca::ServerException` – 5xx server side failures.
 
-All of these derive from `alpaca::ApiException`, which still exposes the raw
+All of these derive from `alpaca::Exception`, which still exposes the raw
 response headers via `headers()` and parses numeric `Retry-After` hints into
 `std::optional<std::chrono::seconds>` through `retry_after()`. When you receive
 `429` or `503` responses you can inspect the optional delay to drive a
@@ -405,7 +412,7 @@ backoff strategy:
 ```cpp
 try {
   client.cancel_order(order_id);
-} catch (const alpaca::ApiException& ex) {
+} catch (const alpaca::Exception& ex) {
   if (ex.status_code() == 429 || ex.status_code() == 503) {
     if (const auto retry_after = ex.retry_after()) {
       std::this_thread::sleep_for(*retry_after);
@@ -533,7 +540,8 @@ plan explicitly as shown above.
 
 A full example is available in [`examples/StreamingResubscribe.cpp`](examples/StreamingResubscribe.cpp). It demonstrates how
 to configure `alpaca::streaming::WebSocketClient` with a reconnect policy, replay subscriptions after reconnecting, and
-receive order updates:
+receive order updates. The snippet below assumes you include `alpaca/Exceptions.hpp` so typed configuration errors propagate
+rich metadata to your handlers:
 
 ```cpp
 alpaca::Configuration config = alpaca::Configuration::FromEnvironment(
@@ -542,7 +550,11 @@ alpaca::Configuration config = alpaca::Configuration::FromEnvironment(
     ""); // optional fallback secret when APCA_API_SECRET_KEY is unset
 
 if (!config.has_credentials()) {
-    throw std::runtime_error("Set APCA_API_KEY_ID and APCA_API_SECRET_KEY before starting the stream.");
+    throw alpaca::InvalidArgumentException{
+        "credentials",
+        "Set APCA_API_KEY_ID and APCA_API_SECRET_KEY before starting the stream.",
+        alpaca::ErrorCode::RestClientConfigurationMissing,
+        {{"environment", "paper"}}};
 }
 
 alpaca::streaming::WebSocketClient socket(
@@ -646,7 +658,7 @@ while (!submitted) {
     try {
         trading.submit_order(order);
         submitted = true;
-    } catch (alpaca::ApiException const& ex) {
+    } catch (alpaca::Exception const& ex) {
         if (ex.status_code() == 429) {
             if (auto delay = ex.retry_after()) {
                 std::this_thread::sleep_for(*delay);

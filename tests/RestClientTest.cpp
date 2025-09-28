@@ -8,7 +8,7 @@
 #include <optional>
 
 #include "FakeHttpClient.hpp"
-#include "alpaca/ApiException.hpp"
+#include "alpaca/Exceptions.hpp"
 #include "alpaca/RestClient.hpp"
 #include "alpaca/models/Account.hpp"
 #include "alpaca/models/AccountConfiguration.hpp"
@@ -401,7 +401,7 @@ TEST(RestClientTest, SupportsPatchRequests) {
         {"dtbp_check", "both"}
     };
     alpaca::AccountConfiguration configuration =
-    client.patch<alpaca::AccountConfiguration>("/v2/account/configurations", payload);
+        client.patch<alpaca::AccountConfiguration>("/v2/account/configurations", payload);
 
     EXPECT_EQ(configuration.dtbp_check, "both");
 

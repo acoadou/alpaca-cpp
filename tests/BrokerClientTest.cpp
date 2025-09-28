@@ -7,14 +7,14 @@
 #include <string>
 #include <vector>
 
-#include "alpaca/ApiException.hpp"
 #include "alpaca/BrokerClient.hpp"
+#include "alpaca/Exceptions.hpp"
 #include "alpaca/Json.hpp"
 
 namespace {
 
 class StubHttpClient : public alpaca::HttpClient {
-  public:
+public:
     void enqueue_response(alpaca::HttpResponse response) {
         responses_.push(std::move(response));
     }
@@ -33,7 +33,7 @@ class StubHttpClient : public alpaca::HttpClient {
         return response;
     }
 
-  private:
+private:
     std::queue<alpaca::HttpResponse> responses_{};
     std::vector<alpaca::HttpRequest> requests_{};
 };
@@ -96,8 +96,8 @@ TEST(BrokerClientModelTest, ManagedPortfolioHistoryParsesCashflowsAndNulls) {
 TEST(BrokerClientTest, CreateBrokerWatchlistSerializesPayload) {
     auto stub = std::make_shared<StubHttpClient>();
     stub->enqueue_response(
-    alpaca::HttpResponse{200,
-                         R"JSON({"id":"wl-1","name":"Focus","account_id":"acct-1","created_at":"2024-01-01T00:00:00Z",
+        alpaca::HttpResponse{200,
+                             R"JSON({"id":"wl-1","name":"Focus","account_id":"acct-1","created_at":"2024-01-01T00:00:00Z",
                 "updated_at":"2024-01-01T00:00:00Z","assets":[]})JSON",
                          {}});
 
@@ -124,8 +124,8 @@ TEST(BrokerClientTest, CreateBrokerWatchlistSerializesPayload) {
 TEST(BrokerClientTest, ListRebalancingPortfoliosHandlesWrappedResponse) {
     auto stub = std::make_shared<StubHttpClient>();
     stub->enqueue_response(
-    alpaca::HttpResponse{200,
-                         R"JSON({"portfolios":[{"id":"p1","name":"Core","description":"","status":"active",
+        alpaca::HttpResponse{200,
+                             R"JSON({"portfolios":[{"id":"p1","name":"Core","description":"","status":"active",
                 "cooldown_days":0,"created_at":"2024-01-01T00:00:00Z","updated_at":"2024-01-01T00:00:00Z",
                 "weights":[],"rebalance_conditions":[]}]})JSON",
                          {}});
@@ -144,14 +144,14 @@ TEST(BrokerClientTest, ListRebalancingPortfoliosHandlesWrappedResponse) {
 TEST(BrokerClientTest, ListRebalancingSubscriptionsRangeIteratesPages) {
     auto stub = std::make_shared<StubHttpClient>();
     stub->enqueue_response(
-    alpaca::HttpResponse{200,
-                         R"JSON({"subscriptions":[{"id":"sub-1","account_id":"acct-1","portfolio_id":"p1",
+        alpaca::HttpResponse{200,
+                             R"JSON({"subscriptions":[{"id":"sub-1","account_id":"acct-1","portfolio_id":"p1",
                 "created_at":"2024-01-01T00:00:00Z"},{"id":"sub-2","account_id":"acct-2","portfolio_id":"p1",
                 "created_at":"2024-01-01T00:00:00Z"}],"next_page_token":"token-2"})JSON",
                          {}});
     stub->enqueue_response(
-    alpaca::HttpResponse{200,
-                         R"JSON({"subscriptions":[{"id":"sub-3","account_id":"acct-3","portfolio_id":"p1",
+        alpaca::HttpResponse{200,
+                             R"JSON({"subscriptions":[{"id":"sub-3","account_id":"acct-3","portfolio_id":"p1",
                 "created_at":"2024-01-01T00:00:00Z"}]})JSON",
                          {}});
 
@@ -187,6 +187,6 @@ TEST(BrokerClientTest, CustomRetryOptionsPropagateToRestClient) {
 
     alpaca::BrokerClient client(config, stub, options);
 
-    EXPECT_THROW(client.get_account("acct-1"), alpaca::ApiException);
+    EXPECT_THROW(client.get_account("acct-1"), alpaca::Exception);
     ASSERT_EQ(stub->requests().size(), 1U);
 }

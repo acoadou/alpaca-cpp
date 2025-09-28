@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <chrono>
 
+#include "alpaca/Exceptions.hpp"
 #include "alpaca/models/Account.hpp"
 #include "alpaca/models/AccountActivity.hpp"
 #include "alpaca/models/AccountConfiguration.hpp"
@@ -328,7 +329,7 @@ TEST(ModelSerializationTest, NewsRequestValidationAndQueryParams) {
               params.end());
 
     request.limit = 0;
-    EXPECT_THROW(request.to_query_params(), std::invalid_argument);
+    EXPECT_THROW(request.to_query_params(), alpaca::InvalidArgumentException);
 }
 
 TEST(ModelSerializationTest, LatestCryptoDataRequestValidatesSymbolsAndCurrency) {
@@ -344,7 +345,7 @@ TEST(ModelSerializationTest, LatestCryptoDataRequestValidatesSymbolsAndCurrency)
     EXPECT_EQ(params[1].second, "USD");
 
     request.symbols.clear();
-    EXPECT_THROW(request.to_query_params(), std::invalid_argument);
+    EXPECT_THROW(request.to_query_params(), alpaca::InvalidArgumentException);
 }
 
 TEST(ModelSerializationTest, LatestCryptoOrderbookRequestSerializesExchanges) {
@@ -360,7 +361,7 @@ TEST(ModelSerializationTest, LatestCryptoOrderbookRequestSerializesExchanges) {
     EXPECT_NE(params[1].second.find("CBSE"), std::string::npos);
 
     request.symbols.clear();
-    EXPECT_THROW(request.to_query_params(), std::invalid_argument);
+    EXPECT_THROW(request.to_query_params(), alpaca::InvalidArgumentException);
 }
 
 TEST(ModelSerializationTest, HistoricalAuctionsRequestValidatesRange) {
@@ -407,7 +408,7 @@ TEST(ModelSerializationTest, HistoricalAuctionsRequestValidatesRange) {
 
     request.end = start;
     request.start = end;
-    EXPECT_THROW(request.to_query_params(), std::invalid_argument);
+    EXPECT_THROW(request.to_query_params(), alpaca::InvalidArgumentException);
 }
 
 TEST(ModelSerializationTest, LatestCryptoTradesParseSymbolMap) {
@@ -485,7 +486,7 @@ TEST(ModelSerializationTest, LatestCryptoOrderbooksParseBidsAndAsks) {
 
 TEST(ModelSerializationTest, MultiBarsRequestRequiresSymbols) {
     alpaca::MultiStockBarsRequest request;
-    EXPECT_THROW(request.to_query_params(), std::invalid_argument);
+    EXPECT_THROW(request.to_query_params(), alpaca::InvalidArgumentException);
 
     request.symbols = {"AAPL"};
     auto params = request.to_query_params();

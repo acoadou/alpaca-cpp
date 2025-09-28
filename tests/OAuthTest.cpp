@@ -1,4 +1,5 @@
 #include "alpaca/OAuth.hpp"
+#include "alpaca/Exceptions.hpp"
 
 #include <gtest/gtest.h>
 
@@ -111,4 +112,34 @@ TEST(OAuthTest, ApplySetsBearerToken) {
     EXPECT_TRUE(config.api_secret_key.empty());
     ASSERT_TRUE(config.bearer_token.has_value());
     EXPECT_EQ(*config.bearer_token, "bearer");
+}
+
+TEST(OAuthTest, ExchangeAuthorizationCodeThrowsAuthenticationException) {
+    auto fake = std::make_shared<FakeHttpClient>();
+    std::string const body = R"({"error":"invalid_client","error_description":"Client authentication failed"})";
+    fake->push_response(alpaca::HttpResponse{400, body, {}});
+
+    OAuthClient client{"https://broker-api.sandbox.alpaca.markets/oauth/token", fake};
+
+    AuthorizationCodeTokenRequest request{};
+    request.client_id = "client";
+    request.redirect_uri = "https://example.com/callback";
+    request.code = "auth-code";
+    request.code_verifier = "verifier";
+
+    EXPECT_THROW(client.ExchangeAuthorizationCode(request), alpaca::AuthenticationException);
+}
+
+TEST(OAuthTest, RefreshAccessTokenThrowsValidationException) {
+    auto fake = std::make_shared<FakeHttpClient>();
+    std::string const body = R"({"error":"invalid_request","error_description":"Missing refresh_token"})";
+    fake->push_response(alpaca::HttpResponse{400, body, {}});
+
+    OAuthClient client{"https://broker-api.sandbox.alpaca.markets/oauth/token", fake};
+
+    RefreshTokenRequest request{};
+    request.client_id = "client";
+    request.refresh_token = "refresh";
+
+    EXPECT_THROW(client.RefreshAccessToken(request), alpaca::ValidationException);
 }

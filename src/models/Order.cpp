@@ -1,10 +1,10 @@
 #include "alpaca/models/Order.hpp"
 
-#include <stdexcept>
 #include <type_traits>
 #include <utility>
 #include <vector>
 
+#include "alpaca/Exceptions.hpp"
 namespace alpaca {
 namespace {
 
@@ -199,7 +199,11 @@ std::string to_string(OrderStatusFilter status) {
     case OrderStatusFilter::ALL:
         return "all";
     }
-    throw std::invalid_argument("Unknown OrderStatusFilter");
+    throw InvalidArgumentException("order_status_filter", "Unknown OrderStatusFilter", ErrorCode::InvalidArgument,
+                                   {
+                                       {"context", "to_string"                             },
+                                       {"value",   std::to_string(static_cast<int>(status))}
+    });
 }
 
 std::string to_string(PositionIntent intent) {
@@ -211,7 +215,11 @@ std::string to_string(PositionIntent intent) {
     case PositionIntent::AUTOMATIC:
         return "automatic";
     }
-    throw std::invalid_argument("Unknown PositionIntent");
+    throw InvalidArgumentException("position_intent", "Unknown PositionIntent", ErrorCode::InvalidArgument,
+                                   {
+                                       {"context", "to_string"                             },
+                                       {"value",   std::to_string(static_cast<int>(intent))}
+    });
 }
 
 void to_json(Json& j, NewOrderRequest const& request) {

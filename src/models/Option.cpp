@@ -3,8 +3,9 @@
 #include <algorithm>
 #include <cctype>
 #include <cstdint>
-#include <stdexcept>
 #include <utility>
+
+#include "alpaca/Exceptions.hpp"
 
 namespace alpaca {
 namespace {
@@ -128,7 +129,11 @@ std::string to_string(OptionType type) {
     case OptionType::PUT:
         return "put";
     }
-    throw std::invalid_argument("Unknown OptionType");
+    throw InvalidArgumentException("option_type", "Unknown OptionType", ErrorCode::InvalidArgument,
+                                   {
+                                       {"context", "to_string"                           },
+                                       {"value",   std::to_string(static_cast<int>(type))}
+    });
 }
 
 std::string to_string(OptionStyle style) {
@@ -138,7 +143,11 @@ std::string to_string(OptionStyle style) {
     case OptionStyle::EUROPEAN:
         return "european";
     }
-    throw std::invalid_argument("Unknown OptionStyle");
+    throw InvalidArgumentException("option_style", "Unknown OptionStyle", ErrorCode::InvalidArgument,
+                                   {
+                                       {"context", "to_string"                            },
+                                       {"value",   std::to_string(static_cast<int>(style))}
+    });
 }
 
 std::string to_string(OptionStatus status) {
@@ -150,7 +159,11 @@ std::string to_string(OptionStatus status) {
     case OptionStatus::INACTIVE:
         return "inactive";
     }
-    throw std::invalid_argument("Unknown OptionStatus");
+    throw InvalidArgumentException("option_status", "Unknown OptionStatus", ErrorCode::InvalidArgument,
+                                   {
+                                       {"context", "to_string"                             },
+                                       {"value",   std::to_string(static_cast<int>(status))}
+    });
 }
 
 std::string to_string(OptionExchange exchange) {
@@ -198,7 +211,12 @@ std::string to_string(OptionExchange exchange) {
     case OptionExchange::OPRA:
         return "OPRA";
     }
-    throw std::invalid_argument("Unknown OptionExchange");
+    throw InvalidArgumentException(
+    "option_exchange", "Unknown OptionExchange", ErrorCode::InvalidArgument,
+    {
+        {"context", "to_string"                               },
+        {"value",   std::to_string(static_cast<int>(exchange))}
+    });
 }
 
 OptionType option_type_from_string(std::string const& value) {
@@ -209,7 +227,11 @@ OptionType option_type_from_string(std::string const& value) {
     if (lower == "put") {
         return OptionType::PUT;
     }
-    throw std::invalid_argument("Unknown option type: " + value);
+    throw InvalidArgumentException("option_type", "Unknown option type: " + value, ErrorCode::InvalidArgument,
+                                   {
+                                       {"value",   value                    },
+                                       {"context", "option_type_from_string"}
+    });
 }
 
 OptionStyle option_style_from_string(std::string const& value) {
@@ -220,7 +242,11 @@ OptionStyle option_style_from_string(std::string const& value) {
     if (lower == "european") {
         return OptionStyle::EUROPEAN;
     }
-    throw std::invalid_argument("Unknown option style: " + value);
+    throw InvalidArgumentException("option_style", "Unknown option style: " + value, ErrorCode::InvalidArgument,
+                                   {
+                                       {"value",   value                     },
+                                       {"context", "option_style_from_string"}
+    });
 }
 
 OptionStatus option_status_from_string(std::string const& value) {
@@ -234,7 +260,11 @@ OptionStatus option_status_from_string(std::string const& value) {
     if (lower == "inactive") {
         return OptionStatus::INACTIVE;
     }
-    throw std::invalid_argument("Unknown option status: " + value);
+    throw InvalidArgumentException("option_status", "Unknown option status: " + value, ErrorCode::InvalidArgument,
+                                   {
+                                       {"value",   value                      },
+                                       {"context", "option_status_from_string"}
+    });
 }
 
 OptionExchange option_exchange_from_string(std::string const& value) {
@@ -302,7 +332,13 @@ OptionExchange option_exchange_from_string(std::string const& value) {
     if (normalized == "OPRA") {
         return OptionExchange::OPRA;
     }
-    throw std::invalid_argument("Unknown option exchange: " + value);
+    throw InvalidArgumentException(
+    "option_exchange", "Unknown option exchange: " + value, ErrorCode::InvalidArgument,
+    {
+        {"value",      value                        },
+        {"normalized", normalized                   },
+        {"context",    "option_exchange_from_string"}
+    });
 }
 
 void from_json(Json const& j, OptionPosition& position) {

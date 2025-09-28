@@ -2,17 +2,16 @@
 
 #include <algorithm>
 #include <cctype>
-#include <initializer_list>
 #include <iomanip>
 #include <mutex>
 #include <optional>
 #include <sstream>
-#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <thread>
 
-#include "alpaca/ApiException.hpp"
+#include "alpaca/Exceptions.hpp"
+#include "alpaca/Exceptions.hpp"
 #include "alpaca/version.hpp"
 
 namespace alpaca {
@@ -69,77 +68,6 @@ std::optional<RestClient::RateLimitStatus> extract_rate_limit(HttpHeaders const&
     return status;
 }
 
-std::string to_lower_copy(std::string_view value) {
-    std::string lowered(value);
-    std::transform(lowered.begin(), lowered.end(), lowered.begin(), [](unsigned char c) {
-        return static_cast<char>(std::tolower(c));
-    });
-    return lowered;
-}
-
-bool message_contains(std::string const& lowered_message, std::initializer_list<std::string_view> fragments) {
-    for (auto fragment : fragments) {
-        if (lowered_message.find(to_lower_copy(fragment)) != std::string::npos) {
-            return true;
-        }
-    }
-    return false;
-}
-
-bool code_matches(std::optional<std::string> const& code, std::initializer_list<std::string_view> expected) {
-    if (!code.has_value()) {
-        return false;
-    }
-    auto lowered_code = to_lower_copy(*code);
-    for (auto candidate : expected) {
-        if (lowered_code == to_lower_copy(candidate)) {
-            return true;
-        }
-    }
-    return false;
-}
-
-[[noreturn]] void throw_for_api_error(long status_code, std::string message, std::string body, HttpHeaders headers,
-                                      std::optional<std::string> const& error_code) {
-    std::string lowered_message = to_lower_copy(message);
-
-    if (status_code == 401 || code_matches(error_code, {"40110000", "authentication_error", "unauthorized"}) ||
-        message_contains(lowered_message, {"authentication", "credential", "unauthorized"})) {
-        throw AuthenticationException(status_code, std::move(message), std::move(body), std::move(headers));
-    }
-
-    if (status_code == 403 || code_matches(error_code, {"forbidden", "permission_denied", "insufficient_permission"}) ||
-        message_contains(lowered_message, {"forbidden", "permission"})) {
-        throw PermissionException(status_code, std::move(message), std::move(body), std::move(headers));
-    }
-
-    if (status_code == 404 || code_matches(error_code, {"40410000", "not_found", "resource_not_found"}) ||
-        message_contains(lowered_message, {"not found"})) {
-        throw NotFoundException(status_code, std::move(message), std::move(body), std::move(headers));
-    }
-
-    if (status_code == 429 ||
-        code_matches(error_code, {"42910000", "rate_limit", "too_many_requests", "rate_limit_exceeded"}) ||
-        message_contains(lowered_message, {"rate limit", "too many request", "throttle"})) {
-        throw RateLimitException(status_code, std::move(message), std::move(body), std::move(headers));
-    }
-
-    if (status_code >= 500 || code_matches(error_code, {"50010000", "internal_error", "service_unavailable"}) ||
-        message_contains(lowered_message, {"internal server", "service unavailable", "server error"})) {
-        throw ServerException(status_code, std::move(message), std::move(body), std::move(headers));
-    }
-
-    if (status_code == 422 || status_code == 400 || code_matches(error_code, {"validation_error", "invalid_request"}) ||
-        message_contains(lowered_message, {"validation", "invalid"})) {
-        throw ValidationException(status_code, std::move(message), std::move(body), std::move(headers));
-    }
-
-    if (status_code >= 400 && status_code < 500) {
-        throw ClientException(status_code, std::move(message), std::move(body), std::move(headers));
-    }
-
-    throw ApiException(status_code, std::move(message), std::move(body), std::move(headers));
-}
 } // namespace
 
 RestClient::RetryOptions RestClient::default_retry_options() {
@@ -153,17 +81,18 @@ RestClient::Options RestClient::default_options() {
 }
 
 RestClient::RestClient(Configuration config, HttpClientPtr http_client, std::string base_url)
-  : RestClient(std::move(config), std::move(http_client), std::move(base_url), default_options()) {
-}
+    : RestClient(std::move(config), std::move(http_client), std::move(base_url), default_options()) {}
 
 RestClient::RestClient(Configuration config, HttpClientPtr http_client, std::string base_url, Options options)
-  : config_(std::move(config)), http_client_(std::move(http_client)), base_url_(std::move(base_url)),
+    : config_(std::move(config)), http_client_(std::move(http_client)), base_url_(std::move(base_url)),
     options_(std::move(options)) {
     if (!http_client_) {
-        throw std::invalid_argument("RestClient requires a non-null HttpClient instance");
+        throw InvalidArgumentException("http_client", "RestClient requires a non-null HttpClient instance",
+                                       ErrorCode::HttpClientRequired);
     }
     if (!config_.has_credentials()) {
-        throw std::invalid_argument("Configuration must contain API credentials");
+        throw InvalidArgumentException("credentials", "Configuration must contain API credentials",
+                                       ErrorCode::RestClientConfigurationMissing);
     }
     if (options_.retry.max_attempts < 1) {
         options_.retry.max_attempts = 1;
@@ -270,7 +199,8 @@ HttpResponse RestClient::perform_request(HttpMethod method, std::string const& p
         }
 
         if (!should_retry(response.status_code, attempt)) {
-            throw_for_api_error(response.status_code, message, response.body, response.headers, error_code);
+            ThrowException(response.status_code, std::move(message), std::move(response.body),
+                           std::move(response.headers), error_code);
         }
 
         ++attempt;
@@ -337,7 +267,7 @@ bool RestClient::should_retry(long status_code, std::size_t attempt) const {
     }
 
     return std::find(options_.retry.retry_status_codes.begin(), options_.retry.retry_status_codes.end(), status_code) !=
-           options_.retry.retry_status_codes.end();
+        options_.retry.retry_status_codes.end();
 }
 
 std::chrono::milliseconds RestClient::next_backoff(std::chrono::milliseconds current) const {
