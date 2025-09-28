@@ -14,6 +14,7 @@
 #include <utility>
 #include <vector>
 
+#include "alpaca/BackfillCoordinator.hpp"
 #include "alpaca/models/Account.hpp"
 #include "alpaca/models/Common.hpp"
 
@@ -40,6 +41,51 @@ std::vector<std::string> parse_conditions(Json const& j, char const* key) {
         return {};
     }
     return j.at(key).get<std::vector<std::string>>();
+}
+
+std::string default_stream_identifier(Json const& payload) {
+    if (payload.contains("S") && payload.at("S").is_string()) {
+        return payload.at("S").get<std::string>();
+    }
+    if (payload.contains("symbol") && payload.at("symbol").is_string()) {
+        return payload.at("symbol").get<std::string>();
+    }
+    return {};
+}
+
+std::optional<std::uint64_t> extract_sequence_value(Json const& payload, char const* key) {
+    if (!payload.contains(key) || payload.at(key).is_null()) {
+        return std::nullopt;
+    }
+    auto const& field = payload.at(key);
+    if (field.is_number_unsigned()) {
+        return field.get<std::uint64_t>();
+    }
+    if (field.is_string()) {
+        auto const value = field.get<std::string>();
+        if (value.empty()) {
+            return std::nullopt;
+        }
+        try {
+            return static_cast<std::uint64_t>(std::stoull(value));
+        } catch (...) {
+            return std::nullopt;
+        }
+    }
+    return std::nullopt;
+}
+
+std::optional<std::uint64_t> default_sequence_extractor(Json const& payload) {
+    if (auto seq = extract_sequence_value(payload, "i")) {
+        return seq;
+    }
+    if (auto seq = extract_sequence_value(payload, "sequence")) {
+        return seq;
+    }
+    if (auto seq = extract_sequence_value(payload, "seq")) {
+        return seq;
+    }
+    return std::nullopt;
 }
 
 template <typename T> std::optional<T> parse_optional(Json const& j, char const* key) {
@@ -1036,6 +1082,8 @@ void WebSocketClient::clear_sequence_gap_policy() {
     std::lock_guard<std::mutex> lock(sequence_mutex_);
     sequence_policy_.reset();
     last_sequence_ids_.clear();
+    backfill_coordinator_.reset();
+    backfill_passthrough_replay_ = {};
 }
 
 void WebSocketClient::set_latency_monitor(LatencyMonitor monitor) {
@@ -1046,6 +1094,66 @@ void WebSocketClient::set_latency_monitor(LatencyMonitor monitor) {
 void WebSocketClient::clear_latency_monitor() {
     std::lock_guard<std::mutex> lock(latency_mutex_);
     latency_monitor_.reset();
+}
+
+void WebSocketClient::enable_automatic_backfill(std::shared_ptr<BackfillCoordinator> coordinator) {
+    if (!coordinator) {
+        throw std::invalid_argument("backfill coordinator must not be null");
+    }
+
+    std::lock_guard<std::mutex> lock(sequence_mutex_);
+
+    if (backfill_coordinator_) {
+        if (sequence_policy_) {
+            sequence_policy_->replay_request = backfill_passthrough_replay_;
+        }
+        backfill_passthrough_replay_ = {};
+    }
+
+    backfill_coordinator_ = std::move(coordinator);
+
+    if (!sequence_policy_) {
+        SequenceGapPolicy policy{};
+        policy.stream_identifier = default_stream_identifier;
+        policy.sequence_extractor = default_sequence_extractor;
+        sequence_policy_ = std::move(policy);
+        last_sequence_ids_.clear();
+    } else {
+        bool updated_identifier = false;
+        if (!sequence_policy_->stream_identifier) {
+            sequence_policy_->stream_identifier = default_stream_identifier;
+            updated_identifier = true;
+        }
+        if (!sequence_policy_->sequence_extractor) {
+            sequence_policy_->sequence_extractor = default_sequence_extractor;
+            updated_identifier = true;
+        }
+        if (updated_identifier) {
+            last_sequence_ids_.clear();
+        }
+    }
+
+    backfill_passthrough_replay_ = sequence_policy_->replay_request;
+    std::weak_ptr<BackfillCoordinator> weak = backfill_coordinator_;
+    sequence_policy_->replay_request = [weak, passthrough = backfill_passthrough_replay_](
+                                           std::string const& stream_id, std::uint64_t from_seq, std::uint64_t to_seq,
+                                           Json const& payload) {
+        if (auto locked = weak.lock()) {
+            locked->request_backfill(stream_id, from_seq, to_seq, payload);
+        }
+        if (passthrough) {
+            passthrough(stream_id, from_seq, to_seq, payload);
+        }
+    };
+}
+
+void WebSocketClient::disable_automatic_backfill() {
+    std::lock_guard<std::mutex> lock(sequence_mutex_);
+    if (sequence_policy_) {
+        sequence_policy_->replay_request = backfill_passthrough_replay_;
+    }
+    backfill_coordinator_.reset();
+    backfill_passthrough_replay_ = {};
 }
 
 bool WebSocketClient::is_connected() const {
@@ -1553,6 +1661,10 @@ void WebSocketClient::evaluate_sequence_gap(Json const& payload) {
         }
         if (stream_id.empty()) {
             return;
+        }
+
+        if (backfill_coordinator_) {
+            backfill_coordinator_->record_payload(stream_id, payload);
         }
 
         if (!sequence_policy_->sequence_extractor) {

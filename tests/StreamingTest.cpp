@@ -3,12 +3,17 @@
 #include <gtest/gtest.h>
 
 #include <chrono>
+#include <memory>
 #include <mutex>
 #include <optional>
 #include <tuple>
 #include <utility>
 #include <vector>
 
+#include "FakeHttpClient.hpp"
+#include "alpaca/BackfillCoordinator.hpp"
+#include "alpaca/Configuration.hpp"
+#include "alpaca/MarketDataClient.hpp"
 #include "alpaca/Json.hpp"
 #include "alpaca/models/Common.hpp"
 
@@ -35,6 +40,10 @@ using alpaca::streaming::MessageCategory;
 using alpaca::streaming::StreamMessage;
 using alpaca::streaming::WebSocketClient;
 using alpaca::streaming::WebSocketClientHarness;
+
+alpaca::HttpResponse MakeHttpResponse(std::string body) {
+    return alpaca::HttpResponse{200, std::move(body), {}};
+}
 
 WebSocketClient make_client() {
     return WebSocketClient{"wss://example.com", "key", "secret"};
@@ -463,6 +472,47 @@ TEST(StreamingTest, ReportsLatencyWhenThresholdExceeded) {
     ASSERT_EQ(latency_events.size(), 1U);
     EXPECT_EQ(latency_events.front().first, "MSFT");
     EXPECT_GT(latency_events.front().second, std::chrono::milliseconds{10});
+}
+
+TEST(StreamingTest, IssuesRestBackfillRequestWhenTradeSequenceGapDetected) {
+    auto http = std::make_shared<FakeHttpClient>();
+    http->push_response(MakeHttpResponse(R"({"trades":{"AAPL":[]}})"));
+
+    alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
+    alpaca::MarketDataClient market(config, http);
+
+    auto coordinator = std::make_shared<alpaca::streaming::BackfillCoordinator>(
+        market, alpaca::streaming::StreamFeed::MarketData);
+
+    WebSocketClient client{"wss://example.com", "key", "secret"};
+    client.set_message_handler([](StreamMessage const&, MessageCategory) {});
+    client.enable_automatic_backfill(coordinator);
+
+    alpaca::Json base{{"T", "t"}, {"S", "AAPL"}, {"p", 100.0}, {"s", 10}, {"x", "XNAS"}};
+
+    auto first = base;
+    first["i"] = "10";
+    first["t"] = "2024-05-01T12:00:00Z";
+    WebSocketClientHarness::feed(client, first);
+
+    auto second = base;
+    second["i"] = "11";
+    second["t"] = "2024-05-01T12:00:01Z";
+    WebSocketClientHarness::feed(client, second);
+
+    auto gap = base;
+    gap["i"] = "15";
+    gap["t"] = "2024-05-01T12:00:05Z";
+    WebSocketClientHarness::feed(client, gap);
+
+    ASSERT_EQ(http->requests().size(), 1U);
+    auto const& request = http->requests().front().request;
+    EXPECT_NE(request.url.find("/v2/stocks/trades"), std::string::npos);
+    EXPECT_NE(request.url.find("symbols=AAPL"), std::string::npos);
+    EXPECT_NE(request.url.find("start=2024-05-01T12%3A00%3A01Z"), std::string::npos);
+    EXPECT_NE(request.url.find("end=2024-05-01T12%3A00%3A05Z"), std::string::npos);
+    EXPECT_NE(request.url.find("limit=3"), std::string::npos);
+    EXPECT_NE(request.url.find("sort=asc"), std::string::npos);
 }
 
 } // namespace

@@ -44,6 +44,8 @@ enum class StreamFeed {
     Trading
 };
 
+class BackfillCoordinator;
+
 /// Distinguishes the semantic type of a streaming payload delivered by Alpaca.
 enum class MessageCategory {
     Trade,
@@ -431,6 +433,12 @@ class WebSocketClient {
     /// Disables latency monitoring.
     void clear_latency_monitor();
 
+    /// Enables automatic REST backfills when sequence gaps are observed.
+    void enable_automatic_backfill(std::shared_ptr<BackfillCoordinator> coordinator);
+
+    /// Disables automatic backfills and restores the previous replay handler.
+    void disable_automatic_backfill();
+
   private:
     friend class WebSocketClientHarness;
 
@@ -512,6 +520,8 @@ class WebSocketClient {
     std::mutex sequence_mutex_;
     std::optional<SequenceGapPolicy> sequence_policy_{};
     std::unordered_map<std::string, std::uint64_t> last_sequence_ids_{};
+    std::shared_ptr<BackfillCoordinator> backfill_coordinator_{};
+    std::function<void(std::string const&, std::uint64_t, std::uint64_t, Json const&)> backfill_passthrough_replay_{};
 
     std::mutex latency_mutex_;
     std::optional<LatencyMonitor> latency_monitor_{};

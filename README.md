@@ -657,6 +657,36 @@ traffic profile:
 socket.set_pending_message_limit(256);
 ```
 
+#### Automatic REST backfill for sequence gaps
+
+`alpaca::streaming::BackfillCoordinator` bridges sequence gaps observed on the websocket connection with historical REST
+queries. When `alpaca::streaming::WebSocketClient` notices a discontinuity it invokes the coordinator, which uses
+`alpaca::MarketDataClient` to retrieve the missing trades or bars and hands them back through optional replay handlers.
+
+```cpp
+#include <alpaca/BackfillCoordinator.hpp>
+
+alpaca::MarketDataClient market_client(config);
+
+auto coordinator = std::make_shared<alpaca::streaming::BackfillCoordinator>(
+    market_client,
+    alpaca::streaming::StreamFeed::MarketData);
+
+coordinator->set_trade_replay_handler([](std::string const& symbol,
+                                         std::vector<alpaca::StockTrade> const& trades) {
+    for (auto const& trade : trades) {
+        std::cout << "replayed trade for " << symbol << " at " << trade.price << '\n';
+    }
+});
+
+socket.enable_automatic_backfill(coordinator);
+```
+
+When no custom `SequenceGapPolicy` is provided the helper installs default extractors for the `S` (symbol) and `i` (sequence)
+fields used by Alpaca's market data feeds. You can disable automatic backfills at any time through
+`socket.disable_automatic_backfill()`. Crypto feeds require a `BackfillCoordinator::Options::crypto_feed` hint describing the
+REST feed (`"us"`, `"global"`, …), while equities and options default to one-minute bars when replaying aggregates.
+
 ### TLS configuration
 
 The `alpaca::Configuration` structure exposes `verify_ssl`, `verify_hostname`, `ca_bundle_path`, and `ca_bundle_dir` fields to
