@@ -784,6 +784,49 @@ fields used by Alpaca's market data feeds. You can disable automatic backfills a
 `socket.disable_automatic_backfill()`. Crypto feeds require a `BackfillCoordinator::Options::crypto_feed` hint describing the
 REST feed (`"us"`, `"global"`, …), while equities and options default to one-minute bars when replaying aggregates.
 
+### Broker events stream (SSE)
+
+Broker partners can subscribe to `/v2/events/...` resources with `alpaca::streaming::BrokerEventsStream`. The helper wraps the
+server-sent events (SSE) transport, handles reconnection backoff, and replays the `Last-Event-ID` header automatically so
+streams can resume where they left off after transient disconnects.
+
+```cpp
+#include <alpaca/Streaming.hpp>
+
+alpaca::Configuration config = alpaca::Configuration::Paper("<key>", "<secret>");
+
+alpaca::streaming::BrokerEventsStreamOptions options;
+options.resource = "accounts";  // results in /v2/events/accounts
+options.query = {{"status", "approved"}}; // optional filters appended to the stream URL
+
+alpaca::streaming::BrokerEventsStream events(config, options);
+events.set_event_handler([](alpaca::BrokerEvent const& event) {
+    std::cout << "Received broker event " << event.id << " for account " << event.account_id << '\n';
+});
+events.set_error_handler([](std::exception_ptr ptr) {
+    try {
+        if (ptr) {
+            std::rethrow_exception(ptr);
+        }
+    } catch (std::exception const& ex) {
+        std::cerr << "Broker stream error: " << ex.what() << '\n';
+    }
+});
+
+events.start();
+// ... run your application ...
+events.stop();
+
+auto last_seen = events.last_event_id();
+if (last_seen) {
+    std::cout << "Last event id " << *last_seen << '\n';
+}
+```
+
+Populate `BrokerEventsStreamOptions::last_event_id` before calling `start()` to resume from a persisted checkpoint. The stream
+inherits TLS and authentication settings from `alpaca::Configuration`, so pointing `config.broker_base_url` at the live or
+sandbox broker environment is enough to switch targets.
+
 ### TLS configuration
 
 The `alpaca::Configuration` structure exposes `verify_ssl`, `verify_hostname`, `ca_bundle_path`, and `ca_bundle_dir` fields to

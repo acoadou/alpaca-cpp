@@ -12,6 +12,7 @@
 #include <optional>
 #include <random>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <unordered_map>
 #include <unordered_set>
@@ -27,9 +28,12 @@
 // and drive another reactor.  This client aims to remain plug-and-play for
 // applications without an existing event loop, hence the dependency choice.
 
+#include "alpaca/Configuration.hpp"
+#include "alpaca/HttpHeaders.hpp"
 #include "alpaca/Json.hpp"
 #include "alpaca/Money.hpp"
 #include "alpaca/models/Account.hpp"
+#include "alpaca/models/Broker.hpp"
 #include "alpaca/models/Common.hpp"
 #include "alpaca/models/MarketData.hpp"
 #include "alpaca/models/News.hpp"
@@ -70,6 +74,8 @@ enum class MessageCategory {
     Control,
     Unknown
 };
+
+struct BrokerEventsStreamOptions;
 
 /// Trade update message delivered through market data streams.
 struct TradeMessage {
@@ -368,6 +374,112 @@ struct WebSocketClientTestHooks {
 };
 
 class WebSocketClientHarness;
+
+namespace detail {
+
+class BrokerEventsTransport {
+  public:
+    struct Parameters {
+        std::string url;
+        HttpHeaders headers{};
+        std::chrono::milliseconds timeout{std::chrono::milliseconds{0}};
+        bool verify_peer{true};
+        bool verify_host{true};
+        std::string ca_bundle_path;
+        std::string ca_bundle_dir;
+    };
+
+    using DataCallback = std::function<void(std::string_view)>;
+    using CloseCallback = std::function<void()>;
+
+    virtual ~BrokerEventsTransport() = default;
+
+    virtual void run(DataCallback on_data, CloseCallback on_close) = 0;
+    virtual void stop() = 0;
+};
+
+} // namespace detail
+
+/// Configuration options for the server-sent events broker stream.
+struct BrokerEventsStreamOptions {
+    /// Resource name under `/v2/events/` to subscribe to (e.g. `accounts`).
+    std::string resource{"accounts"};
+    /// Optional query parameters appended to the stream URL.
+    std::vector<std::pair<std::string, std::string>> query{};
+    /// Additional headers appended to the request.
+    HttpHeaders headers{};
+    /// Resume from a previously seen event identifier.
+    std::optional<std::string> last_event_id{};
+    /// Timeout applied to the underlying HTTP request. Zero disables the timeout.
+    std::chrono::milliseconds request_timeout{std::chrono::minutes{2}};
+    /// Reconnect behaviour applied after disconnects or transport failures.
+    ReconnectPolicy reconnect{};
+};
+
+/// Consumes `/v2/events/...` broker event streams via SSE.
+class BrokerEventsStream {
+  public:
+    using EventHandler = std::function<void(BrokerEvent const&)>;
+    using ErrorHandler = std::function<void(std::exception_ptr)>;
+    using TransportFactory =
+        std::function<std::unique_ptr<detail::BrokerEventsTransport>(detail::BrokerEventsTransport::Parameters const&)>;
+
+    BrokerEventsStream(Configuration config, BrokerEventsStreamOptions options = {});
+    ~BrokerEventsStream();
+
+    BrokerEventsStream(BrokerEventsStream const&) = delete;
+    BrokerEventsStream& operator=(BrokerEventsStream const&) = delete;
+    BrokerEventsStream(BrokerEventsStream&&) = delete;
+    BrokerEventsStream& operator=(BrokerEventsStream&&) = delete;
+
+    /// Starts the background worker and begins consuming SSE payloads.
+    void start();
+    /// Stops the worker thread and closes the active connection.
+    void stop();
+
+    [[nodiscard]] bool is_running() const noexcept;
+
+    void set_event_handler(EventHandler handler);
+    void set_error_handler(ErrorHandler handler);
+
+    /// Overrides the default libcurl transport. Intended for tests.
+    void set_transport_factory_for_testing(TransportFactory factory);
+
+    /// Returns the most recent event identifier observed on the stream.
+    [[nodiscard]] std::optional<std::string> last_event_id() const;
+
+  private:
+    void run();
+    bool handle_data_chunk(std::string& buffer, std::string_view chunk);
+    bool process_event_block(std::string const& block);
+    bool process_event_data(std::string const& data);
+    void dispatch_event(BrokerEvent event);
+    void dispatch_error(std::exception_ptr error);
+    std::string build_url() const;
+    HttpHeaders build_headers() const;
+    std::unique_ptr<detail::BrokerEventsTransport> make_transport() const;
+    std::chrono::milliseconds compute_backoff_delay(std::size_t attempt);
+
+    Configuration config_;
+    BrokerEventsStreamOptions options_;
+    mutable std::mutex state_mutex_{};
+    std::atomic<bool> running_{false};
+    std::atomic<bool> stop_requested_{false};
+    std::thread worker_{};
+
+    mutable std::mutex handler_mutex_{};
+    EventHandler event_handler_{};
+    ErrorHandler error_handler_{};
+
+    mutable std::mutex last_event_mutex_{};
+    std::optional<std::string> last_event_id_{};
+
+    mutable std::mutex transport_mutex_{};
+    detail::BrokerEventsTransport* active_transport_{nullptr};
+    TransportFactory transport_factory_{};
+
+    std::mt19937_64 rng_{};
+};
 
 /// Lightweight websocket client capable of connecting to Alpaca's streaming
 /// APIs.
