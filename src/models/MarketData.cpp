@@ -10,14 +10,12 @@ namespace alpaca {
 namespace {
 
 template <typename Duration>
-constexpr bool is_supported_duration_v = std::is_same_v<Duration, std::chrono::minutes> ||
-                                         std::is_same_v<Duration, std::chrono::hours> ||
-                                         std::is_same_v<Duration, std::chrono::days> ||
-                                         std::is_same_v<Duration, std::chrono::weeks> ||
-                                         std::is_same_v<Duration, std::chrono::months>;
+constexpr bool is_supported_duration_v =
+std::is_same_v<Duration, std::chrono::minutes> || std::is_same_v<Duration, std::chrono::hours> ||
+std::is_same_v<Duration, std::chrono::days> || std::is_same_v<Duration, std::chrono::weeks> ||
+std::is_same_v<Duration, std::chrono::months>;
 
-template <typename Duration>
-[[nodiscard]] constexpr int to_int(Duration duration) {
+template <typename Duration> [[nodiscard]] constexpr int to_int(Duration duration) {
     return static_cast<int>(duration.count());
 }
 
@@ -49,17 +47,28 @@ TimeFrame parse_timeframe(int amount, std::string const& normalized_unit, std::s
 
 } // namespace
 
-TimeFrame::TimeFrame() : duration_(std::chrono::minutes{1}) {}
+TimeFrame::TimeFrame() : duration_(std::chrono::minutes{1}) {
+}
 
-TimeFrame::TimeFrame(std::chrono::minutes minutes) : duration_(minutes) { validate(duration_); }
+TimeFrame::TimeFrame(std::chrono::minutes minutes) : duration_(minutes) {
+    validate(duration_);
+}
 
-TimeFrame::TimeFrame(std::chrono::hours hours) : duration_(hours) { validate(duration_); }
+TimeFrame::TimeFrame(std::chrono::hours hours) : duration_(hours) {
+    validate(duration_);
+}
 
-TimeFrame::TimeFrame(std::chrono::days days) : duration_(days) { validate(duration_); }
+TimeFrame::TimeFrame(std::chrono::days days) : duration_(days) {
+    validate(duration_);
+}
 
-TimeFrame::TimeFrame(std::chrono::weeks weeks) : duration_(weeks) { validate(duration_); }
+TimeFrame::TimeFrame(std::chrono::weeks weeks) : duration_(weeks) {
+    validate(duration_);
+}
 
-TimeFrame::TimeFrame(std::chrono::months months) : duration_(months) { validate(duration_); }
+TimeFrame::TimeFrame(std::chrono::months months) : duration_(months) {
+    validate(duration_);
+}
 
 TimeFrame TimeFrame::minute(int amount) {
     return TimeFrame(std::chrono::minutes{amount});
@@ -81,48 +90,48 @@ TimeFrame TimeFrame::month(int amount) {
     return TimeFrame(std::chrono::months{amount});
 }
 
-TimeFrame::DurationVariant const& TimeFrame::value() const { return duration_; }
+TimeFrame::DurationVariant const& TimeFrame::value() const {
+    return duration_;
+}
 
 void TimeFrame::validate(DurationVariant const& duration) {
     std::visit(
-        [](auto const& value) {
-            using Duration = std::decay_t<decltype(value)>;
-            static_assert(is_supported_duration_v<Duration>, "Unsupported timeframe duration type");
+    [](auto const& value) {
+        using Duration = std::decay_t<decltype(value)>;
+        static_assert(is_supported_duration_v<Duration>, "Unsupported timeframe duration type");
 
-            auto const count = value.count();
-            if (count <= 0) {
-                throw std::invalid_argument("TimeFrame amount must be a positive integer value.");
-            }
+        auto const count = value.count();
+        if (count <= 0) {
+            throw std::invalid_argument("TimeFrame amount must be a positive integer value.");
+        }
 
-            if constexpr (std::is_same_v<Duration, std::chrono::minutes>) {
-                if (count > 59) {
-                    throw std::invalid_argument(
-                        "Minute units can only be used with amounts between 1-59.");
-                }
-            } else if constexpr (std::is_same_v<Duration, std::chrono::hours>) {
-                if (count > 23) {
-                    throw std::invalid_argument("Hour units can only be used with amounts 1-23.");
-                }
-            } else if constexpr (std::is_same_v<Duration, std::chrono::days> ||
-                                 std::is_same_v<Duration, std::chrono::weeks>) {
-                if (count != 1) {
-                    throw std::invalid_argument("Day and Week units can only be used with amount 1.");
-                }
-            } else if constexpr (std::is_same_v<Duration, std::chrono::months>) {
-                switch (count) {
-                case 1:
-                case 2:
-                case 3:
-                case 6:
-                case 12:
-                    break;
-                default:
-                    throw std::invalid_argument(
-                        "Month units can only be used with amount 1, 2, 3, 6 and 12.");
-                }
+        if constexpr (std::is_same_v<Duration, std::chrono::minutes>) {
+            if (count > 59) {
+                throw std::invalid_argument("Minute units can only be used with amounts between 1-59.");
             }
-        },
-        duration);
+        } else if constexpr (std::is_same_v<Duration, std::chrono::hours>) {
+            if (count > 23) {
+                throw std::invalid_argument("Hour units can only be used with amounts 1-23.");
+            }
+        } else if constexpr (std::is_same_v<Duration, std::chrono::days> ||
+                             std::is_same_v<Duration, std::chrono::weeks>) {
+            if (count != 1) {
+                throw std::invalid_argument("Day and Week units can only be used with amount 1.");
+            }
+        } else if constexpr (std::is_same_v<Duration, std::chrono::months>) {
+            switch (count) {
+            case 1:
+            case 2:
+            case 3:
+            case 6:
+            case 12:
+                break;
+            default:
+                throw std::invalid_argument("Month units can only be used with amount 1, 2, 3, 6 and 12.");
+            }
+        }
+    },
+    duration);
 }
 
 namespace {
@@ -825,24 +834,24 @@ std::string to_string(TimeFrame const& timeframe) {
     TimeFrame::validate(duration);
 
     return std::visit(
-        [](auto const& value) -> std::string {
-            using Duration = std::decay_t<decltype(value)>;
-            auto const amount = to_int(value);
+    [](auto const& value) -> std::string {
+        using Duration = std::decay_t<decltype(value)>;
+        auto const amount = to_int(value);
 
-            if constexpr (std::is_same_v<Duration, std::chrono::minutes>) {
-                return std::to_string(amount) + "Min";
-            } else if constexpr (std::is_same_v<Duration, std::chrono::hours>) {
-                return std::to_string(amount) + "Hour";
-            } else if constexpr (std::is_same_v<Duration, std::chrono::days>) {
-                return std::to_string(amount) + "Day";
-            } else if constexpr (std::is_same_v<Duration, std::chrono::weeks>) {
-                return std::to_string(amount) + "Week";
-            } else if constexpr (std::is_same_v<Duration, std::chrono::months>) {
-                return std::to_string(amount) + "Month";
-            }
-            throw std::invalid_argument("Unknown timeframe unit");
-        },
-        duration);
+        if constexpr (std::is_same_v<Duration, std::chrono::minutes>) {
+            return std::to_string(amount) + "Min";
+        } else if constexpr (std::is_same_v<Duration, std::chrono::hours>) {
+            return std::to_string(amount) + "Hour";
+        } else if constexpr (std::is_same_v<Duration, std::chrono::days>) {
+            return std::to_string(amount) + "Day";
+        } else if constexpr (std::is_same_v<Duration, std::chrono::weeks>) {
+            return std::to_string(amount) + "Week";
+        } else if constexpr (std::is_same_v<Duration, std::chrono::months>) {
+            return std::to_string(amount) + "Month";
+        }
+        throw std::invalid_argument("Unknown timeframe unit");
+    },
+    duration);
 }
 
 TimeFrame time_frame_from_string(std::string const& value) {
@@ -850,8 +859,12 @@ TimeFrame time_frame_from_string(std::string const& value) {
         throw std::invalid_argument("Unknown timeframe string: " + value);
     }
 
-    auto is_space = [](char c) { return std::isspace(static_cast<unsigned char>(c)) != 0; };
-    auto is_digit = [](char c) { return std::isdigit(static_cast<unsigned char>(c)) != 0; };
+    auto is_space = [](char c) {
+        return std::isspace(static_cast<unsigned char>(c)) != 0;
+    };
+    auto is_digit = [](char c) {
+        return std::isdigit(static_cast<unsigned char>(c)) != 0;
+    };
 
     auto first = std::find_if_not(value.begin(), value.end(), is_space);
     auto last = std::find_if_not(value.rbegin(), value.rend(), is_space).base();

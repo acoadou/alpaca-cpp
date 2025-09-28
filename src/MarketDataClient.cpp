@@ -23,7 +23,7 @@ std::string make_data_beta_base_url(std::string const& data_base_url, std::strin
     constexpr std::string_view v2_suffix{"/v2"};
     if (data_base_url.ends_with(v2_suffix)) {
         return std::string(data_base_url.substr(0, data_base_url.size() - v2_suffix.size())) + '/' +
-            std::string(version);
+               std::string(version);
     }
     if (!data_base_url.empty() && data_base_url.back() == '/') {
         return data_base_url + std::string(version);
@@ -57,7 +57,8 @@ std::optional<MarketDataPlan> plan_hint_from_url(std::string const& url) {
         host_start = scheme_pos + 2;
     }
     auto path_start = lower.find('/', host_start);
-    std::string host = lower.substr(host_start, path_start == std::string::npos ? std::string::npos : path_start - host_start);
+    std::string host =
+    lower.substr(host_start, path_start == std::string::npos ? std::string::npos : path_start - host_start);
     std::string path = path_start == std::string::npos ? std::string{} : lower.substr(path_start);
 
     auto contains_feed_token = [](std::string const& value, std::string_view token) {
@@ -119,14 +120,12 @@ MarketDataPlan resolve_market_data_plan(Configuration const& config) {
     switch (config.market_data_plan) {
     case MarketDataPlan::IEX:
         if (hint.has_value() && *hint == MarketDataPlan::SIP) {
-            throw std::invalid_argument(
-                "market_data_plan is set to IEX but configuration URLs reference the SIP feed");
+            throw std::invalid_argument("market_data_plan is set to IEX but configuration URLs reference the SIP feed");
         }
         return MarketDataPlan::IEX;
     case MarketDataPlan::SIP:
         if (hint.has_value() && *hint == MarketDataPlan::IEX) {
-            throw std::invalid_argument(
-                "market_data_plan is set to SIP but configuration URLs reference the IEX feed");
+            throw std::invalid_argument("market_data_plan is set to SIP but configuration URLs reference the IEX feed");
         }
         return MarketDataPlan::SIP;
     case MarketDataPlan::Auto:
@@ -140,8 +139,7 @@ MarketDataPlan resolve_market_data_plan(Configuration const& config) {
 
 template <typename T, typename = void> struct has_feed_member : std::false_type {};
 
-template <typename T>
-struct has_feed_member<T, std::void_t<decltype(std::declval<T&>().feed)>> : std::true_type {};
+template <typename T> struct has_feed_member<T, std::void_t<decltype(std::declval<T&>().feed)>> : std::true_type {};
 
 template <typename T> inline constexpr bool has_feed_member_v = has_feed_member<T>::value;
 
@@ -154,8 +152,8 @@ Request prepare_stock_request(Request request, MarketDataPlan plan, std::string 
                 auto normalized = to_lower_copy(*request.feed);
                 if (plan == MarketDataPlan::IEX && normalized == "sip") {
                     throw std::invalid_argument(
-                        "SIP market data feed requires the SIP data plan. "
-                        "Update Configuration::market_data_plan to MarketDataPlan::SIP or adjust the request feed.");
+                    "SIP market data feed requires the SIP data plan. "
+                    "Update Configuration::market_data_plan to MarketDataPlan::SIP or adjust the request feed.");
                 }
                 request.feed = std::move(normalized);
             } else {
@@ -168,42 +166,40 @@ Request prepare_stock_request(Request request, MarketDataPlan plan, std::string 
 } // namespace
 
 MarketDataClient::MarketDataClient(Configuration const& config, HttpClientPtr http_client, RestClient::Options options)
-    : stock_data_plan_(resolve_market_data_plan(config)),
-    stock_data_feed_(std::string(plan_feed_name(stock_data_plan_))),
+  : stock_data_plan_(resolve_market_data_plan(config)), stock_data_feed_(std::string(plan_feed_name(stock_data_plan_))),
     v2_client_(config, ensure_http_client(http_client), config.data_base_url, options),
-    beta_client_(config,
-                 ensure_http_client(http_client),
-                 make_data_beta_base_url(config.data_base_url, "v1beta1"),
+    beta_client_(config, ensure_http_client(http_client), make_data_beta_base_url(config.data_base_url, "v1beta1"),
                  options),
-    beta_v3_client_(config,
-                    ensure_http_client(http_client),
-                    make_data_beta_base_url(config.data_base_url, "v1beta3"),
-                    std::move(options)) {}
+    beta_v3_client_(config, ensure_http_client(http_client), make_data_beta_base_url(config.data_base_url, "v1beta3"),
+                    std::move(options)) {
+}
 
 MarketDataClient::MarketDataClient(Configuration const& config, RestClient::Options options)
-    : MarketDataClient(config, nullptr, std::move(options)) {}
+  : MarketDataClient(config, nullptr, std::move(options)) {
+}
 
 MarketDataClient::MarketDataClient(Environment const& environment, std::string api_key_id, std::string api_secret_key,
                                    HttpClientPtr http_client, RestClient::Options options)
-    : MarketDataClient(Configuration::FromEnvironment(environment, std::move(api_key_id), std::move(api_secret_key)),
-                       std::move(http_client),
-                       std::move(options)) {}
+  : MarketDataClient(Configuration::FromEnvironment(environment, std::move(api_key_id), std::move(api_secret_key)),
+                     std::move(http_client), std::move(options)) {
+}
 
 MarketDataClient::MarketDataClient(Environment const& environment, std::string api_key_id, std::string api_secret_key,
                                    RestClient::Options options)
-    : MarketDataClient(environment,
-                       std::move(api_key_id),
-                       std::move(api_secret_key),
-                       nullptr,
-                       std::move(options)) {}
+  : MarketDataClient(environment, std::move(api_key_id), std::move(api_secret_key), nullptr, std::move(options)) {
+}
 
 LatestStockTrade MarketDataClient::get_latest_stock_trade(std::string const& symbol) const {
-    QueryParams params{{"feed", stock_data_feed_}};
+    QueryParams params{
+        {"feed", stock_data_feed_}
+    };
     return v2_client_.get<LatestStockTrade>("stocks/" + symbol + "/trades/latest", params);
 }
 
 LatestStockQuote MarketDataClient::get_latest_stock_quote(std::string const& symbol) const {
-    QueryParams params{{"feed", stock_data_feed_}};
+    QueryParams params{
+        {"feed", stock_data_feed_}
+    };
     return v2_client_.get<LatestStockQuote>("stocks/" + symbol + "/quotes/latest", params);
 }
 
@@ -303,7 +299,9 @@ std::vector<StockBar> MarketDataClient::get_all_stock_bars(std::string const& sy
 }
 
 StockSnapshot MarketDataClient::get_stock_snapshot(std::string const& symbol) const {
-    QueryParams params{{"feed", stock_data_feed_}};
+    QueryParams params{
+        {"feed", stock_data_feed_}
+    };
     return v2_client_.get<StockSnapshot>("stocks/" + symbol + "/snapshot", params);
 }
 
@@ -333,17 +331,17 @@ MultiCryptoSnapshots MarketDataClient::get_crypto_snapshots(std::string const& f
 PaginatedVectorRange<StockBarsRequest, StockBars, StockBar>
 MarketDataClient::stock_bars_range(std::string const& symbol, StockBarsRequest request) const {
     return PaginatedVectorRange<StockBarsRequest, StockBars, StockBar>(
-        std::move(request),
-        [this, symbol](StockBarsRequest const& req) {
+    std::move(request),
+    [this, symbol](StockBarsRequest const& req) {
         return get_stock_bars(symbol, req);
     },
-        [](StockBars const& page) -> std::vector<StockBar> const& {
+    [](StockBars const& page) -> std::vector<StockBar> const& {
         return page.bars;
     },
-        [](StockBars const& page) {
+    [](StockBars const& page) {
         return page.next_page_token;
     },
-        [](StockBarsRequest& req, std::optional<std::string> const& token) {
+    [](StockBarsRequest& req, std::optional<std::string> const& token) {
         req.page_token = token;
     });
 }
@@ -354,17 +352,17 @@ NewsResponse MarketDataClient::get_news(NewsRequest const& request) const {
 
 PaginatedVectorRange<NewsRequest, NewsResponse, NewsArticle> MarketDataClient::news_range(NewsRequest request) const {
     return PaginatedVectorRange<NewsRequest, NewsResponse, NewsArticle>(
-        std::move(request),
-        [this](NewsRequest const& req) {
+    std::move(request),
+    [this](NewsRequest const& req) {
         return get_news(req);
     },
-        [](NewsResponse const& page) -> std::vector<NewsArticle> const& {
+    [](NewsResponse const& page) -> std::vector<NewsArticle> const& {
         return page.news;
     },
-        [](NewsResponse const& page) {
+    [](NewsResponse const& page) {
         return page.next_page_token;
     },
-        [](NewsRequest& req, std::optional<std::string> const& token) {
+    [](NewsRequest& req, std::optional<std::string> const& token) {
         req.page_token = token;
     });
 }
@@ -381,17 +379,17 @@ HistoricalAuctionsResponse MarketDataClient::get_auctions(HistoricalAuctionsRequ
 PaginatedVectorRange<HistoricalAuctionsRequest, HistoricalAuctionsResponse, StockAuction>
 MarketDataClient::stock_auctions_range(std::string const& symbol, HistoricalAuctionsRequest request) const {
     return PaginatedVectorRange<HistoricalAuctionsRequest, HistoricalAuctionsResponse, StockAuction>(
-        std::move(request),
-        [this, symbol](HistoricalAuctionsRequest const& req) {
+    std::move(request),
+    [this, symbol](HistoricalAuctionsRequest const& req) {
         return get_stock_auctions(symbol, req);
     },
-        [](HistoricalAuctionsResponse const& page) -> std::vector<StockAuction> const& {
+    [](HistoricalAuctionsResponse const& page) -> std::vector<StockAuction> const& {
         return page.auctions;
     },
-        [](HistoricalAuctionsResponse const& page) {
+    [](HistoricalAuctionsResponse const& page) {
         return page.next_page_token;
     },
-        [](HistoricalAuctionsRequest& req, std::optional<std::string> const& token) {
+    [](HistoricalAuctionsRequest& req, std::optional<std::string> const& token) {
         req.page_token = token;
     });
 }
@@ -399,17 +397,17 @@ MarketDataClient::stock_auctions_range(std::string const& symbol, HistoricalAuct
 PaginatedVectorRange<HistoricalAuctionsRequest, HistoricalAuctionsResponse, StockAuction>
 MarketDataClient::auctions_range(HistoricalAuctionsRequest request) const {
     return PaginatedVectorRange<HistoricalAuctionsRequest, HistoricalAuctionsResponse, StockAuction>(
-        std::move(request),
-        [this](HistoricalAuctionsRequest const& req) {
+    std::move(request),
+    [this](HistoricalAuctionsRequest const& req) {
         return get_auctions(req);
     },
-        [](HistoricalAuctionsResponse const& page) -> std::vector<StockAuction> const& {
+    [](HistoricalAuctionsResponse const& page) -> std::vector<StockAuction> const& {
         return page.auctions;
     },
-        [](HistoricalAuctionsResponse const& page) {
+    [](HistoricalAuctionsResponse const& page) {
         return page.next_page_token;
     },
-        [](HistoricalAuctionsRequest& req, std::optional<std::string> const& token) {
+    [](HistoricalAuctionsRequest& req, std::optional<std::string> const& token) {
         req.page_token = token;
     });
 }

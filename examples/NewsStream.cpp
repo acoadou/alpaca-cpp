@@ -13,28 +13,25 @@ int main() {
         return 1;
     }
 
-    alpaca::streaming::WebSocketClient socket(
-        config.market_data_stream_url,
-        config.api_key_id,
-        config.api_secret_key,
-        alpaca::streaming::StreamFeed::MarketData);
+    alpaca::streaming::WebSocketClient socket(config.market_data_stream_url, config.api_key_id, config.api_secret_key,
+                                              alpaca::streaming::StreamFeed::MarketData);
 
     socket.set_message_handler(
-        [](alpaca::streaming::StreamMessage const& message, alpaca::streaming::MessageCategory category) {
-            if (category != alpaca::streaming::MessageCategory::News) {
-                return;
-            }
+    [](alpaca::streaming::StreamMessage const& message, alpaca::streaming::MessageCategory category) {
+        if (category != alpaca::streaming::MessageCategory::News) {
+            return;
+        }
 
-            auto const& article = std::get<alpaca::streaming::NewsMessage>(message);
-            std::cout << "[news]";
-            for (auto const& symbol : article.symbols) {
-                std::cout << ' ' << symbol;
-            }
-            std::cout << " :: " << article.headline << std::endl;
-            if (article.summary) {
-                std::cout << "        " << *article.summary << std::endl;
-            }
-        });
+        auto const& article = std::get<alpaca::streaming::NewsMessage>(message);
+        std::cout << "[news]";
+        for (auto const& symbol : article.symbols) {
+            std::cout << ' ' << symbol;
+        }
+        std::cout << " :: " << article.headline << std::endl;
+        if (article.summary) {
+            std::cout << "        " << *article.summary << std::endl;
+        }
+    });
 
     socket.set_open_handler([&socket]() {
         std::cout << "Connected, subscribing to the Alpaca news stream..." << std::endl;

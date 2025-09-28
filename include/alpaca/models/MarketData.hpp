@@ -17,9 +17,9 @@ namespace alpaca {
 
 /// Aggregation interval representation backed by standard library durations.
 class TimeFrame {
-public:
-    using DurationVariant = std::variant<std::chrono::minutes, std::chrono::hours, std::chrono::days,
-                                         std::chrono::weeks, std::chrono::months>;
+  public:
+    using DurationVariant =
+    std::variant<std::chrono::minutes, std::chrono::hours, std::chrono::days, std::chrono::weeks, std::chrono::months>;
 
     TimeFrame();
     explicit TimeFrame(std::chrono::minutes minutes);
@@ -38,7 +38,7 @@ public:
 
     static void validate(DurationVariant const& duration);
 
-private:
+  private:
     DurationVariant duration_;
 };
 
@@ -212,7 +212,6 @@ struct MultiCryptoSnapshots {
 };
 
 void from_json(Json const& j, MultiCryptoSnapshots& response);
-
 
 struct LatestCryptoTrades {
     std::map<std::string, CryptoTrade> trades;

@@ -102,4 +102,3 @@ class OAuthClient {
 };
 
 } // namespace alpaca
-

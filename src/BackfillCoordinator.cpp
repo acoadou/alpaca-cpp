@@ -40,10 +40,11 @@ void append_optional_limit(std::optional<int>& target, int limit) {
 } // namespace
 
 BackfillCoordinator::BackfillCoordinator(MarketDataClient& market_data_client, StreamFeed feed)
-    : BackfillCoordinator(market_data_client, feed, Options{}) {}
+  : BackfillCoordinator(market_data_client, feed, Options{}) {
+}
 
 BackfillCoordinator::BackfillCoordinator(MarketDataClient& market_data_client, StreamFeed feed, Options options)
-    : market_data_client_(&market_data_client), feed_(feed), options_(std::move(options)) {
+  : market_data_client_(&market_data_client), feed_(feed), options_(std::move(options)) {
     if (!options_.bar_timeframe.has_value() && (feed == StreamFeed::MarketData || feed == StreamFeed::Options)) {
         options_.bar_timeframe = TimeFrame::minute();
     }
@@ -178,7 +179,7 @@ void BackfillCoordinator::replay_trades(std::string const& stream_id, Timestamp 
             if (it != response.trades.end()) {
                 handler(stream_id, it->second);
             } else {
-                static const std::vector<StockTrade> empty_trades;
+                static std::vector<StockTrade> const empty_trades;
                 handler(stream_id, empty_trades);
             }
         }
@@ -197,7 +198,7 @@ void BackfillCoordinator::replay_trades(std::string const& stream_id, Timestamp 
             if (it != response.trades.end()) {
                 handler(stream_id, it->second);
             } else {
-                static const std::vector<OptionTrade> empty_trades;
+                static std::vector<OptionTrade> const empty_trades;
                 handler(stream_id, empty_trades);
             }
         }
@@ -217,7 +218,7 @@ void BackfillCoordinator::replay_trades(std::string const& stream_id, Timestamp 
             if (it != response.trades.end()) {
                 handler(stream_id, it->second);
             } else {
-                static const std::vector<CryptoTrade> empty_trades;
+                static std::vector<CryptoTrade> const empty_trades;
                 handler(stream_id, empty_trades);
             }
         }
@@ -249,7 +250,7 @@ void BackfillCoordinator::replay_bars(std::string const& stream_id, Timestamp st
             if (it != response.bars.end()) {
                 handler(stream_id, it->second);
             } else {
-                static const std::vector<StockBar> empty_bars;
+                static std::vector<StockBar> const empty_bars;
                 handler(stream_id, empty_bars);
             }
         }
@@ -269,7 +270,7 @@ void BackfillCoordinator::replay_bars(std::string const& stream_id, Timestamp st
             if (it != response.bars.end()) {
                 handler(stream_id, it->second);
             } else {
-                static const std::vector<OptionBar> empty_bars;
+                static std::vector<OptionBar> const empty_bars;
                 handler(stream_id, empty_bars);
             }
         }
@@ -290,7 +291,7 @@ void BackfillCoordinator::replay_bars(std::string const& stream_id, Timestamp st
             if (it != response.bars.end()) {
                 handler(stream_id, it->second);
             } else {
-                static const std::vector<CryptoBar> empty_bars;
+                static std::vector<CryptoBar> const empty_bars;
                 handler(stream_id, empty_bars);
             }
         }

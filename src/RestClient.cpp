@@ -2,8 +2,8 @@
 
 #include <algorithm>
 #include <cctype>
-#include <iomanip>
 #include <initializer_list>
+#include <iomanip>
 #include <mutex>
 #include <optional>
 #include <sstream>
@@ -103,14 +103,12 @@ bool code_matches(std::optional<std::string> const& code, std::initializer_list<
                                       std::optional<std::string> const& error_code) {
     std::string lowered_message = to_lower_copy(message);
 
-    if (status_code == 401 ||
-        code_matches(error_code, {"40110000", "authentication_error", "unauthorized"}) ||
+    if (status_code == 401 || code_matches(error_code, {"40110000", "authentication_error", "unauthorized"}) ||
         message_contains(lowered_message, {"authentication", "credential", "unauthorized"})) {
         throw AuthenticationException(status_code, std::move(message), std::move(body), std::move(headers));
     }
 
-    if (status_code == 403 ||
-        code_matches(error_code, {"forbidden", "permission_denied", "insufficient_permission"}) ||
+    if (status_code == 403 || code_matches(error_code, {"forbidden", "permission_denied", "insufficient_permission"}) ||
         message_contains(lowered_message, {"forbidden", "permission"})) {
         throw PermissionException(status_code, std::move(message), std::move(body), std::move(headers));
     }
@@ -126,14 +124,12 @@ bool code_matches(std::optional<std::string> const& code, std::initializer_list<
         throw RateLimitException(status_code, std::move(message), std::move(body), std::move(headers));
     }
 
-    if (status_code >= 500 ||
-        code_matches(error_code, {"50010000", "internal_error", "service_unavailable"}) ||
+    if (status_code >= 500 || code_matches(error_code, {"50010000", "internal_error", "service_unavailable"}) ||
         message_contains(lowered_message, {"internal server", "service unavailable", "server error"})) {
         throw ServerException(status_code, std::move(message), std::move(body), std::move(headers));
     }
 
-    if (status_code == 422 || status_code == 400 ||
-        code_matches(error_code, {"validation_error", "invalid_request"}) ||
+    if (status_code == 422 || status_code == 400 || code_matches(error_code, {"validation_error", "invalid_request"}) ||
         message_contains(lowered_message, {"validation", "invalid"})) {
         throw ValidationException(status_code, std::move(message), std::move(body), std::move(headers));
     }

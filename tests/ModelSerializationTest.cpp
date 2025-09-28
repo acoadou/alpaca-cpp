@@ -32,7 +32,7 @@ TEST(ModelSerializationTest, NewOrderRequestSupportsAdvancedOptions) {
     request.stop_loss = alpaca::StopLossParams{std::make_optional<std::string>("135"), std::nullopt};
     request.position_intent = alpaca::PositionIntent::OPENING;
     request.legs = {
-        {"AAPL240119C00150000", 1, alpaca::OrderSide::BUY, alpaca::PositionIntent::OPENING},
+        {"AAPL240119C00150000", 1, alpaca::OrderSide::BUY,  alpaca::PositionIntent::OPENING},
         {"AAPL240119P00150000", 1, alpaca::OrderSide::SELL, alpaca::PositionIntent::CLOSING}
     };
 
@@ -102,20 +102,20 @@ TEST(ModelSerializationTest, ReplaceOrderRequestSerializesOptionals) {
 
 TEST(ModelSerializationTest, OrderDeserializesTrailingFields) {
     alpaca::Json json = {
-        {"id",               "order-id"                      },
-        {"asset_id",         "asset-id"                      },
-        {"client_order_id",  "client-id"                     },
-        {"account_id",       "account-id"                    },
-        {"created_at",       "2023-01-01T00:00:00Z"          },
-        {"symbol",           "AAPL"                          },
-        {"asset_class",      "us_equity"                     },
-        {"side",             "sell"                          },
-        {"type",             "trailing_stop"                 },
-        {"time_in_force",    "gtc"                           },
-        {"status",           "accepted"                      },
-        {"trail_price",      "1.50"                          },
-        {"trail_percent",    "0.5"                           },
-        {"high_water_mark",  "175.00"                        }
+        {"id",              "order-id"            },
+        {"asset_id",        "asset-id"            },
+        {"client_order_id", "client-id"           },
+        {"account_id",      "account-id"          },
+        {"created_at",      "2023-01-01T00:00:00Z"},
+        {"symbol",          "AAPL"                },
+        {"asset_class",     "us_equity"           },
+        {"side",            "sell"                },
+        {"type",            "trailing_stop"       },
+        {"time_in_force",   "gtc"                 },
+        {"status",          "accepted"            },
+        {"trail_price",     "1.50"                },
+        {"trail_percent",   "0.5"                 },
+        {"high_water_mark", "175.00"              }
     };
 
     auto const order = json.get<alpaca::Order>();
@@ -129,36 +129,36 @@ TEST(ModelSerializationTest, OrderDeserializesTrailingFields) {
 
 TEST(ModelSerializationTest, AccountDeserializesExtendedFields) {
     alpaca::Json json = {
-        {"id",                      "account"   },
-        {"account_number",          "123"       },
-        {"currency",                "USD"       },
-        {"status",                  "ACTIVE"    },
-        {"trade_blocked",           false       },
-        {"trading_blocked",         false       },
-        {"transfers_blocked",       true        },
-        {"pattern_day_trader",      true        },
-        {"shorting_enabled",        true        },
-        {"buying_power",            "1000"      },
-        {"regt_buying_power",       "2000"      },
-        {"daytrading_buying_power", "1500"      },
-        {"non_marginable_buying_power", "750"    },
-        {"equity",                  "2000"      },
-        {"last_equity",             "1500"      },
-        {"cash",                    "500"       },
-        {"cash_long",               "400"       },
-        {"cash_short",              "100"       },
-        {"cash_withdrawable",       "450"       },
-        {"portfolio_value",         "2500"      },
-        {"long_market_value",       "1000"      },
-        {"short_market_value",      "0"         },
-        {"initial_margin",          "0"         },
-        {"maintenance_margin",      "0"         },
-        {"last_maintenance_margin", "0"         },
-        {"multiplier",              "4"         },
-        {"sma",                     "200"       },
-        {"options_buying_power",    "300"       },
-        {"created_at",              "2020-01-01"},
-        {"daytrade_count",          "3"         }
+        {"id",                          "account"   },
+        {"account_number",              "123"       },
+        {"currency",                    "USD"       },
+        {"status",                      "ACTIVE"    },
+        {"trade_blocked",               false       },
+        {"trading_blocked",             false       },
+        {"transfers_blocked",           true        },
+        {"pattern_day_trader",          true        },
+        {"shorting_enabled",            true        },
+        {"buying_power",                "1000"      },
+        {"regt_buying_power",           "2000"      },
+        {"daytrading_buying_power",     "1500"      },
+        {"non_marginable_buying_power", "750"       },
+        {"equity",                      "2000"      },
+        {"last_equity",                 "1500"      },
+        {"cash",                        "500"       },
+        {"cash_long",                   "400"       },
+        {"cash_short",                  "100"       },
+        {"cash_withdrawable",           "450"       },
+        {"portfolio_value",             "2500"      },
+        {"long_market_value",           "1000"      },
+        {"short_market_value",          "0"         },
+        {"initial_margin",              "0"         },
+        {"maintenance_margin",          "0"         },
+        {"last_maintenance_margin",     "0"         },
+        {"multiplier",                  "4"         },
+        {"sma",                         "200"       },
+        {"options_buying_power",        "300"       },
+        {"created_at",                  "2020-01-01"},
+        {"daytrade_count",              "3"         }
     };
 
     auto const account = json.get<alpaca::Account>();
@@ -196,12 +196,12 @@ TEST(ModelSerializationTest, AccountConfigurationUpdateSerializesOnlyProvidedFie
 
 TEST(ModelSerializationTest, AccountConfigurationRoundTripsOptionsSettings) {
     alpaca::Json json = {
-        {"dtbp_check", "both"},
-        {"no_shorting", false},
-        {"trade_confirm_email", "all"},
-        {"suspend_trade", false},
-        {"ptp_no_exception_entry", true},
-        {"max_options_trading_level", 3}
+        {"dtbp_check",                "both"},
+        {"no_shorting",               false },
+        {"trade_confirm_email",       "all" },
+        {"suspend_trade",             false },
+        {"ptp_no_exception_entry",    true  },
+        {"max_options_trading_level", 3     }
     };
 
     auto const configuration = json.get<alpaca::AccountConfiguration>();
@@ -283,28 +283,28 @@ TEST(ModelSerializationTest, NewsRequestValidationAndQueryParams) {
     auto params = request.to_query_params();
     EXPECT_NE(std::find_if(params.begin(), params.end(),
                            [](auto const& pair) {
-        return pair.first == "symbols" && pair.second.find("AAPL") != std::string::npos;
-    }),
+                               return pair.first == "symbols" && pair.second.find("AAPL") != std::string::npos;
+                           }),
               params.end());
     EXPECT_NE(std::find_if(params.begin(), params.end(),
                            [](auto const& pair) {
-        return pair.first == "limit" && pair.second == "5";
-    }),
+                               return pair.first == "limit" && pair.second == "5";
+                           }),
               params.end());
     EXPECT_NE(std::find_if(params.begin(), params.end(),
                            [](auto const& pair) {
-        return pair.first == "page_token" && pair.second == "cursor";
-    }),
+                               return pair.first == "page_token" && pair.second == "cursor";
+                           }),
               params.end());
     EXPECT_NE(std::find_if(params.begin(), params.end(),
                            [](auto const& pair) {
-        return pair.first == "include_content" && pair.second == "true";
-    }),
+                               return pair.first == "include_content" && pair.second == "true";
+                           }),
               params.end());
     EXPECT_NE(std::find_if(params.begin(), params.end(),
                            [](auto const& pair) {
-        return pair.first == "exclude_contentless" && pair.second == "true";
-    }),
+                               return pair.first == "exclude_contentless" && pair.second == "true";
+                           }),
               params.end());
 
     request.limit = 0;
@@ -358,23 +358,23 @@ TEST(ModelSerializationTest, HistoricalAuctionsRequestValidatesRange) {
     auto params = request.to_query_params();
     EXPECT_NE(std::find_if(params.begin(), params.end(),
                            [](auto const& entry) {
-        return entry.first == "symbols" && entry.second.find("AAPL") != std::string::npos;
-    }),
+                               return entry.first == "symbols" && entry.second.find("AAPL") != std::string::npos;
+                           }),
               params.end());
     EXPECT_NE(std::find_if(params.begin(), params.end(),
                            [](auto const& entry) {
-        return entry.first == "limit" && entry.second == "50";
-    }),
+                               return entry.first == "limit" && entry.second == "50";
+                           }),
               params.end());
     EXPECT_NE(std::find_if(params.begin(), params.end(),
                            [](auto const& entry) {
-        return entry.first == "sort" && entry.second == "desc";
-    }),
+                               return entry.first == "sort" && entry.second == "desc";
+                           }),
               params.end());
     EXPECT_NE(std::find_if(params.begin(), params.end(),
                            [](auto const& entry) {
-        return entry.first == "page_token" && entry.second == "cursor";
-    }),
+                               return entry.first == "page_token" && entry.second == "cursor";
+                           }),
               params.end());
 
     request.end = request.start;
@@ -471,8 +471,8 @@ TEST(ModelSerializationTest, MultiBarsRequestRequiresSymbols) {
     auto params = request.to_query_params();
     EXPECT_NE(std::find_if(params.begin(), params.end(),
                            [](auto const& pair) {
-        return pair.first == "symbols" && pair.second == "AAPL";
-    }),
+                               return pair.first == "symbols" && pair.second == "AAPL";
+                           }),
               params.end());
 }
 

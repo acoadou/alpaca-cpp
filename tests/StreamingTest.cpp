@@ -5,27 +5,27 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
-#include <memory>
 #include <cstddef>
+#include <future>
+#include <memory>
 #include <mutex>
 #include <optional>
-#include <future>
+#include <thread>
 #include <tuple>
 #include <utility>
 #include <vector>
-#include <thread>
 
 #include "FakeHttpClient.hpp"
 #include "alpaca/BackfillCoordinator.hpp"
 #include "alpaca/Configuration.hpp"
-#include "alpaca/MarketDataClient.hpp"
 #include "alpaca/Json.hpp"
+#include "alpaca/MarketDataClient.hpp"
 #include "alpaca/models/Common.hpp"
 
 namespace alpaca::streaming {
 
 class WebSocketClientHarness {
-public:
+  public:
     static void feed(WebSocketClient& client, Json const& payload) {
         client.handle_payload(payload);
     }
@@ -151,15 +151,15 @@ public:
 
 namespace {
 
-using alpaca::parse_timestamp;
 using alpaca::Json;
+using alpaca::parse_timestamp;
+using alpaca::streaming::MarketSubscription;
 using alpaca::streaming::MessageCategory;
+using alpaca::streaming::ReconnectPolicy;
 using alpaca::streaming::StreamMessage;
 using alpaca::streaming::WebSocketClient;
 using alpaca::streaming::WebSocketClientHarness;
 using alpaca::streaming::WebSocketClientTestHooks;
-using alpaca::streaming::MarketSubscription;
-using alpaca::streaming::ReconnectPolicy;
 
 alpaca::HttpResponse MakeHttpResponse(std::string body) {
     return alpaca::HttpResponse{200, std::move(body), {}};
@@ -354,7 +354,9 @@ TEST(StreamingTest, AsyncSubscribeQueuesMessageWhileDisconnected) {
 TEST(StreamingTest, AsyncSendRawBuffersMessageUntilConnected) {
     auto client = make_client();
 
-    auto future = client.send_raw_async(alpaca::Json{{"action", "noop"}});
+    auto future = client.send_raw_async(alpaca::Json{
+        {"action", "noop"}
+    });
     EXPECT_NO_THROW(future.get());
 
     EXPECT_EQ(WebSocketClientHarness::pending_message_count(client), 1U);
@@ -489,7 +491,8 @@ TEST(StreamingTest, RoutesUnderlyingWhenPayloadIncludesUnderlyingSymbol) {
 
 TEST(StreamingTest, DetectsSequenceGapsAndRequestsReplay) {
     auto client = make_client();
-    client.set_message_handler([](StreamMessage const&, MessageCategory) {});
+    client.set_message_handler([](StreamMessage const&, MessageCategory) {
+    });
 
     std::vector<std::tuple<std::string, std::uint64_t, std::uint64_t>> gaps;
     std::vector<std::tuple<std::string, std::uint64_t, std::uint64_t>> replays;
@@ -518,16 +521,25 @@ TEST(StreamingTest, DetectsSequenceGapsAndRequestsReplay) {
         }
         return std::nullopt;
     };
-    policy.gap_handler = [&gaps](std::string const& stream, std::uint64_t expected, std::uint64_t observed, alpaca::Json const&) {
+    policy.gap_handler = [&gaps](std::string const& stream, std::uint64_t expected, std::uint64_t observed,
+                                 alpaca::Json const&) {
         gaps.emplace_back(stream, expected, observed);
     };
-    policy.replay_request = [&replays](std::string const& stream, std::uint64_t from_seq, std::uint64_t to_seq, alpaca::Json const&) {
+    policy.replay_request = [&replays](std::string const& stream, std::uint64_t from_seq, std::uint64_t to_seq,
+                                       alpaca::Json const&) {
         replays.emplace_back(stream, from_seq, to_seq);
     };
 
     client.set_sequence_gap_policy(std::move(policy));
 
-    alpaca::Json base{{"T", "t"}, {"S", "AAPL"}, {"p", 100.0}, {"s", 10}, {"x", "XNAS"}, {"t", "2024-05-01T12:00:00Z"}};
+    alpaca::Json base{
+        {"T", "t"                   },
+        {"S", "AAPL"                },
+        {"p", 100.0                 },
+        {"s", 10                    },
+        {"x", "XNAS"                },
+        {"t", "2024-05-01T12:00:00Z"}
+    };
 
     auto first = base;
     first["i"] = "1";
@@ -554,7 +566,8 @@ TEST(StreamingTest, DetectsSequenceGapsAndRequestsReplay) {
 
 TEST(StreamingTest, ReportsLatencyWhenThresholdExceeded) {
     auto client = make_client();
-    client.set_message_handler([](StreamMessage const&, MessageCategory) {});
+    client.set_message_handler([](StreamMessage const&, MessageCategory) {
+    });
 
     std::vector<std::pair<std::string, std::chrono::nanoseconds>> latency_events;
 
@@ -572,20 +585,24 @@ TEST(StreamingTest, ReportsLatencyWhenThresholdExceeded) {
         }
         return std::string{};
     };
-    monitor.latency_handler = [&latency_events](std::string const& stream, std::chrono::nanoseconds latency, alpaca::Json const&) {
+    monitor.latency_handler = [&latency_events](std::string const& stream, std::chrono::nanoseconds latency,
+                                                alpaca::Json const&) {
         latency_events.emplace_back(stream, latency);
     };
 
     client.set_latency_monitor(std::move(monitor));
 
-    auto event_time = std::chrono::time_point_cast<alpaca::Timestamp::duration>(std::chrono::system_clock::now() - std::chrono::seconds(2));
-    alpaca::Json payload{{"T", "t"},
-                         {"S", "MSFT"},
-                         {"i", "10"},
-                         {"p", 350.0},
-                         {"s", 5},
-                         {"x", "XNAS"},
-                         {"t", alpaca::format_timestamp(event_time)}};
+    auto event_time = std::chrono::time_point_cast<alpaca::Timestamp::duration>(std::chrono::system_clock::now() -
+                                                                                std::chrono::seconds(2));
+    alpaca::Json payload{
+        {"T", "t"                                 },
+        {"S", "MSFT"                              },
+        {"i", "10"                                },
+        {"p", 350.0                               },
+        {"s", 5                                   },
+        {"x", "XNAS"                              },
+        {"t", alpaca::format_timestamp(event_time)}
+    };
 
     WebSocketClientHarness::feed(client, payload);
 
@@ -601,14 +618,21 @@ TEST(StreamingTest, IssuesRestBackfillRequestWhenTradeSequenceGapDetected) {
     alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
     alpaca::MarketDataClient market(config, http);
 
-    auto coordinator = std::make_shared<alpaca::streaming::BackfillCoordinator>(
-        market, alpaca::streaming::StreamFeed::MarketData);
+    auto coordinator =
+    std::make_shared<alpaca::streaming::BackfillCoordinator>(market, alpaca::streaming::StreamFeed::MarketData);
 
     WebSocketClient client{"wss://example.com", "key", "secret"};
-    client.set_message_handler([](StreamMessage const&, MessageCategory) {});
+    client.set_message_handler([](StreamMessage const&, MessageCategory) {
+    });
     client.enable_automatic_backfill(coordinator);
 
-    alpaca::Json base{{"T", "t"}, {"S", "AAPL"}, {"p", 100.0}, {"s", 10}, {"x", "XNAS"}};
+    alpaca::Json base{
+        {"T", "t"   },
+        {"S", "AAPL"},
+        {"p", 100.0 },
+        {"s", 10    },
+        {"x", "XNAS"}
+    };
 
     auto first = base;
     first["i"] = "10";
@@ -643,15 +667,23 @@ TEST(StreamingTest, CloseEventSchedulesReconnectAndReplaysSubscriptions) {
     std::atomic<int> reconnect_calls{0};
 
     WebSocketClientTestHooks hooks{};
-    hooks.on_send_raw = [&sent_messages](Json const& message) { sent_messages.push_back(message); };
-    hooks.on_replay_subscriptions = [&replay_calls]() { replay_calls.fetch_add(1, std::memory_order_relaxed); };
-    hooks.on_schedule_reconnect = [&reconnect_calls]() { reconnect_calls.fetch_add(1, std::memory_order_relaxed); };
+    hooks.on_send_raw = [&sent_messages](Json const& message) {
+        sent_messages.push_back(message);
+    };
+    hooks.on_replay_subscriptions = [&replay_calls]() {
+        replay_calls.fetch_add(1, std::memory_order_relaxed);
+    };
+    hooks.on_schedule_reconnect = [&reconnect_calls]() {
+        reconnect_calls.fetch_add(1, std::memory_order_relaxed);
+    };
     WebSocketClientHarness::set_test_hooks(client, std::move(hooks));
 
     MarketSubscription subscription;
     subscription.trades.push_back("AAPL");
     client.subscribe(subscription);
-    client.send_raw(alpaca::Json{{"action", "noop"}});
+    client.send_raw(alpaca::Json{
+        {"action", "noop"}
+    });
 
     ASSERT_EQ(WebSocketClientHarness::pending_message_count(client), 2U);
 
@@ -713,7 +745,9 @@ TEST(StreamingTest, ErrorEventSchedulesReconnect) {
 
     std::atomic<int> reconnect_calls{0};
     WebSocketClientTestHooks hooks{};
-    hooks.on_schedule_reconnect = [&reconnect_calls]() { reconnect_calls.fetch_add(1, std::memory_order_relaxed); };
+    hooks.on_schedule_reconnect = [&reconnect_calls]() {
+        reconnect_calls.fetch_add(1, std::memory_order_relaxed);
+    };
     WebSocketClientHarness::set_test_hooks(client, std::move(hooks));
 
     WebSocketClientHarness::set_should_reconnect(client, true);
@@ -740,8 +774,12 @@ TEST(StreamingTest, HeartbeatTimeoutSchedulesReconnect) {
     std::atomic<int> timeout_calls{0};
 
     WebSocketClientTestHooks hooks{};
-    hooks.on_schedule_reconnect = [&reconnect_calls]() { reconnect_calls.fetch_add(1, std::memory_order_relaxed); };
-    hooks.on_handle_heartbeat_timeout = [&timeout_calls]() { timeout_calls.fetch_add(1, std::memory_order_relaxed); };
+    hooks.on_schedule_reconnect = [&reconnect_calls]() {
+        reconnect_calls.fetch_add(1, std::memory_order_relaxed);
+    };
+    hooks.on_handle_heartbeat_timeout = [&timeout_calls]() {
+        timeout_calls.fetch_add(1, std::memory_order_relaxed);
+    };
     WebSocketClientHarness::set_test_hooks(client, std::move(hooks));
 
     WebSocketClientHarness::set_should_reconnect(client, true);
@@ -762,7 +800,9 @@ TEST(StreamingTest, RespondsToPingWithPong) {
 
     std::vector<Json> sent_messages;
     WebSocketClientTestHooks hooks{};
-    hooks.on_send_raw = [&sent_messages](Json const& message) { sent_messages.push_back(message); };
+    hooks.on_send_raw = [&sent_messages](Json const& message) {
+        sent_messages.push_back(message);
+    };
     WebSocketClientHarness::set_test_hooks(client, std::move(hooks));
 
     WebSocketClientHarness::set_connected(client, false);

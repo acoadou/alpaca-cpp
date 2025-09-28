@@ -64,10 +64,10 @@ template <typename Request> Json build_new_order_payload(Request const& request)
             Json legs_json = Json::array();
             for (auto const& leg : request.legs) {
                 Json leg_json = {
-                    {"symbol",          leg.symbol            },
-                    {"ratio",           leg.ratio             },
-                    {"side",            to_string(leg.side)   },
-                    {"position_intent", to_string(leg.intent) }
+                    {"symbol",          leg.symbol           },
+                    {"ratio",           leg.ratio            },
+                    {"side",            to_string(leg.side)  },
+                    {"position_intent", to_string(leg.intent)}
                 };
                 legs_json.push_back(std::move(leg_json));
             }

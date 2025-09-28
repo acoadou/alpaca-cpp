@@ -9,8 +9,8 @@ void from_json(Json const& j, AccountConfiguration& configuration) {
     configuration.suspend_trade = j.value("suspend_trade", false);
     configuration.ptp_no_exception_entry = j.value("ptp_no_exception_entry", false);
     if (j.contains("max_options_trading_level") && !j["max_options_trading_level"].is_null()) {
-        configuration.max_options_trading_level = static_cast<OptionsTradingLevel>(
-            j["max_options_trading_level"].get<int>());
+        configuration.max_options_trading_level =
+        static_cast<OptionsTradingLevel>(j["max_options_trading_level"].get<int>());
     } else {
         configuration.max_options_trading_level.reset();
     }
@@ -18,10 +18,10 @@ void from_json(Json const& j, AccountConfiguration& configuration) {
 
 void to_json(Json& j, AccountConfiguration const& configuration) {
     j = Json{
-        {"dtbp_check",          configuration.dtbp_check         },
-        {"no_shorting",         configuration.no_shorting        },
-        {"trade_confirm_email", configuration.trade_confirm_email},
-        {"suspend_trade",       configuration.suspend_trade      },
+        {"dtbp_check",             configuration.dtbp_check            },
+        {"no_shorting",            configuration.no_shorting           },
+        {"trade_confirm_email",    configuration.trade_confirm_email   },
+        {"suspend_trade",          configuration.suspend_trade         },
         {"ptp_no_exception_entry", configuration.ptp_no_exception_entry}
     };
     if (configuration.max_options_trading_level.has_value()) {

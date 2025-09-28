@@ -42,9 +42,8 @@ TEST(OAuthTest, BuildAuthorizationUrlIncludesParameters) {
 
 TEST(OAuthTest, ExchangeAuthorizationCodeBuildsFormRequest) {
     auto fake = std::make_shared<FakeHttpClient>();
-    fake->push_response(alpaca::HttpResponse{200,
-                                             R"({"access_token":"token","refresh_token":"refresh","expires_in":3600,"scope":"account"})",
-                                             {}});
+    fake->push_response(alpaca::HttpResponse{
+        200, R"({"access_token":"token","refresh_token":"refresh","expires_in":3600,"scope":"account"})", {}});
 
     OAuthClient client{"https://broker-api.sandbox.alpaca.markets/oauth/token", fake};
 
@@ -113,4 +112,3 @@ TEST(OAuthTest, ApplySetsBearerToken) {
     ASSERT_TRUE(config.bearer_token.has_value());
     EXPECT_EQ(*config.bearer_token, "bearer");
 }
-

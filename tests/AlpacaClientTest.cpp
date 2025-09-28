@@ -17,10 +17,9 @@
 namespace {
 
 class ScopedEnvironmentOverride {
-public:
-    ScopedEnvironmentOverride(std::string name, std::string value)
-        : name_(std::move(name)) {
-        if (auto const* existing = std::getenv(name_.c_str()); existing != nullptr) {
+  public:
+    ScopedEnvironmentOverride(std::string name, std::string value) : name_(std::move(name)) {
+        if (auto const *existing = std::getenv(name_.c_str()); existing != nullptr) {
             previous_ = existing;
         }
         set(value.c_str());
@@ -37,8 +36,8 @@ public:
         }
     }
 
-private:
-    void set(char const* value) {
+  private:
+    void set(char const *value) {
 #if defined(_WIN32)
         if (value != nullptr) {
             _putenv_s(name_.c_str(), value);
@@ -55,14 +54,16 @@ private:
 #endif
     }
 
-    void unset() { set(nullptr); }
+    void unset() {
+        set(nullptr);
+    }
 
     std::string name_;
     std::optional<std::string> previous_{};
 };
 
 class StubHttpClient : public alpaca::HttpClient {
-public:
+  public:
     StubHttpClient() = default;
 
     void enqueue_response(alpaca::HttpResponse response) {
@@ -83,7 +84,7 @@ public:
         return response;
     }
 
-private:
+  private:
     std::queue<alpaca::HttpResponse> responses_{};
     std::vector<alpaca::HttpRequest> requests_{};
 };
@@ -129,8 +130,7 @@ TEST(ConfigurationTest, FromEnvironmentPrefersEnvironmentVariables) {
     ScopedEnvironmentOverride options_stream{"APCA_API_OPTIONS_STREAM_URL", "wss://env-options-stream.example"};
 
     auto environment = alpaca::Environments::Paper();
-    alpaca::Configuration cfg =
-        alpaca::Configuration::FromEnvironment(environment, "arg-key", "arg-secret");
+    alpaca::Configuration cfg = alpaca::Configuration::FromEnvironment(environment, "arg-key", "arg-secret");
 
     EXPECT_EQ(cfg.api_key_id, "env-key");
     EXPECT_EQ(cfg.api_secret_key, "env-secret");
@@ -184,8 +184,8 @@ TEST(AlpacaClientTest, SubmitOrderSerializesAdvancedFields) {
 TEST(AlpacaClientTest, SubmitOptionOrderTargetsOptionsEndpoint) {
     auto stub = std::make_shared<StubHttpClient>();
     stub->enqueue_response(
-        alpaca::HttpResponse{200,
-                             R"({"id":"opt-order-1","symbol":"AAPL240119C00195000","side":"buy","type":"market",
+    alpaca::HttpResponse{200,
+                         R"({"id":"opt-order-1","symbol":"AAPL240119C00195000","side":"buy","type":"market",
              "created_at":"2023-01-01T00:00:00Z","time_in_force":"day","status":"accepted"})",
                          {}});
 
@@ -215,9 +215,8 @@ TEST(AlpacaClientTest, SubmitOptionOrderTargetsOptionsEndpoint) {
 
 TEST(AlpacaClientTest, ListOptionOrdersExpandsNestedLegsWhenRequested) {
     auto stub = std::make_shared<StubHttpClient>();
-    stub->enqueue_response(alpaca::HttpResponse{
-        200,
-        R"([
+    stub->enqueue_response(alpaca::HttpResponse{200,
+                                                R"([
             {
                 "id": "spread-1",
                 "asset_id": "asset-combo",
@@ -270,7 +269,7 @@ TEST(AlpacaClientTest, ListOptionOrdersExpandsNestedLegsWhenRequested) {
                 ]
             }
         ])",
-        {}});
+                                                {}});
 
     alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
     alpaca::AlpacaClient client(config, stub);

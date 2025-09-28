@@ -37,10 +37,8 @@ class BackfillCoordinator {
         bool request_bars{true};
     };
 
-    using TradeReplayHandler =
-        std::function<void(std::string const&, std::vector<alpaca::StockTrade> const&)>;
-    using BarReplayHandler =
-        std::function<void(std::string const&, std::vector<alpaca::StockBar> const&)>;
+    using TradeReplayHandler = std::function<void(std::string const&, std::vector<alpaca::StockTrade> const&)>;
+    using BarReplayHandler = std::function<void(std::string const&, std::vector<alpaca::StockBar> const&)>;
 
     BackfillCoordinator(MarketDataClient& market_data_client, StreamFeed feed);
     BackfillCoordinator(MarketDataClient& market_data_client, StreamFeed feed, Options options);
@@ -54,11 +52,14 @@ class BackfillCoordinator {
 
     /// Invoked when a sequence gap is detected. Dispatches REST calls to fetch
     /// missing records for the provided stream identifier.
-    void request_backfill(std::string const& stream_id, std::uint64_t from_sequence,
-                          std::uint64_t to_sequence, Json const& payload);
+    void request_backfill(std::string const& stream_id, std::uint64_t from_sequence, std::uint64_t to_sequence,
+                          Json const& payload);
 
   private:
-    enum class PayloadKind { Trade, Bar };
+    enum class PayloadKind {
+        Trade,
+        Bar
+    };
 
     struct StreamState {
         std::optional<Timestamp> previous_timestamp{};
@@ -73,7 +74,7 @@ class BackfillCoordinator {
     void replay_bars(std::string const& stream_id, Timestamp start, Timestamp end, int limit,
                      BarReplayHandler const& handler);
 
-    MarketDataClient* market_data_client_;
+    MarketDataClient *market_data_client_;
     StreamFeed feed_;
     Options options_;
 

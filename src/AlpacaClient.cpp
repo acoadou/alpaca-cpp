@@ -18,17 +18,12 @@ AlpacaClient::AlpacaClient(Configuration config, RestClient::Options options)
 AlpacaClient::AlpacaClient(Environment const& environment, std::string api_key_id, std::string api_secret_key,
                            HttpClientPtr http_client, RestClient::Options options)
   : AlpacaClient(Configuration::FromEnvironment(environment, std::move(api_key_id), std::move(api_secret_key)),
-                 std::move(http_client),
-                 std::move(options)) {
+                 std::move(http_client), std::move(options)) {
 }
 
 AlpacaClient::AlpacaClient(Environment const& environment, std::string api_key_id, std::string api_secret_key,
                            RestClient::Options options)
-  : AlpacaClient(environment,
-                 std::move(api_key_id),
-                 std::move(api_secret_key),
-                 nullptr,
-                 std::move(options)) {
+  : AlpacaClient(environment, std::move(api_key_id), std::move(api_secret_key), nullptr, std::move(options)) {
 }
 
 TradingClient& AlpacaClient::trading() noexcept {

@@ -65,7 +65,7 @@ TEST(TradingClientTest, SubmitOptionOrderIncludesMultiLegPayload) {
     request.limit_price = "2.50";
     request.position_intent = alpaca::PositionIntent::OPENING;
     request.legs = {
-        {"AAPL240119C00195000", 1, alpaca::OrderSide::BUY, alpaca::PositionIntent::OPENING},
+        {"AAPL240119C00195000", 1, alpaca::OrderSide::BUY,  alpaca::PositionIntent::OPENING},
         {"AAPL240119P00195000", 1, alpaca::OrderSide::SELL, alpaca::PositionIntent::CLOSING}
     };
 
@@ -220,7 +220,6 @@ TEST(TradingClientTest, SubmitOtcOrderIncludesRoutingControls) {
     EXPECT_EQ(payload.at("venue"), "OTC");
     EXPECT_TRUE(payload.at("reduce_only").get<bool>());
 }
-
 
 TEST(TradingClientTest, CustomRetryOptionsPropagateToRestClient) {
     auto http = std::make_shared<FakeHttpClient>();

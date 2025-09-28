@@ -41,4 +41,3 @@ int main() {
     std::cout << "Received access token (" << tokens.token_type << ") with scope "
               << (tokens.scope.has_value() ? *tokens.scope : std::string{"<none>"}) << "\n";
 }
-

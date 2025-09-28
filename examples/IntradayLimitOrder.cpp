@@ -66,7 +66,7 @@ int main() {
             ++attempt;
             auto placed = trading.submit_order(order);
             std::cout << "Order " << placed.id << " accepted at limit price " << *order.limit_price << " after "
-                << attempt << " attempt(s)." << std::endl;
+                      << attempt << " attempt(s)." << std::endl;
             submitted = true;
         } catch (alpaca::ApiException const& ex) {
             std::cerr << "Attempt " << attempt << " failed (" << ex.status_code() << "): " << ex.what() << std::endl;

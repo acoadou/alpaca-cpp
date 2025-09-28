@@ -24,11 +24,11 @@ TEST(NewOrderRequestParityTest, MarketOrderSerializationMatchesCSharpBehavior) {
     to_json(json, request);
 
     alpaca::Json const expected = {
-        {"symbol", "AAPL"},
-        {"side", "buy"},
-        {"type", "market"},
-        {"time_in_force", "day"},
-        {"qty", "10"}
+        {"symbol",        "AAPL"  },
+        {"side",          "buy"   },
+        {"type",          "market"},
+        {"time_in_force", "day"   },
+        {"qty",           "10"    }
     };
 
     EXPECT_EQ(json, expected);

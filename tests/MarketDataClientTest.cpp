@@ -102,11 +102,11 @@ TEST(MarketDataClientTest, RejectsSipFeedWithoutSipPlan) {
     request.feed = "sip";
 
     EXPECT_THROW(
-        {
-            auto result = client.get_latest_stock_trades(request);
-            (void)result;
-        },
-        std::invalid_argument);
+    {
+        auto result = client.get_latest_stock_trades(request);
+        (void)result;
+    },
+    std::invalid_argument);
 }
 
 TEST(MarketDataClientTest, MultiLatestOptionQuotesTargetsBetaEndpoint) {

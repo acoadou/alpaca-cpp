@@ -8,27 +8,23 @@
 namespace alpaca {
 
 BrokerClient::BrokerClient(Configuration const& config, HttpClientPtr http_client, RestClient::Options options)
-    : rest_client_(config,
-                   ensure_http_client(http_client),
-                   config.broker_base_url,
-                   std::move(options)) {}
+  : rest_client_(config, ensure_http_client(http_client), config.broker_base_url, std::move(options)) {
+}
 
 BrokerClient::BrokerClient(Configuration const& config, RestClient::Options options)
-    : BrokerClient(config, nullptr, std::move(options)) {}
+  : BrokerClient(config, nullptr, std::move(options)) {
+}
 
 BrokerClient::BrokerClient(Environment const& environment, std::string api_key_id, std::string api_secret_key,
                            HttpClientPtr http_client, RestClient::Options options)
-    : BrokerClient(Configuration::FromEnvironment(environment, std::move(api_key_id), std::move(api_secret_key)),
-                   std::move(http_client),
-                   std::move(options)) {}
+  : BrokerClient(Configuration::FromEnvironment(environment, std::move(api_key_id), std::move(api_secret_key)),
+                 std::move(http_client), std::move(options)) {
+}
 
 BrokerClient::BrokerClient(Environment const& environment, std::string api_key_id, std::string api_secret_key,
                            RestClient::Options options)
-    : BrokerClient(environment,
-                   std::move(api_key_id),
-                   std::move(api_secret_key),
-                   nullptr,
-                   std::move(options)) {}
+  : BrokerClient(environment, std::move(api_key_id), std::move(api_secret_key), nullptr, std::move(options)) {
+}
 
 BrokerAccountsPage BrokerClient::list_accounts(ListBrokerAccountsRequest const& request) const {
     return rest_client_.get<BrokerAccountsPage>("/v1/accounts", request.to_query_params());
@@ -54,17 +50,17 @@ void BrokerClient::close_account(std::string const& account_id) const {
 PaginatedVectorRange<ListBrokerAccountsRequest, BrokerAccountsPage, BrokerAccount>
 BrokerClient::list_accounts_range(ListBrokerAccountsRequest request) const {
     return PaginatedVectorRange<ListBrokerAccountsRequest, BrokerAccountsPage, BrokerAccount>(
-        std::move(request),
-        [this](ListBrokerAccountsRequest const& req) {
+    std::move(request),
+    [this](ListBrokerAccountsRequest const& req) {
         return list_accounts(req);
     },
-        [](BrokerAccountsPage const& page) -> std::vector<BrokerAccount> const& {
+    [](BrokerAccountsPage const& page) -> std::vector<BrokerAccount> const& {
         return page.accounts;
     },
-        [](BrokerAccountsPage const& page) {
+    [](BrokerAccountsPage const& page) {
         return page.next_page_token;
     },
-        [](ListBrokerAccountsRequest& req, std::optional<std::string> const& token) {
+    [](ListBrokerAccountsRequest& req, std::optional<std::string> const& token) {
         req.next_page_token = token;
     });
 }
@@ -97,17 +93,17 @@ void BrokerClient::cancel_transfer(std::string const& account_id, std::string co
 PaginatedVectorRange<ListTransfersRequest, TransfersPage, Transfer>
 BrokerClient::list_transfers_range(std::string const& account_id, ListTransfersRequest request) const {
     return PaginatedVectorRange<ListTransfersRequest, TransfersPage, Transfer>(
-        std::move(request),
-        [this, account_id](ListTransfersRequest const& req) {
+    std::move(request),
+    [this, account_id](ListTransfersRequest const& req) {
         return list_transfers(account_id, req);
     },
-        [](TransfersPage const& page) -> std::vector<Transfer> const& {
+    [](TransfersPage const& page) -> std::vector<Transfer> const& {
         return page.transfers;
     },
-        [](TransfersPage const& page) {
+    [](TransfersPage const& page) {
         return page.next_page_token;
     },
-        [](ListTransfersRequest& req, std::optional<std::string> const& token) {
+    [](ListTransfersRequest& req, std::optional<std::string> const& token) {
         req.next_page_token = token;
     });
 }
@@ -131,17 +127,17 @@ void BrokerClient::cancel_journal(std::string const& journal_id) const {
 PaginatedVectorRange<ListJournalsRequest, JournalsPage, Journal>
 BrokerClient::list_journals_range(ListJournalsRequest request) const {
     return PaginatedVectorRange<ListJournalsRequest, JournalsPage, Journal>(
-        std::move(request),
-        [this](ListJournalsRequest const& req) {
+    std::move(request),
+    [this](ListJournalsRequest const& req) {
         return list_journals(req);
     },
-        [](JournalsPage const& page) -> std::vector<Journal> const& {
+    [](JournalsPage const& page) -> std::vector<Journal> const& {
         return page.journals;
     },
-        [](JournalsPage const& page) {
+    [](JournalsPage const& page) {
         return page.next_page_token;
     },
-        [](ListJournalsRequest& req, std::optional<std::string> const& token) {
+    [](ListJournalsRequest& req, std::optional<std::string> const& token) {
         req.next_page_token = token;
     });
 }
@@ -253,18 +249,18 @@ BrokerClient::list_rebalancing_subscriptions(ListRebalancingSubscriptionsRequest
 PaginatedVectorRange<ListRebalancingSubscriptionsRequest, RebalancingSubscriptionsPage, RebalancingSubscription>
 BrokerClient::list_rebalancing_subscriptions_range(ListRebalancingSubscriptionsRequest request) const {
     return PaginatedVectorRange<ListRebalancingSubscriptionsRequest, RebalancingSubscriptionsPage,
-        RebalancingSubscription>(
-            std::move(request),
-            [this](ListRebalancingSubscriptionsRequest const& req) {
+                                RebalancingSubscription>(
+    std::move(request),
+    [this](ListRebalancingSubscriptionsRequest const& req) {
         return list_rebalancing_subscriptions(req);
     },
-            [](RebalancingSubscriptionsPage const& page) -> std::vector<RebalancingSubscription> const& {
+    [](RebalancingSubscriptionsPage const& page) -> std::vector<RebalancingSubscription> const& {
         return page.subscriptions;
     },
-            [](RebalancingSubscriptionsPage const& page) {
+    [](RebalancingSubscriptionsPage const& page) {
         return page.next_page_token;
     },
-            [](ListRebalancingSubscriptionsRequest& req, std::optional<std::string> const& token) {
+    [](ListRebalancingSubscriptionsRequest& req, std::optional<std::string> const& token) {
         req.page_token = token;
     });
 }
@@ -292,17 +288,17 @@ BrokerEventsPage BrokerClient::list_events(ListBrokerEventsRequest const& reques
 PaginatedVectorRange<ListBrokerEventsRequest, BrokerEventsPage, BrokerEvent>
 BrokerClient::list_events_range(ListBrokerEventsRequest request) const {
     return PaginatedVectorRange<ListBrokerEventsRequest, BrokerEventsPage, BrokerEvent>(
-        std::move(request),
-        [this](ListBrokerEventsRequest const& req) {
+    std::move(request),
+    [this](ListBrokerEventsRequest const& req) {
         return list_events(req);
     },
-        [](BrokerEventsPage const& page) -> std::vector<BrokerEvent> const& {
+    [](BrokerEventsPage const& page) -> std::vector<BrokerEvent> const& {
         return page.events;
     },
-        [](BrokerEventsPage const& page) {
+    [](BrokerEventsPage const& page) {
         return page.next_page_token;
     },
-        [](ListBrokerEventsRequest& req, std::optional<std::string> const& token) {
+    [](ListBrokerEventsRequest& req, std::optional<std::string> const& token) {
         req.page_token = token;
     });
 }

@@ -17,8 +17,7 @@
 
 namespace alpaca {
 namespace {
-constexpr std::string_view kCodeVerifierAlphabet =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
+constexpr std::string_view kCodeVerifierAlphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
 
 bool is_unreserved(unsigned char c) {
     return std::isalnum(c) != 0 || c == '-' || c == '_' || c == '.' || c == '~';
@@ -39,8 +38,7 @@ std::string url_encode(std::string_view value) {
 }
 
 std::string base64_url_encode(std::span<unsigned char const> data) {
-    static constexpr char const table[] =
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+    static constexpr char const table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
     std::string encoded;
     encoded.reserve(((data.size() + 2) / 3) * 4);
@@ -109,7 +107,7 @@ PkcePair GeneratePkcePair(std::size_t verifier_length) {
     }
 
     std::array<unsigned char, SHA256_DIGEST_LENGTH> digest{};
-    SHA256(reinterpret_cast<unsigned char const*>(verifier.data()), verifier.size(), digest.data());
+    SHA256(reinterpret_cast<unsigned char const *>(verifier.data()), verifier.size(), digest.data());
     std::string challenge = base64_url_encode(std::span<unsigned char const>{digest.data(), digest.size()});
 
     return PkcePair{std::move(verifier), std::move(challenge)};
@@ -173,7 +171,8 @@ void OAuthTokenResponse::apply(Configuration& configuration) const {
 }
 
 OAuthClient::OAuthClient(std::string token_endpoint, HttpClientPtr http_client)
-  : OAuthClient(std::move(token_endpoint), std::move(http_client), Options{}) {}
+  : OAuthClient(std::move(token_endpoint), std::move(http_client), Options{}) {
+}
 
 OAuthClient::OAuthClient(std::string token_endpoint, HttpClientPtr http_client, Options options)
   : token_endpoint_(std::move(token_endpoint)), http_client_(std::move(http_client)), options_(std::move(options)) {
@@ -199,11 +198,13 @@ OAuthTokenResponse OAuthClient::ExchangeAuthorizationCode(AuthorizationCodeToken
         throw std::invalid_argument("code_verifier must not be empty");
     }
 
-    std::vector<std::pair<std::string, std::string>> params{{"grant_type", "authorization_code"},
-                                                            {"client_id", request.client_id},
-                                                            {"redirect_uri", request.redirect_uri},
-                                                            {"code", request.code},
-                                                            {"code_verifier", request.code_verifier}};
+    std::vector<std::pair<std::string, std::string>> params{
+        {"grant_type",    "authorization_code" },
+        {"client_id",     request.client_id    },
+        {"redirect_uri",  request.redirect_uri },
+        {"code",          request.code         },
+        {"code_verifier", request.code_verifier}
+    };
     if (request.client_secret.has_value()) {
         params.emplace_back("client_secret", *request.client_secret);
     }
@@ -236,9 +237,11 @@ OAuthTokenResponse OAuthClient::RefreshAccessToken(RefreshTokenRequest const& re
         throw std::invalid_argument("refresh_token must not be empty");
     }
 
-    std::vector<std::pair<std::string, std::string>> params{{"grant_type", "refresh_token"},
-                                                            {"client_id", request.client_id},
-                                                            {"refresh_token", request.refresh_token}};
+    std::vector<std::pair<std::string, std::string>> params{
+        {"grant_type",    "refresh_token"      },
+        {"client_id",     request.client_id    },
+        {"refresh_token", request.refresh_token}
+    };
     if (request.client_secret.has_value()) {
         params.emplace_back("client_secret", *request.client_secret);
     }
@@ -314,4 +317,3 @@ HttpResponse OAuthClient::post_form(std::vector<std::pair<std::string, std::stri
 }
 
 } // namespace alpaca
-

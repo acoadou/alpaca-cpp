@@ -63,8 +63,7 @@ class RestClient {
     static Options default_options();
 
     RestClient(Configuration config, HttpClientPtr http_client, std::string base_url);
-    RestClient(Configuration config, HttpClientPtr http_client, std::string base_url,
-               Options options);
+    RestClient(Configuration config, HttpClientPtr http_client, std::string base_url, Options options);
 
     [[nodiscard]] Configuration const& config() const noexcept {
         return config_;
@@ -206,20 +205,18 @@ class RestClient {
     template <typename T>
     std::future<T> request_json_async(HttpMethod method, std::string path, QueryParams params,
                                       std::optional<std::string> payload) const {
-        return std::async(std::launch::async,
-                          [this, method, path = std::move(path), params = std::move(params),
-                           payload = std::move(payload)]() mutable {
-                              return this->request_json<T>(method, path, params, std::move(payload));
-                          });
+        return std::async(std::launch::async, [this, method, path = std::move(path), params = std::move(params),
+                                               payload = std::move(payload)]() mutable {
+            return this->request_json<T>(method, path, params, std::move(payload));
+        });
     }
 
     std::future<std::optional<std::string>> request_raw_async(HttpMethod method, std::string path, QueryParams params,
                                                               std::optional<std::string> payload) const {
-        return std::async(std::launch::async,
-                          [this, method, path = std::move(path), params = std::move(params),
-                           payload = std::move(payload)]() mutable {
-                              return this->request_raw(method, path, params, std::move(payload));
-                          });
+        return std::async(std::launch::async, [this, method, path = std::move(path), params = std::move(params),
+                                               payload = std::move(payload)]() mutable {
+            return this->request_raw(method, path, params, std::move(payload));
+        });
     }
 
     template <typename T>

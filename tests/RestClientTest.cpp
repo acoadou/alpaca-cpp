@@ -2,6 +2,7 @@
 #include <gtest/gtest.h>
 
 #include <chrono>
+#include <cstddef>
 #include <future>
 #include <memory>
 #include <optional>
@@ -243,9 +244,9 @@ TEST(RestClientTest, SupportsAsyncGetRequests) {
     auto fake_client = std::make_shared<FakeHttpClient>();
 
     alpaca::Json account_json = {
-        {"id",                "async"},
-        {"currency",          "USD"  },
-        {"status",            "ACTIVE"}
+        {"id",       "async" },
+        {"currency", "USD"   },
+        {"status",   "ACTIVE"}
     };
 
     fake_client->push_response(alpaca::HttpResponse{200, account_json.dump(), {}});
@@ -264,12 +265,12 @@ TEST(RestClientTest, SupportsAsyncPostRequests) {
     auto fake_client = std::make_shared<FakeHttpClient>();
 
     alpaca::Json watchlist_json = {
-        {"id",          "wl-1"           },
-        {"name",        "Growth"         },
-        {"account_id",  "acct"           },
-        {"created_at",  "2024-05-01T00:00:00Z"},
-        {"updated_at",  "2024-05-01T00:00:00Z"},
-        {"assets",      alpaca::Json::array() }
+        {"id",         "wl-1"                },
+        {"name",       "Growth"              },
+        {"account_id", "acct"                },
+        {"created_at", "2024-05-01T00:00:00Z"},
+        {"updated_at", "2024-05-01T00:00:00Z"},
+        {"assets",     alpaca::Json::array() }
     };
 
     fake_client->push_response(alpaca::HttpResponse{200, watchlist_json.dump(), {}});
@@ -277,7 +278,7 @@ TEST(RestClientTest, SupportsAsyncPostRequests) {
     alpaca::RestClient client(config, fake_client, config.trading_base_url);
 
     alpaca::Json payload = {
-        {"name",   "Growth"},
+        {"name",    "Growth"                             },
         {"symbols", alpaca::Json::array({"AAPL", "MSFT"})}
     };
 
@@ -295,7 +296,7 @@ TEST(RestClientTest, ThrowsValidationException) {
     alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
     auto fake_client = std::make_shared<FakeHttpClient>();
     alpaca::Json error_json = {
-        {"message", "Request invalid"},
+        {"message", "Request invalid" },
         {"code",    "validation_error"}
     };
     fake_client->push_response(alpaca::HttpResponse{422, error_json.dump(), {}});
@@ -308,7 +309,7 @@ TEST(RestClientTest, ThrowsAuthenticationException) {
     alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
     auto fake_client = std::make_shared<FakeHttpClient>();
     alpaca::Json error_json = {
-        {"message", "API key invalid"},
+        {"message", "API key invalid"     },
         {"code",    "authentication_error"}
     };
     fake_client->push_response(alpaca::HttpResponse{401, error_json.dump(), {}});
@@ -321,7 +322,7 @@ TEST(RestClientTest, ThrowsPermissionException) {
     alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
     auto fake_client = std::make_shared<FakeHttpClient>();
     alpaca::Json error_json = {
-        {"message", "Forbidden"},
+        {"message", "Forbidden"        },
         {"code",    "permission_denied"}
     };
     fake_client->push_response(alpaca::HttpResponse{403, error_json.dump(), {}});
@@ -335,7 +336,7 @@ TEST(RestClientTest, ThrowsNotFoundException) {
     auto fake_client = std::make_shared<FakeHttpClient>();
     alpaca::Json error_json = {
         {"message", "Resource missing"},
-        {"code",    "not_found"}
+        {"code",    "not_found"       }
     };
     fake_client->push_response(alpaca::HttpResponse{404, error_json.dump(), {}});
 
@@ -347,7 +348,7 @@ TEST(RestClientTest, ThrowsRateLimitExceptionFromErrorCode) {
     alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
     auto fake_client = std::make_shared<FakeHttpClient>();
     alpaca::Json error_json = {
-        {"message", "Slow down"},
+        {"message", "Slow down" },
         {"code",    "rate_limit"}
     };
     fake_client->push_response(alpaca::HttpResponse{400, error_json.dump(), {}});
@@ -374,7 +375,10 @@ TEST(RestClientTest, ThrowsServerExceptionFor5xx) {
     alpaca::Json error_json = {
         {"message", "Service unavailable"}
     };
-    fake_client->push_response(alpaca::HttpResponse{503, error_json.dump(), {}});
+    auto const retry_attempts = alpaca::RestClient::default_retry_options().max_attempts;
+    for (std::size_t i = 0; i < retry_attempts; ++i) {
+        fake_client->push_response(alpaca::HttpResponse{503, error_json.dump(), {}});
+    }
 
     alpaca::RestClient client(config, fake_client, config.trading_base_url);
     EXPECT_THROW(client.get<alpaca::Account>("/v2/account"), alpaca::ServerException);

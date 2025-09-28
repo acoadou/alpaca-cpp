@@ -17,8 +17,7 @@ class BrokerClient {
                  RestClient::Options options = RestClient::default_options());
     BrokerClient(Configuration const& config, RestClient::Options options);
     BrokerClient(Environment const& environment, std::string api_key_id, std::string api_secret_key,
-                 HttpClientPtr http_client = nullptr,
-                 RestClient::Options options = RestClient::default_options());
+                 HttpClientPtr http_client = nullptr, RestClient::Options options = RestClient::default_options());
     BrokerClient(Environment const& environment, std::string api_key_id, std::string api_secret_key,
                  RestClient::Options options);
 
