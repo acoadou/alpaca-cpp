@@ -7,7 +7,6 @@
 #include "FakeHttpClient.hpp"
 #include "alpaca/Configuration.hpp"
 #include "alpaca/Exceptions.hpp"
-#include "alpaca/Exceptions.hpp"
 #include "alpaca/MarketDataClient.hpp"
 #include "alpaca/models/MarketData.hpp"
 
@@ -102,11 +101,11 @@ TEST(MarketDataClientTest, RejectsSipFeedWithoutSipPlan) {
     request.feed = "sip";
 
     EXPECT_THROW(
-        {
-            auto result = client.get_latest_stock_trades(request);
-            (void)result;
-        },
-        alpaca::InvalidArgumentException);
+    {
+        auto result = client.get_latest_stock_trades(request);
+        (void)result;
+    },
+    alpaca::InvalidArgumentException);
 }
 
 TEST(MarketDataClientTest, MultiLatestOptionQuotesTargetsBetaEndpoint) {

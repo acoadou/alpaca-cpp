@@ -173,14 +173,15 @@ TEST(ModelSerializationTest, AccountDeserializesExtendedFields) {
     auto const account = json.get<alpaca::Account>();
     EXPECT_EQ(account.id, "account");
     EXPECT_EQ(account.account_number, "123");
+    EXPECT_EQ(account.status, alpaca::AccountStatus::ACTIVE);
     ASSERT_TRUE(account.crypto_status.has_value());
-    EXPECT_EQ(*account.crypto_status, "ACTIVE");
+    EXPECT_EQ(*account.crypto_status, alpaca::AccountCryptoStatus::ACTIVE);
     EXPECT_TRUE(account.pattern_day_trader);
-    EXPECT_EQ(account.portfolio_value, "2500");
-    EXPECT_EQ(account.non_marginable_buying_power, "750");
-    EXPECT_EQ(account.cash_long, "400");
-    EXPECT_EQ(account.cash_short, "100");
-    EXPECT_EQ(account.cash_withdrawable, "450");
+    EXPECT_DOUBLE_EQ(account.portfolio_value.to_double(), 2500.0);
+    EXPECT_DOUBLE_EQ(account.non_marginable_buying_power.to_double(), 750.0);
+    EXPECT_DOUBLE_EQ(account.cash_long.to_double(), 400.0);
+    EXPECT_DOUBLE_EQ(account.cash_short.to_double(), 100.0);
+    EXPECT_DOUBLE_EQ(account.cash_withdrawable.to_double(), 450.0);
     EXPECT_TRUE(account.trade_suspended_by_user);
     ASSERT_TRUE(account.accrued_fees.has_value());
     EXPECT_DOUBLE_EQ(account.accrued_fees->to_double(), 12.34);
@@ -188,14 +189,14 @@ TEST(ModelSerializationTest, AccountDeserializesExtendedFields) {
     EXPECT_DOUBLE_EQ(account.pending_transfer_out->to_double(), 25.5);
     ASSERT_TRUE(account.pending_transfer_in.has_value());
     EXPECT_DOUBLE_EQ(account.pending_transfer_in->to_double(), 10.25);
-    EXPECT_EQ(account.sma, "200");
-    EXPECT_EQ(account.options_buying_power, "300");
+    EXPECT_DOUBLE_EQ(account.sma.to_double(), 200.0);
+    EXPECT_DOUBLE_EQ(account.options_buying_power.to_double(), 300.0);
     ASSERT_TRUE(account.options_approved_level.has_value());
     EXPECT_EQ(*account.options_approved_level, 3);
     ASSERT_TRUE(account.options_trading_level.has_value());
     EXPECT_EQ(*account.options_trading_level, 2);
     ASSERT_TRUE(account.daytrade_count.has_value());
-    EXPECT_EQ(*account.daytrade_count, "3");
+    EXPECT_EQ(*account.daytrade_count, 3);
 }
 
 TEST(ModelSerializationTest, AccountConfigurationUpdateSerializesOnlyProvidedFields) {

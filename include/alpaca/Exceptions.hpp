@@ -82,7 +82,7 @@ class Exception : public std::runtime_error {
     std::optional<long> status_code_{};
     std::string body_{};
     struct HeadersDeleter {
-        void operator()(HttpHeaders const *ptr) const noexcept;
+        void operator()(HttpHeaders const* ptr) const noexcept;
     };
     std::unique_ptr<HttpHeaders const, HeadersDeleter> headers_{};
     std::optional<std::chrono::seconds> retry_after_{};

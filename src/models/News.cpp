@@ -4,14 +4,14 @@
 
 namespace alpaca {
 namespace {
-std::optional<std::string> optional_string(Json const& j, char const *key) {
+std::optional<std::string> optional_string(Json const& j, char const* key) {
     if (!j.contains(key) || j.at(key).is_null()) {
         return std::nullopt;
     }
     return j.at(key).get<std::string>();
 }
 
-std::optional<std::string> optional_string_from_any(Json const& j, char const *key) {
+std::optional<std::string> optional_string_from_any(Json const& j, char const* key) {
     if (!j.contains(key) || j.at(key).is_null()) {
         return std::nullopt;
     }
@@ -31,7 +31,7 @@ std::optional<std::string> optional_string_from_any(Json const& j, char const *k
     return value.dump();
 }
 
-std::optional<Timestamp> optional_timestamp(Json const& j, char const *key) {
+std::optional<Timestamp> optional_timestamp(Json const& j, char const* key) {
     if (!j.contains(key) || j.at(key).is_null()) {
         return std::nullopt;
     }

@@ -38,7 +38,7 @@ template <typename Formatter> std::string format_with_stream(Formatter&& formatt
 }
 
 // TODO: Replace with std::format once C++20 support is available.
-std::string format_tm_with_stream(std::tm const& tm, char const *pattern) {
+std::string format_tm_with_stream(std::tm const& tm, char const* pattern) {
     return format_with_stream([&](std::ostringstream& oss) {
         oss << std::put_time(&tm, pattern);
     });
@@ -60,14 +60,14 @@ std::string format_fractional_microseconds(std::chrono::microseconds fractional)
     return formatted;
 }
 
-[[noreturn]] void throw_timestamp_error(char const *message, std::string_view stage) {
+[[noreturn]] void throw_timestamp_error(char const* message, std::string_view stage) {
     throw InvalidArgumentException("timestamp", message, ErrorCode::InvalidArgument,
                                    {
                                        {"stage", std::string(stage)}
     });
 }
 
-int parse_number(std::string_view value, std::size_t& pos, std::size_t count, char const *error_message) {
+int parse_number(std::string_view value, std::size_t& pos, std::size_t count, char const* error_message) {
     if (pos + count > value.size()) {
         throw_timestamp_error(error_message, "parse_number");
     }
@@ -83,7 +83,7 @@ int parse_number(std::string_view value, std::size_t& pos, std::size_t count, ch
     return result;
 }
 
-void expect_char(std::string_view value, std::size_t& pos, char expected, char const *error_message) {
+void expect_char(std::string_view value, std::size_t& pos, char expected, char const* error_message) {
     if (pos >= value.size() || value[pos] != expected) {
         throw_timestamp_error(error_message, "expect_char");
     }
@@ -462,7 +462,7 @@ Timestamp parse_timestamp(std::string_view value) {
     return timestamp;
 }
 
-std::optional<Timestamp> parse_timestamp_field(Json const& j, char const *key) {
+std::optional<Timestamp> parse_timestamp_field(Json const& j, char const* key) {
     if (!j.contains(key) || j.at(key).is_null()) {
         return std::nullopt;
     }

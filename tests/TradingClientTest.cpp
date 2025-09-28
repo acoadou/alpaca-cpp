@@ -16,48 +16,48 @@ namespace {
 
 alpaca::Json make_order_json(std::string id, std::string status) {
     return alpaca::Json{
-        {"id", id},
-        {"asset_id", "asset-" + id},
-        {"client_order_id", "client-" + id},
-        {"account_id", "account"},
-        {"created_at", "2023-01-01T00:00:00Z"},
-        {"updated_at", nullptr},
-        {"submitted_at", nullptr},
-        {"filled_at", nullptr},
-        {"expired_at", nullptr},
-        {"canceled_at", nullptr},
-        {"failed_at", nullptr},
-        {"replaced_at", nullptr},
-        {"replaced_by", ""},
-        {"replaces", ""},
-        {"symbol", "AAPL"},
-        {"asset_class", "us_equity"},
-        {"side", "buy"},
-        {"type", "market"},
-        {"time_in_force", "day"},
-        {"status", status},
-        {"extended_hours", false}
+        {"id",              id                    },
+        {"asset_id",        "asset-" + id         },
+        {"client_order_id", "client-" + id        },
+        {"account_id",      "account"             },
+        {"created_at",      "2023-01-01T00:00:00Z"},
+        {"updated_at",      nullptr               },
+        {"submitted_at",    nullptr               },
+        {"filled_at",       nullptr               },
+        {"expired_at",      nullptr               },
+        {"canceled_at",     nullptr               },
+        {"failed_at",       nullptr               },
+        {"replaced_at",     nullptr               },
+        {"replaced_by",     ""                    },
+        {"replaces",        ""                    },
+        {"symbol",          "AAPL"                },
+        {"asset_class",     "us_equity"           },
+        {"side",            "buy"                 },
+        {"type",            "market"              },
+        {"time_in_force",   "day"                 },
+        {"status",          status                },
+        {"extended_hours",  false                 }
     };
 }
 
 alpaca::Json make_position_json(std::string symbol) {
     return alpaca::Json{
-        {"asset_id", "asset-" + symbol},
-        {"symbol", symbol},
-        {"exchange", "NASDAQ"},
-        {"asset_class", "us_equity"},
-        {"qty", "1"},
-        {"qty_available", "1"},
-        {"avg_entry_price", "100"},
-        {"market_value", "100"},
-        {"cost_basis", "100"},
-        {"unrealized_pl", "0"},
-        {"unrealized_plpc", "0"},
-        {"unrealized_intraday_pl", "0"},
-        {"unrealized_intraday_plpc", "0"},
-        {"current_price", "100"},
-        {"lastday_price", "100"},
-        {"change_today", "0"}
+        {"asset_id",                 "asset-" + symbol},
+        {"symbol",                   symbol           },
+        {"exchange",                 "NASDAQ"         },
+        {"asset_class",              "us_equity"      },
+        {"qty",                      "1"              },
+        {"qty_available",            "1"              },
+        {"avg_entry_price",          "100"            },
+        {"market_value",             "100"            },
+        {"cost_basis",               "100"            },
+        {"unrealized_pl",            "0"              },
+        {"unrealized_plpc",          "0"              },
+        {"unrealized_intraday_pl",   "0"              },
+        {"unrealized_intraday_plpc", "0"              },
+        {"current_price",            "100"            },
+        {"lastday_price",            "100"            },
+        {"change_today",             "0"              }
     };
 }
 
@@ -94,9 +94,18 @@ TEST(TradingClientTest, CancelAllOrdersRetriesUntilOutstandingResolved) {
     auto http = std::make_shared<FakeHttpClient>();
 
     alpaca::Json initial = alpaca::Json::array();
-    initial.push_back({{"id", "order-1"}, {"status", "pending_cancel"}});
-    initial.push_back({{"id", "order-2"}, {"status", "canceled"}});
-    initial.push_back({{"id", "order-3"}, {"status", "rejected"}});
+    initial.push_back({
+        {"id",     "order-1"       },
+        {"status", "pending_cancel"}
+    });
+    initial.push_back({
+        {"id",     "order-2" },
+        {"status", "canceled"}
+    });
+    initial.push_back({
+        {"id",     "order-3" },
+        {"status", "rejected"}
+    });
     http->push_response(alpaca::HttpResponse{200, initial.dump(), {}});
 
     alpaca::Json pending_orders = alpaca::Json::array();
@@ -135,10 +144,10 @@ TEST(TradingClientTest, CloseAllPositionsPollsUntilSymbolsDisappear) {
     alpaca::Json initial = alpaca::Json::array();
     initial.push_back(make_close_success_json("order-1", "AAPL"));
     initial.push_back(alpaca::Json{
-        {"order_id", nullptr},
-        {"status", 400},
-        {"symbol", "TSLA"},
-        {"body", alpaca::Json{{"code", 12345}, {"message", "insufficient shares"}}}
+        {"order_id", nullptr                                                          },
+        {"status",   400                                                              },
+        {"symbol",   "TSLA"                                                           },
+        {"body",     alpaca::Json{{"code", 12345}, {"message", "insufficient shares"}}}
     });
     http->push_response(alpaca::HttpResponse{200, initial.dump(), {}});
 

@@ -33,7 +33,7 @@ std::string make_state_key(std::string const& stream_id, std::string const& suff
     return key;
 }
 
-std::optional<std::uint64_t> parse_sequence_value(Json const& payload, char const *key) {
+std::optional<std::uint64_t> parse_sequence_value(Json const& payload, char const* key) {
     if (!payload.contains(key) || payload.at(key).is_null()) {
         return std::nullopt;
     }

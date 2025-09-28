@@ -26,7 +26,7 @@ std::int64_t steady_now_ns() {
     .count();
 }
 
-Timestamp parse_timestamp_field_or_default(Json const& j, char const *key) {
+Timestamp parse_timestamp_field_or_default(Json const& j, char const* key) {
     if (!j.contains(key)) {
         return {};
     }
@@ -37,14 +37,14 @@ Timestamp parse_timestamp_field_or_default(Json const& j, char const *key) {
     return parse_timestamp(field.get<std::string>());
 }
 
-std::vector<std::string> parse_conditions(Json const& j, char const *key) {
+std::vector<std::string> parse_conditions(Json const& j, char const* key) {
     if (!j.contains(key) || j.at(key).is_null()) {
         return {};
     }
     return j.at(key).get<std::vector<std::string>>();
 }
 
-std::optional<std::string> parse_string_field(Json const& payload, char const *key) {
+std::optional<std::string> parse_string_field(Json const& payload, char const* key) {
     if (!payload.contains(key) || payload.at(key).is_null()) {
         return std::nullopt;
     }
@@ -88,7 +88,7 @@ std::string extract_message_channel(Json const& payload) {
     return {};
 }
 
-std::optional<std::uint64_t> extract_sequence_value(Json const& payload, char const *key) {
+std::optional<std::uint64_t> extract_sequence_value(Json const& payload, char const* key) {
     if (!payload.contains(key) || payload.at(key).is_null()) {
         return std::nullopt;
     }
@@ -134,7 +134,7 @@ bool is_default_stream_identifier(std::function<std::string(Json const&)> const&
     return *target == &default_stream_identifier;
 }
 
-template <typename T> std::optional<T> parse_optional(Json const& j, char const *key) {
+template <typename T> std::optional<T> parse_optional(Json const& j, char const* key) {
     if (!j.contains(key)) {
         return std::nullopt;
     }
@@ -145,7 +145,7 @@ template <typename T> std::optional<T> parse_optional(Json const& j, char const 
     return field.get<T>();
 }
 
-std::optional<std::uint64_t> parse_optional_uint64(Json const& j, char const *key) {
+std::optional<std::uint64_t> parse_optional_uint64(Json const& j, char const* key) {
     if (!j.contains(key)) {
         return std::nullopt;
     }
@@ -189,7 +189,7 @@ std::optional<std::uint64_t> parse_optional_uint64(Json const& j, char const *ke
     return std::nullopt;
 }
 
-std::optional<std::string> parse_optional_string_like(Json const& j, char const *key) {
+std::optional<std::string> parse_optional_string_like(Json const& j, char const* key) {
     if (!j.contains(key)) {
         return std::nullopt;
     }
@@ -212,7 +212,7 @@ std::optional<std::string> parse_optional_string_like(Json const& j, char const 
     return field.dump();
 }
 
-std::optional<double> parse_numeric_field(Json const& entry, char const *key) {
+std::optional<double> parse_numeric_field(Json const& entry, char const* key) {
     if (!entry.contains(key) || entry.at(key).is_null()) {
         return std::nullopt;
     }
@@ -240,7 +240,7 @@ std::optional<double> parse_numeric_field(Json const& entry, char const *key) {
     return std::nullopt;
 }
 
-std::vector<OrderBookLevel> parse_order_book_side(Json const& payload, char const *key) {
+std::vector<OrderBookLevel> parse_order_book_side(Json const& payload, char const* key) {
     if (!payload.contains(key) || !payload.at(key).is_array()) {
         return {};
     }

@@ -76,7 +76,7 @@ class BackfillCoordinator {
     void replay_bars(std::string const& stream_id, Timestamp start, Timestamp end, int limit,
                      BarReplayHandler const& handler);
 
-    MarketDataClient *market_data_client_;
+    MarketDataClient* market_data_client_;
     StreamFeed feed_;
     Options options_;
 

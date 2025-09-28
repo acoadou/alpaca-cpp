@@ -130,16 +130,17 @@ void Exception::HeadersDeleter::operator()(HttpHeaders const* ptr) const noexcep
 }
 
 Exception::Exception(ErrorCode code, std::string message, Metadata metadata)
-    : std::runtime_error(std::move(message)), code_(code), metadata_(std::move(metadata)) {}
+  : std::runtime_error(std::move(message)), code_(code), metadata_(std::move(metadata)) {
+}
 
 Exception::Exception(ErrorCode code, std::string message, Metadata metadata, long status_code, std::string body,
                      HttpHeaders const& headers)
-    : Exception(code, std::move(message), std::move(metadata)) {
+  : Exception(code, std::move(message), std::move(metadata)) {
     set_http_context(status_code, std::move(body), headers);
 }
 
 Exception::Exception(long status_code, std::string message, std::string body, HttpHeaders const& headers)
-    : Exception(ErrorCode::ApiResponseError, std::move(message), Metadata{}) {
+  : Exception(ErrorCode::ApiResponseError, std::move(message), Metadata{}) {
     set_http_context(status_code, std::move(body), headers);
 }
 

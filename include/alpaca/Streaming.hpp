@@ -290,9 +290,9 @@ struct ControlMessage {
 
 /// Strongly typed representation of an Alpaca websocket payload.
 using StreamMessage = std::variant<TradeMessage, QuoteMessage, BarMessage, StatusMessage, OrderUpdateMessage,
-    UpdatedBarMessage, DailyBarMessage, OrderBookMessage, LuldMessage, AuctionMessage,
-    GreeksMessage, UnderlyingMessage, TradeCancelMessage, TradeCorrectionMessage,
-    ImbalanceMessage, NewsMessage, AccountUpdateMessage, ErrorMessage, ControlMessage>;
+                                   UpdatedBarMessage, DailyBarMessage, OrderBookMessage, LuldMessage, AuctionMessage,
+                                   GreeksMessage, UnderlyingMessage, TradeCancelMessage, TradeCorrectionMessage,
+                                   ImbalanceMessage, NewsMessage, AccountUpdateMessage, ErrorMessage, ControlMessage>;
 
 /// Subscription helper for market data feeds.
 struct MarketSubscription {
@@ -422,7 +422,7 @@ class BrokerEventsStream {
     using EventHandler = std::function<void(BrokerEvent const&)>;
     using ErrorHandler = std::function<void(std::exception_ptr)>;
     using TransportFactory =
-        std::function<std::unique_ptr<detail::BrokerEventsTransport>(detail::BrokerEventsTransport::Parameters const&)>;
+    std::function<std::unique_ptr<detail::BrokerEventsTransport>(detail::BrokerEventsTransport::Parameters const&)>;
 
     BrokerEventsStream(Configuration config, BrokerEventsStreamOptions options = {});
     ~BrokerEventsStream();
@@ -484,7 +484,7 @@ class BrokerEventsStream {
 /// Lightweight websocket client capable of connecting to Alpaca's streaming
 /// APIs.
 class WebSocketClient {
-public:
+  public:
     WebSocketClient(std::string url, std::string key, std::string secret, StreamFeed feed = StreamFeed::MarketData);
     ~WebSocketClient();
 
@@ -560,7 +560,7 @@ public:
     /// Disables automatic backfills and restores the previous replay handler.
     void disable_automatic_backfill();
 
-private:
+  private:
     friend class WebSocketClientHarness;
 
     void authenticate();

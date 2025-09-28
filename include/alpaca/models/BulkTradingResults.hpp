@@ -20,4 +20,3 @@ struct BulkClosePositionsResponse {
 };
 
 } // namespace alpaca
-

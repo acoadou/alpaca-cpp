@@ -6,8 +6,8 @@
 #include <condition_variable>
 #include <mutex>
 #include <optional>
-#include <string>
 #include <stdexcept>
+#include <string>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -28,7 +28,8 @@ class ScriptedTransport : public detail::BrokerEventsTransport {
 
     ScriptedTransport(detail::BrokerEventsTransport::Parameters params, Script script,
                       std::vector<detail::BrokerEventsTransport::Parameters>* log)
-        : params_(std::move(params)), script_(std::move(script)), log_(log) {}
+      : params_(std::move(params)), script_(std::move(script)), log_(log) {
+    }
 
     void run(DataCallback on_data, CloseCallback on_close) override {
         if (log_ != nullptr) {
@@ -48,7 +49,9 @@ class ScriptedTransport : public detail::BrokerEventsTransport {
         }
     }
 
-    void stop() override { stop_requested_.store(true); }
+    void stop() override {
+        stop_requested_.store(true);
+    }
 
   private:
     detail::BrokerEventsTransport::Parameters params_{};
@@ -59,7 +62,8 @@ class ScriptedTransport : public detail::BrokerEventsTransport {
 
 class ScriptedFactory {
   public:
-    explicit ScriptedFactory(std::vector<ScriptedTransport::Script> scripts) : scripts_(std::move(scripts)) {}
+    explicit ScriptedFactory(std::vector<ScriptedTransport::Script> scripts) : scripts_(std::move(scripts)) {
+    }
 
     std::unique_ptr<detail::BrokerEventsTransport> operator()(detail::BrokerEventsTransport::Parameters const& params) {
         if (index_ >= scripts_.size()) {
@@ -68,7 +72,9 @@ class ScriptedFactory {
         return std::make_unique<ScriptedTransport>(params, scripts_[index_++], &parameters_);
     }
 
-    std::vector<detail::BrokerEventsTransport::Parameters> const& parameters() const { return parameters_; }
+    std::vector<detail::BrokerEventsTransport::Parameters> const& parameters() const {
+        return parameters_;
+    }
 
   private:
     std::vector<ScriptedTransport::Script> scripts_{};
@@ -89,10 +95,14 @@ TEST(BrokerEventsStreamTest, ReconnectsAndDispatchesEvents) {
     options.reconnect.jitter = std::chrono::milliseconds{0};
     options.reconnect.multiplier = 1.0;
 
-    ScriptedFactory factory({
-        ScriptedTransport::Script{{"id: 1\n", "data: {\"id\":\"evt-1\",\"type\":\"account\",\"account_id\":\"A1\",\"created_at\":\"2024-01-01T00:00:00Z\"}\n\n"}},
-        ScriptedTransport::Script{{"id: 2\n", "data: {\"id\":\"evt-2\",\"type\":\"account\",\"account_id\":\"A1\",\"created_at\":\"2024-01-01T00:00:01Z\"}\n\n"}}
-    });
+    ScriptedFactory factory(
+    {ScriptedTransport::Script{
+         {"id: 1\n",
+          "data: "
+          "{\"id\":\"evt-1\",\"type\":\"account\",\"account_id\":\"A1\",\"created_at\":\"2024-01-01T00:00:00Z\"}\n\n"}},
+     ScriptedTransport::Script{{"id: 2\n", "data: "
+                                           "{\"id\":\"evt-2\",\"type\":\"account\",\"account_id\":\"A1\",\"created_"
+                                           "at\":\"2024-01-01T00:00:01Z\"}\n\n"}}});
 
     BrokerEventsStream stream(config, options);
     stream.set_transport_factory_for_testing([&factory](detail::BrokerEventsTransport::Parameters const& params) {
@@ -130,7 +140,9 @@ TEST(BrokerEventsStreamTest, ReconnectsAndDispatchesEvents) {
 
     {
         std::unique_lock<std::mutex> lock(mutex);
-        cv.wait_for(lock, 1s, [&]() { return done; });
+        cv.wait_for(lock, 1s, [&]() {
+            return done;
+        });
     }
 
     stream.stop();
@@ -166,7 +178,9 @@ TEST(BrokerEventsStreamTest, ReportsTransportErrors) {
 
     ScriptedFactory factory({
         ScriptedTransport::Script{{}, true},
-        ScriptedTransport::Script{{"id: 7\n", "data: {\"id\":\"evt-7\",\"type\":\"account\",\"account_id\":\"A7\",\"created_at\":\"2024-01-01T00:00:07Z\"}\n\n"}}
+        ScriptedTransport::Script{{"id: 7\n", "data: "
+                                              "{\"id\":\"evt-7\",\"type\":\"account\",\"account_id\":\"A7\",\"created_"
+                                              "at\":\"2024-01-01T00:00:07Z\"}\n\n"}}
     });
 
     BrokerEventsStream stream(config, options);
@@ -201,7 +215,9 @@ TEST(BrokerEventsStreamTest, ReportsTransportErrors) {
 
     {
         std::unique_lock<std::mutex> lock(mutex);
-        cv.wait_for(lock, 1s, [&]() { return received.size() >= 1U && !errors.empty(); });
+        cv.wait_for(lock, 1s, [&]() {
+            return received.size() >= 1U && !errors.empty();
+        });
     }
 
     stream.stop();
@@ -214,4 +230,3 @@ TEST(BrokerEventsStreamTest, ReportsTransportErrors) {
 
 } // namespace
 } // namespace alpaca::streaming
-

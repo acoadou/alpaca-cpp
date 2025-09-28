@@ -39,9 +39,13 @@ class Money {
         micro_units_ = static_cast<std::int64_t>(std::llround(value * static_cast<double>(kScale)));
     }
 
-    explicit Money(std::string_view text) { micro_units_ = parse(text); }
+    explicit Money(std::string_view text) {
+        micro_units_ = parse(text);
+    }
 
-    [[nodiscard]] std::int64_t raw() const { return micro_units_; }
+    [[nodiscard]] std::int64_t raw() const {
+        return micro_units_;
+    }
 
     [[nodiscard]] double to_double() const {
         return static_cast<double>(micro_units_) / static_cast<double>(kScale);
@@ -180,4 +184,3 @@ inline void from_json(Json const& j, Money& value) {
 }
 
 } // namespace alpaca
-

@@ -28,6 +28,7 @@ InsertBraces: true
 InsertNewlineAtEOF: false
 Language: Cpp
 LineEnding: LF
+PointerAlignment: Left
 QualifierAlignment: Right
 ReferenceAlignment: Left
 SortIncludes: true

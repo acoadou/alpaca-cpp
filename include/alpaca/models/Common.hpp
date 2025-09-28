@@ -93,7 +93,7 @@ void to_json(Json& j, PageToken const& token);
 void from_json(Json const& j, PageToken& token);
 
 Timestamp parse_timestamp(std::string_view value);
-std::optional<Timestamp> parse_timestamp_field(Json const& j, char const *key);
+std::optional<Timestamp> parse_timestamp_field(Json const& j, char const* key);
 std::string format_timestamp(Timestamp timestamp);
 std::string format_calendar_date(std::chrono::sys_days day);
 std::string join_csv(std::vector<std::string> const& values);

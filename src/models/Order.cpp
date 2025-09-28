@@ -310,7 +310,7 @@ std::string to_string(OrderStatusFilter status) {
                                    {
                                        {"context", "to_string"                             },
                                        {"value",   std::to_string(static_cast<int>(status))}
-                                   });
+    });
 }
 
 std::string to_string(PositionIntent intent) {
@@ -326,7 +326,7 @@ std::string to_string(PositionIntent intent) {
                                    {
                                        {"context", "to_string"                             },
                                        {"value",   std::to_string(static_cast<int>(intent))}
-                                   });
+    });
 }
 
 void to_json(Json& j, NewOrderRequest const& request) {

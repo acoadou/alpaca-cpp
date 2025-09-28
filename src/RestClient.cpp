@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <ctime>
 #include <iomanip>
 #include <locale>
 #include <mutex>
@@ -11,9 +12,7 @@
 #include <string>
 #include <string_view>
 #include <thread>
-#include <ctime>
 
-#include "alpaca/Exceptions.hpp"
 #include "alpaca/Exceptions.hpp"
 #include "alpaca/version.hpp"
 
@@ -244,10 +243,11 @@ RestClient::Options RestClient::default_options() {
 }
 
 RestClient::RestClient(Configuration config, HttpClientPtr http_client, std::string base_url)
-    : RestClient(std::move(config), std::move(http_client), std::move(base_url), default_options()) {}
+  : RestClient(std::move(config), std::move(http_client), std::move(base_url), default_options()) {
+}
 
 RestClient::RestClient(Configuration config, HttpClientPtr http_client, std::string base_url, Options options)
-    : config_(std::move(config)), http_client_(std::move(http_client)), base_url_(std::move(base_url)),
+  : config_(std::move(config)), http_client_(std::move(http_client)), base_url_(std::move(base_url)),
     options_(std::move(options)) {
     if (!http_client_) {
         throw InvalidArgumentException("http_client", "RestClient requires a non-null HttpClient instance",

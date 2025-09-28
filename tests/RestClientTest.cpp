@@ -129,7 +129,8 @@ TEST(RestClientTest, DefaultRetriesCoverMultipleAttempts) {
 TEST(RestClientTest, RetriesNetworkErrorsForIdempotentRequests) {
     class FlakyHttpClient : public alpaca::HttpClient {
       public:
-        explicit FlakyHttpClient(alpaca::HttpResponse success) : success_(std::move(success)) {}
+        explicit FlakyHttpClient(alpaca::HttpResponse success) : success_(std::move(success)) {
+        }
 
         alpaca::HttpResponse send(alpaca::HttpRequest const& request) override {
             requests.push_back(request);
@@ -196,7 +197,9 @@ TEST(RestClientTest, RespectsRetryAfterCeiling) {
         {"id", "retry-after"},
     };
 
-    alpaca::HttpHeaders headers{{"Retry-After", "60"}};
+    alpaca::HttpHeaders headers{
+        {"Retry-After", "60"}
+    };
 
     fake_client->push_response(alpaca::HttpResponse{429, alpaca::Json{{"message", "slow"}}.dump(), headers});
     fake_client->push_response(alpaca::HttpResponse{200, account_json.dump(), {}});
@@ -502,7 +505,7 @@ TEST(RestClientTest, SupportsPatchRequests) {
         {"dtbp_check", "both"}
     };
     alpaca::AccountConfiguration configuration =
-        client.patch<alpaca::AccountConfiguration>("/v2/account/configurations", payload);
+    client.patch<alpaca::AccountConfiguration>("/v2/account/configurations", payload);
 
     EXPECT_EQ(configuration.dtbp_check, "both");
 

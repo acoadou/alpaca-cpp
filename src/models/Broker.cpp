@@ -5,19 +5,19 @@
 namespace alpaca {
 namespace {
 
-template <typename T> void assign_optional(Json const& json, char const *key, std::optional<T>& target) {
+template <typename T> void assign_optional(Json const& json, char const* key, std::optional<T>& target) {
     if (json.contains(key) && !json.at(key).is_null()) {
         target = json.at(key).get<T>();
     }
 }
 
-template <typename T> void add_optional(Json& json, char const *key, std::optional<T> const& value) {
+template <typename T> void add_optional(Json& json, char const* key, std::optional<T> const& value) {
     if (value.has_value()) {
         json[key] = *value;
     }
 }
 
-void add_optional_string(Json& json, char const *key, std::optional<std::string> const& value) {
+void add_optional_string(Json& json, char const* key, std::optional<std::string> const& value) {
     if (value.has_value() && !value->empty()) {
         json[key] = *value;
     }

@@ -74,7 +74,8 @@ std::pair<std::size_t, std::size_t> find_event_delimiter(std::string const& buff
 
 class CurlBrokerEventsTransport : public detail::BrokerEventsTransport {
   public:
-    explicit CurlBrokerEventsTransport(Parameters params) : params_(std::move(params)) {}
+    explicit CurlBrokerEventsTransport(Parameters params) : params_(std::move(params)) {
+    }
 
     void run(DataCallback on_data, CloseCallback on_close) override {
         stop_requested_.store(false);
@@ -185,8 +186,8 @@ class CurlBrokerEventsTransport : public detail::BrokerEventsTransport {
 } // namespace
 
 BrokerEventsStream::BrokerEventsStream(Configuration config, BrokerEventsStreamOptions options)
-    : config_(std::move(config)), options_(std::move(options)), last_event_id_(options_.last_event_id),
-      transport_factory_(nullptr), rng_(std::random_device{}()) {
+  : config_(std::move(config)), options_(std::move(options)), last_event_id_(options_.last_event_id),
+    transport_factory_(nullptr), rng_(std::random_device{}()) {
     if (options_.request_timeout.count() < 0) {
         options_.request_timeout = std::chrono::milliseconds{0};
     }
@@ -212,7 +213,9 @@ void BrokerEventsStream::start() {
     }
     stop_requested_.store(false);
     running_.store(true);
-    worker_ = std::thread([this]() { this->run(); });
+    worker_ = std::thread([this]() {
+        this->run();
+    });
 }
 
 void BrokerEventsStream::stop() {
@@ -297,15 +300,16 @@ void BrokerEventsStream::run() {
         std::string buffer;
         try {
             transport->run(
-                [this, &buffer, &dispatched_in_session](std::string_view chunk) {
-                    if (stop_requested_.load()) {
-                        return;
-                    }
-                    if (handle_data_chunk(buffer, chunk)) {
-                        dispatched_in_session = true;
-                    }
-                },
-                []() {});
+            [this, &buffer, &dispatched_in_session](std::string_view chunk) {
+                if (stop_requested_.load()) {
+                    return;
+                }
+                if (handle_data_chunk(buffer, chunk)) {
+                    dispatched_in_session = true;
+                }
+            },
+            []() {
+            });
         } catch (...) {
             dispatch_error(std::current_exception());
             had_exception = true;
@@ -326,7 +330,8 @@ void BrokerEventsStream::run() {
             ++consecutive_failures;
         }
 
-        auto delay = consecutive_failures == 0 ? std::chrono::milliseconds{0} : compute_backoff_delay(consecutive_failures);
+        auto delay =
+        consecutive_failures == 0 ? std::chrono::milliseconds{0} : compute_backoff_delay(consecutive_failures);
         if (delay.count() > 0) {
             std::this_thread::sleep_for(delay);
         }
@@ -566,4 +571,3 @@ std::chrono::milliseconds BrokerEventsStream::compute_backoff_delay(std::size_t 
 }
 
 } // namespace alpaca::streaming
-

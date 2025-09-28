@@ -33,4 +33,3 @@ std::string to_string(OrderStatus status);
 OrderStatus order_status_from_string(std::string const& value);
 
 } // namespace alpaca
-

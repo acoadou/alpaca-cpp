@@ -13,7 +13,6 @@
 #include <openssl/sha.h>
 
 #include "alpaca/Exceptions.hpp"
-#include "alpaca/Exceptions.hpp"
 #include "alpaca/Json.hpp"
 
 namespace alpaca {
@@ -47,8 +46,8 @@ std::string base64_url_encode(std::span<unsigned char const> data) {
     std::size_t i = 0;
     while (i + 3 <= data.size()) {
         unsigned int const chunk = (static_cast<unsigned int>(data[i]) << 16) |
-            (static_cast<unsigned int>(data[i + 1]) << 8) |
-            static_cast<unsigned int>(data[i + 2]);
+                                   (static_cast<unsigned int>(data[i + 1]) << 8) |
+                                   static_cast<unsigned int>(data[i + 2]);
         encoded.push_back(table[(chunk >> 18) & 0x3F]);
         encoded.push_back(table[(chunk >> 12) & 0x3F]);
         encoded.push_back(table[(chunk >> 6) & 0x3F]);
@@ -175,10 +174,11 @@ void OAuthTokenResponse::apply(Configuration& configuration) const {
 }
 
 OAuthClient::OAuthClient(std::string token_endpoint, HttpClientPtr http_client)
-    : OAuthClient(std::move(token_endpoint), std::move(http_client), Options{}) {}
+  : OAuthClient(std::move(token_endpoint), std::move(http_client), Options{}) {
+}
 
 OAuthClient::OAuthClient(std::string token_endpoint, HttpClientPtr http_client, Options options)
-    : token_endpoint_(std::move(token_endpoint)), http_client_(std::move(http_client)), options_(std::move(options)) {
+  : token_endpoint_(std::move(token_endpoint)), http_client_(std::move(http_client)), options_(std::move(options)) {
     if (!http_client_) {
         throw InvalidArgumentException("http_client", "OAuthClient requires a non-null HttpClient",
                                        ErrorCode::HttpClientRequired);

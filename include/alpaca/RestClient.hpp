@@ -30,7 +30,7 @@ template <typename T> inline constexpr bool is_optional_v = is_optional<T>::valu
 
 /// Lightweight REST client responsible for communicating with Alpaca endpoints.
 class RestClient {
-public:
+  public:
     struct RateLimitStatus {
         std::optional<long> limit{};
         std::optional<long> remaining{};
@@ -38,7 +38,8 @@ public:
         std::optional<std::chrono::system_clock::time_point> reset{};
     };
 
-    using RetryClassifier = std::function<bool(HttpMethod method, std::optional<long> status_code, std::size_t attempt)>;
+    using RetryClassifier =
+    std::function<bool(HttpMethod method, std::optional<long> status_code, std::size_t attempt)>;
 
     struct RetryOptions {
         std::size_t max_attempts{3};
@@ -187,7 +188,7 @@ public:
         return request_raw_async(HttpMethod::PATCH, std::move(path), std::move(params), payload.dump());
     }
 
-private:
+  private:
     Configuration config_;
     HttpClientPtr http_client_;
     std::string base_url_;
@@ -214,7 +215,7 @@ private:
     std::future<T> request_json_async(HttpMethod method, std::string path, QueryParams params,
                                       std::optional<std::string> payload) const {
         return std::async(std::launch::async, [this, method, path = std::move(path), params = std::move(params),
-                          payload = std::move(payload)]() mutable {
+                                               payload = std::move(payload)]() mutable {
             return this->request_json<T>(method, path, params, std::move(payload));
         });
     }
@@ -222,7 +223,7 @@ private:
     std::future<std::optional<std::string>> request_raw_async(HttpMethod method, std::string path, QueryParams params,
                                                               std::optional<std::string> payload) const {
         return std::async(std::launch::async, [this, method, path = std::move(path), params = std::move(params),
-                          payload = std::move(payload)]() mutable {
+                                               payload = std::move(payload)]() mutable {
             return this->request_raw(method, path, params, std::move(payload));
         });
     }

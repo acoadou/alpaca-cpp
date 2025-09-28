@@ -56,7 +56,7 @@ std::string extract_string(Json const& value) {
     return value.dump();
 }
 
-std::optional<Money> parse_optional_money(Json const& j, char const *key) {
+std::optional<Money> parse_optional_money(Json const& j, char const* key) {
     if (!j.contains(key) || j.at(key).is_null()) {
         return std::nullopt;
     }
@@ -76,7 +76,7 @@ std::optional<Money> parse_optional_money(Json const& j, char const *key) {
     return std::nullopt;
 }
 
-std::optional<double> parse_optional_double(Json const& j, char const *key) {
+std::optional<double> parse_optional_double(Json const& j, char const* key) {
     if (!j.contains(key) || j.at(key).is_null()) {
         return std::nullopt;
     }
@@ -90,7 +90,7 @@ std::optional<double> parse_optional_double(Json const& j, char const *key) {
     return j.at(key).get<double>();
 }
 
-std::optional<std::uint64_t> parse_optional_uint64(Json const& j, char const *key) {
+std::optional<std::uint64_t> parse_optional_uint64(Json const& j, char const* key) {
     if (!j.contains(key) || j.at(key).is_null()) {
         return std::nullopt;
     }
@@ -114,7 +114,7 @@ std::optional<std::uint64_t> parse_optional_uint64(Json const& j, char const *ke
     return std::nullopt;
 }
 
-std::optional<std::string> optional_string_from_any(Json const& j, char const *key) {
+std::optional<std::string> optional_string_from_any(Json const& j, char const* key) {
     if (!j.contains(key) || j.at(key).is_null()) {
         return std::nullopt;
     }

@@ -6,7 +6,6 @@
 #include <sstream>
 
 #include "alpaca/Exceptions.hpp"
-#include "alpaca/Exceptions.hpp"
 #include "alpaca/HttpHeaders.hpp"
 
 namespace {
@@ -74,6 +73,127 @@ TEST(ExceptionTest, NonHttpExceptionHasNoContext) {
     EXPECT_EQ(exception.status_code(), 0);
     EXPECT_FALSE(exception.retry_after().has_value());
     EXPECT_EQ(exception.headers().size(), 0U);
+}
+
+TEST(ExceptionTest, PreservesMetadataWhenHttpContextProvided) {
+    alpaca::HttpHeaders headers;
+    headers.append("Retry-After", "7");
+    headers.append("X-Test", "value");
+
+    alpaca::Exception exception(alpaca::ErrorCode::InvalidArgument, "invalid",
+                                {
+                                    {"detail", "true"}
+    },
+                                418, "payload", headers);
+
+    EXPECT_TRUE(exception.has_http_context());
+    EXPECT_EQ(exception.status_code(), 418);
+    EXPECT_EQ(exception.body(), "payload");
+    auto const& metadata = exception.metadata();
+    auto detail = metadata.find("detail");
+    ASSERT_NE(detail, metadata.end());
+    EXPECT_EQ(detail->second, "true");
+    EXPECT_EQ(metadata.at("status_code"), "418");
+    EXPECT_EQ(metadata.at("header_count"), "2");
+}
+
+TEST(ExceptionTest, CurlExceptionIncludesOperationMetadata) {
+    alpaca::CurlException exception(alpaca::ErrorCode::CurlPerformFailure, "curl failed", "perform", 7);
+
+    EXPECT_EQ(exception.operation(), "perform");
+    ASSERT_TRUE(exception.native_error().has_value());
+    EXPECT_EQ(*exception.native_error(), 7);
+    auto const& metadata = exception.metadata();
+    EXPECT_EQ(metadata.at("operation"), "perform");
+    EXPECT_EQ(metadata.at("native_error"), "7");
+}
+
+TEST(ExceptionTest, CurlExceptionOmitsNativeErrorWhenAbsent) {
+    alpaca::CurlException exception(alpaca::ErrorCode::CurlPerformFailure, "curl failed", "perform");
+
+    EXPECT_FALSE(exception.native_error().has_value());
+    auto const& metadata = exception.metadata();
+    auto native_error = metadata.find("native_error");
+    EXPECT_TRUE(native_error == metadata.end());
+    EXPECT_EQ(metadata.at("operation"), "perform");
+}
+
+TEST(ExceptionTest, InvalidArgumentExceptionEnrichesMetadata) {
+    alpaca::InvalidArgumentException exception("field", "bad value", alpaca::ErrorCode::InvalidArgument,
+                                               {
+                                                   {"provided", "false"}
+    });
+
+    EXPECT_EQ(exception.argument_name(), "field");
+    auto const& metadata = exception.metadata();
+    EXPECT_EQ(metadata.at("provided"), "false");
+    EXPECT_EQ(metadata.at("argument"), "field");
+}
+
+TEST(ExceptionTest, WebSocketQueueLimitExceptionStoresLimit) {
+    alpaca::WebSocketQueueLimitException exception(42);
+
+    EXPECT_EQ(exception.limit(), 42U);
+    EXPECT_EQ(exception.metadata().at("limit"), "42");
+}
+
+TEST(ExceptionTest, RetryAfterIgnoresSimilarHeaderNames) {
+    alpaca::HttpHeaders headers;
+    headers.append("Retry-After-Extra", "5");
+    headers.append("Retry_after", "3");
+
+    alpaca::Exception exception(alpaca::ErrorCode::ApiResponseError, "message", {}, 200, "{}", headers);
+
+    EXPECT_FALSE(exception.retry_after().has_value());
+}
+
+TEST(ExceptionClassificationTest, AuthenticationDueToMessageFragments) {
+    alpaca::HttpHeaders headers;
+
+    EXPECT_THROW(alpaca::ThrowException(200, "Authentication failed for request", "{}", headers),
+                 alpaca::AuthenticationException);
+}
+
+TEST(ExceptionClassificationTest, PermissionDueToErrorCode) {
+    alpaca::HttpHeaders headers;
+
+    EXPECT_THROW(alpaca::ThrowException(200, "", "{}", headers, "PERMISSION_DENIED"), alpaca::PermissionException);
+}
+
+TEST(ExceptionClassificationTest, NotFoundDueToMessage) {
+    alpaca::HttpHeaders headers;
+
+    EXPECT_THROW(alpaca::ThrowException(200, "Resource Not Found", "{}", headers), alpaca::NotFoundException);
+}
+
+TEST(ExceptionClassificationTest, RateLimitDueToCode) {
+    alpaca::HttpHeaders headers;
+
+    EXPECT_THROW(alpaca::ThrowException(200, "", "{}", headers, "Too_Many_Requests"), alpaca::RateLimitException);
+}
+
+TEST(ExceptionClassificationTest, ServerExceptionDueToStatus) {
+    alpaca::HttpHeaders headers;
+
+    EXPECT_THROW(alpaca::ThrowException(503, "Service unavailable", "{}", headers), alpaca::ServerException);
+}
+
+TEST(ExceptionClassificationTest, ValidationDueToMessage) {
+    alpaca::HttpHeaders headers;
+
+    EXPECT_THROW(alpaca::ThrowException(200, "Unsupported response type", "{}", headers), alpaca::ValidationException);
+}
+
+TEST(ExceptionClassificationTest, ClientExceptionFallback) {
+    alpaca::HttpHeaders headers;
+
+    EXPECT_THROW(alpaca::ThrowException(409, "Conflict", "{}", headers), alpaca::ClientException);
+}
+
+TEST(ExceptionClassificationTest, GenericExceptionFallback) {
+    alpaca::HttpHeaders headers;
+
+    EXPECT_THROW(alpaca::ThrowException(204, "No Content", "{}", headers, "unknown"), alpaca::Exception);
 }
 
 } // namespace

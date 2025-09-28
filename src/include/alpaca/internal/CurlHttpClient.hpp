@@ -15,7 +15,7 @@ class CurlHttpClient : public HttpClient {
 
   private:
     struct Impl;
-    Impl *impl_;
+    Impl* impl_;
 };
 
 } // namespace alpaca

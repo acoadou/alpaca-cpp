@@ -19,7 +19,7 @@ namespace {
 class ScopedEnvironmentOverride {
   public:
     ScopedEnvironmentOverride(std::string name, std::string value) : name_(std::move(name)) {
-        if (auto const *existing = std::getenv(name_.c_str()); existing != nullptr) {
+        if (auto const* existing = std::getenv(name_.c_str()); existing != nullptr) {
             previous_ = existing;
         }
         set(value.c_str());
@@ -37,7 +37,7 @@ class ScopedEnvironmentOverride {
     }
 
   private:
-    void set(char const *value) {
+    void set(char const* value) {
 #if defined(_WIN32)
         if (value != nullptr) {
             _putenv_s(name_.c_str(), value);

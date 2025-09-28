@@ -7,8 +7,8 @@
 
 namespace {
 
-std::string env_or(char const *name, std::string value) {
-    if (auto const *env = std::getenv(name); env != nullptr) {
+std::string env_or(char const* name, std::string value) {
+    if (auto const* env = std::getenv(name); env != nullptr) {
         return env;
     }
     return value;

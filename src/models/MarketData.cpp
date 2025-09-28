@@ -158,7 +158,7 @@ void TimeFrame::validate(DurationVariant const& duration) {
 }
 
 namespace {
-template <typename T> std::optional<T> optional_field(Json const& j, char const *key) {
+template <typename T> std::optional<T> optional_field(Json const& j, char const* key) {
     if (!j.contains(key) || j.at(key).is_null()) {
         return std::nullopt;
     }
@@ -166,7 +166,7 @@ template <typename T> std::optional<T> optional_field(Json const& j, char const 
 }
 
 template <typename Item>
-void parse_symbol_collection(Json const& j, char const *key, std::map<std::string, std::vector<Item>>& out) {
+void parse_symbol_collection(Json const& j, char const* key, std::map<std::string, std::vector<Item>>& out) {
     out.clear();
     if (!j.contains(key) || !j.at(key).is_object()) {
         return;
@@ -176,7 +176,7 @@ void parse_symbol_collection(Json const& j, char const *key, std::map<std::strin
     }
 }
 
-template <typename Item> void parse_symbol_objects(Json const& j, char const *key, std::map<std::string, Item>& out) {
+template <typename Item> void parse_symbol_objects(Json const& j, char const* key, std::map<std::string, Item>& out) {
     out.clear();
     if (!j.contains(key) || !j.at(key).is_object()) {
         return;
@@ -569,10 +569,10 @@ template <typename Orderbooks> void parse_orderbooks(Json const& j, Orderbooks& 
     }
 }
 
-std::optional<Money> parse_optional_money(Json const& j, char const *key);
-std::optional<double> parse_optional_double(Json const& j, char const *key);
-std::optional<std::uint64_t> parse_optional_uint64(Json const& j, char const *key);
-std::optional<std::string> parse_optional_string(Json const& j, char const *key);
+std::optional<Money> parse_optional_money(Json const& j, char const* key);
+std::optional<double> parse_optional_double(Json const& j, char const* key);
+std::optional<std::uint64_t> parse_optional_uint64(Json const& j, char const* key);
+std::optional<std::string> parse_optional_string(Json const& j, char const* key);
 } // namespace
 
 void from_json(Json const& j, MultiStockOrderbooks& response) {
@@ -797,7 +797,7 @@ void append_sort(QueryParams& params, std::optional<SortDirection> const& sort) 
     }
 }
 
-std::optional<Money> parse_optional_money(Json const& j, char const *key) {
+std::optional<Money> parse_optional_money(Json const& j, char const* key) {
     if (!j.contains(key) || j.at(key).is_null()) {
         return std::nullopt;
     }
@@ -818,7 +818,7 @@ std::optional<Money> parse_optional_money(Json const& j, char const *key) {
     return std::nullopt;
 }
 
-std::optional<double> parse_optional_double(Json const& j, char const *key) {
+std::optional<double> parse_optional_double(Json const& j, char const* key) {
     if (!j.contains(key) || j.at(key).is_null()) {
         return std::nullopt;
     }
@@ -832,7 +832,7 @@ std::optional<double> parse_optional_double(Json const& j, char const *key) {
     return j.at(key).get<double>();
 }
 
-std::optional<std::uint64_t> parse_optional_uint64(Json const& j, char const *key) {
+std::optional<std::uint64_t> parse_optional_uint64(Json const& j, char const* key) {
     if (!j.contains(key) || j.at(key).is_null()) {
         return std::nullopt;
     }
@@ -856,7 +856,7 @@ std::optional<std::uint64_t> parse_optional_uint64(Json const& j, char const *ke
     return std::nullopt;
 }
 
-std::optional<std::string> parse_optional_string(Json const& j, char const *key) {
+std::optional<std::string> parse_optional_string(Json const& j, char const* key) {
     if (!j.contains(key) || j.at(key).is_null()) {
         return std::nullopt;
     }
