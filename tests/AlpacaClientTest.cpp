@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <cstdint>
+#include <cstdlib>
 #include <memory>
 #include <optional>
 #include <queue>
@@ -14,6 +15,51 @@
 #include "alpaca/Json.hpp"
 
 namespace {
+
+class ScopedEnvironmentOverride {
+public:
+    ScopedEnvironmentOverride(std::string name, std::string value)
+        : name_(std::move(name)) {
+        if (auto const* existing = std::getenv(name_.c_str()); existing != nullptr) {
+            previous_ = existing;
+        }
+        set(value.c_str());
+    }
+
+    ScopedEnvironmentOverride(ScopedEnvironmentOverride const&) = delete;
+    ScopedEnvironmentOverride& operator=(ScopedEnvironmentOverride const&) = delete;
+
+    ~ScopedEnvironmentOverride() {
+        if (previous_) {
+            set(previous_->c_str());
+        } else {
+            unset();
+        }
+    }
+
+private:
+    void set(char const* value) {
+#if defined(_WIN32)
+        if (value != nullptr) {
+            _putenv_s(name_.c_str(), value);
+        } else {
+            std::string assignment = name_ + "=";
+            _putenv(assignment.c_str());
+        }
+#else
+        if (value != nullptr) {
+            ::setenv(name_.c_str(), value, 1);
+        } else {
+            ::unsetenv(name_.c_str());
+        }
+#endif
+    }
+
+    void unset() { set(nullptr); }
+
+    std::string name_;
+    std::optional<std::string> previous_{};
+};
 
 class StubHttpClient : public alpaca::HttpClient {
 public:
@@ -62,11 +108,39 @@ TEST(ConfigurationTest, FromEnvironmentIncludesStreamingEndpoints) {
     auto environment = alpaca::Environments::Paper();
     alpaca::Configuration cfg = alpaca::Configuration::FromEnvironment(environment, "id", "secret");
 
+    EXPECT_EQ(cfg.api_key_id, "id");
+    EXPECT_EQ(cfg.api_secret_key, "secret");
     EXPECT_EQ(cfg.trading_base_url, environment.trading_base_url);
     EXPECT_EQ(cfg.data_base_url, environment.data_base_url);
     EXPECT_EQ(cfg.trading_stream_url, environment.trading_stream_url);
     EXPECT_EQ(cfg.market_data_stream_url, environment.market_data_stream_url);
     EXPECT_EQ(cfg.crypto_stream_url, environment.crypto_stream_url);
+}
+
+TEST(ConfigurationTest, FromEnvironmentPrefersEnvironmentVariables) {
+    ScopedEnvironmentOverride key{"APCA_API_KEY_ID", "env-key"};
+    ScopedEnvironmentOverride secret{"APCA_API_SECRET_KEY", "env-secret"};
+    ScopedEnvironmentOverride trading{"APCA_API_BASE_URL", "https://env-trading.example"};
+    ScopedEnvironmentOverride data{"APCA_API_DATA_URL", "https://env-data.example"};
+    ScopedEnvironmentOverride broker{"APCA_API_BROKER_URL", "https://env-broker.example"};
+    ScopedEnvironmentOverride trading_stream{"APCA_API_STREAM_URL", "wss://env-trading-stream.example"};
+    ScopedEnvironmentOverride market_stream{"APCA_API_DATA_STREAM_URL", "wss://env-market-data-stream.example"};
+    ScopedEnvironmentOverride crypto_stream{"APCA_API_CRYPTO_STREAM_URL", "wss://env-crypto-stream.example"};
+    ScopedEnvironmentOverride options_stream{"APCA_API_OPTIONS_STREAM_URL", "wss://env-options-stream.example"};
+
+    auto environment = alpaca::Environments::Paper();
+    alpaca::Configuration cfg =
+        alpaca::Configuration::FromEnvironment(environment, "arg-key", "arg-secret");
+
+    EXPECT_EQ(cfg.api_key_id, "env-key");
+    EXPECT_EQ(cfg.api_secret_key, "env-secret");
+    EXPECT_EQ(cfg.trading_base_url, "https://env-trading.example");
+    EXPECT_EQ(cfg.data_base_url, "https://env-data.example");
+    EXPECT_EQ(cfg.broker_base_url, "https://env-broker.example");
+    EXPECT_EQ(cfg.trading_stream_url, "wss://env-trading-stream.example");
+    EXPECT_EQ(cfg.market_data_stream_url, "wss://env-market-data-stream.example");
+    EXPECT_EQ(cfg.crypto_stream_url, "wss://env-crypto-stream.example");
+    EXPECT_EQ(cfg.options_stream_url, "wss://env-options-stream.example");
 }
 
 TEST(AlpacaClientTest, SubmitOrderSerializesAdvancedFields) {

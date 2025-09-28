@@ -67,14 +67,29 @@ endpoints:
 ```cpp
 alpaca::Configuration paper = alpaca::Configuration::FromEnvironment(
     alpaca::Environments::Paper(),
-    "API_KEY",
-    "SECRET"
+    "",  // fallback key when APCA_API_KEY_ID is unset
+    ""   // fallback secret when APCA_API_SECRET_KEY is unset
 );
 
 // Domain clients can be used independently when you do not need the umbrella AlpacaClient.
 alpaca::TradingClient trading(paper);
 alpaca::MarketDataClient market_data(paper);
 ```
+
+When `APCA_API_KEY_ID` and `APCA_API_SECRET_KEY` are present in the environment they automatically
+populate the configuration, allowing you to keep credentials out of the source code. The following
+environment variables are recognised and override the values derived from the selected
+`alpaca::Environment`:
+
+- `APCA_API_KEY_ID`
+- `APCA_API_SECRET_KEY`
+- `APCA_API_BASE_URL`
+- `APCA_API_DATA_URL`
+- `APCA_API_BROKER_URL`
+- `APCA_API_STREAM_URL`
+- `APCA_API_DATA_STREAM_URL`
+- `APCA_API_CRYPTO_STREAM_URL`
+- `APCA_API_OPTIONS_STREAM_URL`
 
 You can still override any field on the configuration after construction when targeting custom
 deployments.
@@ -523,8 +538,12 @@ receive order updates:
 ```cpp
 alpaca::Configuration config = alpaca::Configuration::FromEnvironment(
     alpaca::Environments::Paper(),
-    std::getenv("APCA_API_KEY_ID"),
-    std::getenv("APCA_API_SECRET_KEY"));
+    "",  // optional fallback key when APCA_API_KEY_ID is unset
+    ""); // optional fallback secret when APCA_API_SECRET_KEY is unset
+
+if (!config.has_credentials()) {
+    throw std::runtime_error("Set APCA_API_KEY_ID and APCA_API_SECRET_KEY before starting the stream.");
+}
 
 alpaca::streaming::WebSocketClient socket(
     config.trading_stream_url,

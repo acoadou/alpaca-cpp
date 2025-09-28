@@ -3,21 +3,17 @@
 #include <alpaca/Streaming.hpp>
 
 #include <chrono>
-#include <cstdlib>
 #include <iostream>
 #include <string>
 #include <thread>
 #include <variant>
 
 int main() {
-    auto const *key = std::getenv("APCA_API_KEY_ID");
-    auto const *secret = std::getenv("APCA_API_SECRET_KEY");
-    if (key == nullptr || secret == nullptr) {
+    auto config = alpaca::Configuration::FromEnvironment(alpaca::Environments::Paper(), "", "");
+    if (!config.has_credentials()) {
         std::cerr << "Please set APCA_API_KEY_ID and APCA_API_SECRET_KEY in the environment." << std::endl;
         return 1;
     }
-
-    auto config = alpaca::Configuration::FromEnvironment(alpaca::Environments::Paper(), key, secret);
 
     alpaca::streaming::WebSocketClient socket(config.trading_stream_url, config.api_key_id, config.api_secret_key,
                                               alpaca::streaming::StreamFeed::Trading);
