@@ -240,6 +240,47 @@ TEST(TradingClientTest, CustomRetryOptionsPropagateToRestClient) {
     ASSERT_EQ(http->requests().size(), 1U);
 }
 
+TEST(TradingClientTest, ListIntervalCalendarTargetsIntervalEndpoint) {
+    auto http = std::make_shared<FakeHttpClient>();
+    http->push_response(alpaca::HttpResponse{200, R"([])", {}});
+
+    alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
+    alpaca::TradingClient client(config, http);
+
+    alpaca::CalendarRequest request;
+    request.start = std::chrono::sys_days{std::chrono::year{2023} / std::chrono::January / 3};
+    request.end = std::chrono::sys_days{std::chrono::year{2023} / std::chrono::January / 4};
+
+    auto const calendar = client.list_interval_calendar(request);
+    EXPECT_TRUE(calendar.empty());
+
+    ASSERT_EQ(http->requests().size(), 1U);
+    auto const& recorded = http->requests().front().request;
+    EXPECT_EQ(recorded.method, alpaca::HttpMethod::GET);
+    EXPECT_EQ(recorded.url, config.trading_base_url + "/v2/calendar/interval?start=2023-01-03&end=2023-01-04");
+}
+
+TEST(TradingClientTest, ListIntervalCalendarParsesSessionAndTradingWindows) {
+    auto http = std::make_shared<FakeHttpClient>();
+    http->push_response(alpaca::HttpResponse{
+        200,
+        R"([{"date":"2023-01-03","session":{"open":"07:00","close":"20:00"},"trading":{"open":"09:30","close":"16:00"}}])",
+        {}});
+
+    alpaca::Configuration config = alpaca::Configuration::Paper("key", "secret");
+    alpaca::TradingClient client(config, http);
+
+    alpaca::CalendarRequest request;
+    auto const calendar = client.list_interval_calendar(request);
+    ASSERT_EQ(calendar.size(), 1U);
+    auto const& day = calendar.front();
+    EXPECT_EQ(day.date, "2023-01-03");
+    EXPECT_EQ(day.session.open, "07:00");
+    EXPECT_EQ(day.session.close, "20:00");
+    EXPECT_EQ(day.trading.open, "09:30");
+    EXPECT_EQ(day.trading.close, "16:00");
+}
+
 TEST(TradingClientTest, AddAssetToWatchlistByNameTargetsNamedEndpoint) {
     auto http = std::make_shared<FakeHttpClient>();
     http->push_response(alpaca::HttpResponse{

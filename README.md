@@ -8,7 +8,7 @@ client while embracing contemporary C++ idioms. The codebase builds a compiled l
 ## Highlights
 
 - **Comprehensive endpoint coverage** for accounts, account configuration, activities, equities/options/crypto/OTC
-  orders, positions, assets, calendar/clock data, portfolio history and watchlists.
+  orders, positions, assets, calendar/clock and interval calendar data, portfolio history and watchlists.
 - **Domain specific clients** for trading, market data, and broker operations mirroring the layout of the official
   Alpaca SDKs, with environment presets for paper and live trading and full support for onboarding, funding, and
   managed portfolio flows.

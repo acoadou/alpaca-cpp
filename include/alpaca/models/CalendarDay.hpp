@@ -18,7 +18,21 @@ struct CalendarDay {
     std::string close;
 };
 
+/// Represents a single interval calendar entry with regular and session times.
+struct IntervalCalendar {
+    struct OpenClose {
+        std::string open;
+        std::string close;
+    };
+
+    std::string date;
+    OpenClose session;
+    OpenClose trading;
+};
+
 void from_json(Json const& j, CalendarDay& day);
+void from_json(Json const& j, IntervalCalendar::OpenClose& interval);
+void from_json(Json const& j, IntervalCalendar& interval_calendar);
 
 /// Request parameters accepted by the calendar endpoint.
 struct CalendarRequest {

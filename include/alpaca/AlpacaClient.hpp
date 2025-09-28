@@ -191,6 +191,7 @@ class AlpacaClient {
 
     /// Returns the trading calendar for the provided filters.
     [[nodiscard]] std::vector<CalendarDay> get_calendar(CalendarRequest const& request = {});
+    [[nodiscard]] std::vector<IntervalCalendar> list_interval_calendar(CalendarRequest const& request);
 
     /// Returns a list of tradable assets.
     [[nodiscard]] std::vector<Asset> list_assets(ListAssetsRequest const& request = {});

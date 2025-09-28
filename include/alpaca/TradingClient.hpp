@@ -89,6 +89,7 @@ class TradingClient {
 
     [[nodiscard]] Clock get_clock();
     [[nodiscard]] std::vector<CalendarDay> get_calendar(CalendarRequest const& request = {});
+    [[nodiscard]] std::vector<IntervalCalendar> list_interval_calendar(CalendarRequest const& request);
 
     [[nodiscard]] std::vector<Asset> list_assets(ListAssetsRequest const& request = {});
     [[nodiscard]] Asset get_asset(std::string const& symbol);

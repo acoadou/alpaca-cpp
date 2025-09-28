@@ -231,6 +231,10 @@ std::vector<CalendarDay> AlpacaClient::get_calendar(CalendarRequest const& reque
     return trading().get_calendar(request);
 }
 
+std::vector<IntervalCalendar> AlpacaClient::list_interval_calendar(CalendarRequest const& request) {
+    return trading().list_interval_calendar(request);
+}
+
 std::vector<Asset> AlpacaClient::list_assets(ListAssetsRequest const& request) {
     return trading().list_assets(request);
 }

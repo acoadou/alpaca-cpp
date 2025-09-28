@@ -225,6 +225,10 @@ std::vector<CalendarDay> TradingClient::get_calendar(CalendarRequest const& requ
     return rest_client_.get<std::vector<CalendarDay>>("/v2/calendar", request.to_query_params());
 }
 
+std::vector<IntervalCalendar> TradingClient::list_interval_calendar(CalendarRequest const& request) {
+    return rest_client_.get<std::vector<IntervalCalendar>>("/v2/calendar/interval", request.to_query_params());
+}
+
 std::vector<Asset> TradingClient::list_assets(ListAssetsRequest const& request) {
     return rest_client_.get<std::vector<Asset>>("/v2/assets", request.to_query_params());
 }
