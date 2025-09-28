@@ -149,7 +149,7 @@ struct StatusMessage {
 /// Represents a single level within an order book side.
 struct OrderBookLevel {
     double price{0.0};
-    std::uint64_t size{0};
+    double size{0.0};
     std::string exchange;
 };
 
@@ -160,6 +160,7 @@ struct OrderBookMessage {
     std::vector<OrderBookLevel> bids{};
     std::vector<OrderBookLevel> asks{};
     std::optional<std::string> tape{};
+    bool is_snapshot{false};
 };
 
 /// Limit-up / limit-down notification for a symbol.
@@ -468,6 +469,7 @@ class WebSocketClient {
     void record_activity();
     void evaluate_sequence_gap(Json const& payload);
     void evaluate_latency(Json const& payload);
+    void refresh_sequence_identifier_metadata_locked();
 
     std::string url_;
     std::string key_;
@@ -527,6 +529,7 @@ class WebSocketClient {
     std::mutex sequence_mutex_;
     std::optional<SequenceGapPolicy> sequence_policy_{};
     std::unordered_map<std::string, std::uint64_t> last_sequence_ids_{};
+    bool sequence_identifier_uses_default_{false};
     std::shared_ptr<BackfillCoordinator> backfill_coordinator_{};
     std::function<void(std::string const&, std::uint64_t, std::uint64_t, Json const&)> backfill_passthrough_replay_{};
 

@@ -44,12 +44,46 @@ std::vector<std::string> parse_conditions(Json const& j, char const *key) {
     return j.at(key).get<std::vector<std::string>>();
 }
 
+std::optional<std::string> parse_string_field(Json const& payload, char const *key) {
+    if (!payload.contains(key) || payload.at(key).is_null()) {
+        return std::nullopt;
+    }
+    auto const& field = payload.at(key);
+    if (field.is_string()) {
+        return field.get<std::string>();
+    }
+    return std::nullopt;
+}
+
 std::string default_stream_identifier(Json const& payload) {
     if (payload.contains("S") && payload.at("S").is_string()) {
         return payload.at("S").get<std::string>();
     }
     if (payload.contains("symbol") && payload.at("symbol").is_string()) {
         return payload.at("symbol").get<std::string>();
+    }
+    return {};
+}
+
+std::string to_lower_ascii(std::string value) {
+    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char ch) {
+        return static_cast<char>(std::tolower(ch));
+    });
+    return value;
+}
+
+std::string extract_message_channel(Json const& payload) {
+    if (auto type = parse_string_field(payload, "T")) {
+        return to_lower_ascii(*type);
+    }
+    if (auto event = parse_string_field(payload, "ev")) {
+        return to_lower_ascii(*event);
+    }
+    if (auto stream = parse_string_field(payload, "stream")) {
+        return to_lower_ascii(*stream);
+    }
+    if (auto event = parse_string_field(payload, "event")) {
+        return to_lower_ascii(*event);
     }
     return {};
 }
@@ -87,6 +121,17 @@ std::optional<std::uint64_t> default_sequence_extractor(Json const& payload) {
         return seq;
     }
     return std::nullopt;
+}
+
+bool is_default_stream_identifier(std::function<std::string(Json const&)> const& identifier) {
+    if (!identifier) {
+        return false;
+    }
+    auto target = identifier.template target<std::string (*)(Json const&)>();
+    if (!target) {
+        return false;
+    }
+    return *target == &default_stream_identifier;
 }
 
 template <typename T> std::optional<T> parse_optional(Json const& j, char const *key) {
@@ -167,16 +212,61 @@ std::optional<std::string> parse_optional_string_like(Json const& j, char const 
     return field.dump();
 }
 
+std::optional<double> parse_numeric_field(Json const& entry, char const *key) {
+    if (!entry.contains(key) || entry.at(key).is_null()) {
+        return std::nullopt;
+    }
+    auto const& field = entry.at(key);
+    if (field.is_number_float()) {
+        return field.get<double>();
+    }
+    if (field.is_number_unsigned()) {
+        return static_cast<double>(field.get<std::uint64_t>());
+    }
+    if (field.is_number_integer()) {
+        return static_cast<double>(field.get<std::int64_t>());
+    }
+    if (field.is_string()) {
+        auto const text = field.get<std::string>();
+        if (text.empty()) {
+            return std::nullopt;
+        }
+        try {
+            return std::stod(text);
+        } catch (...) {
+            return std::nullopt;
+        }
+    }
+    return std::nullopt;
+}
+
 std::vector<OrderBookLevel> parse_order_book_side(Json const& payload, char const *key) {
     if (!payload.contains(key) || !payload.at(key).is_array()) {
         return {};
     }
     std::vector<OrderBookLevel> levels;
     for (auto const& entry : payload.at(key)) {
+        if (!entry.is_object()) {
+            continue;
+        }
         OrderBookLevel level{};
-        level.price = entry.value("p", 0.0);
-        level.size = entry.value("s", std::uint64_t{0});
-        level.exchange = entry.value("x", "");
+        auto price = parse_numeric_field(entry, "p");
+        if (!price) {
+            price = parse_numeric_field(entry, "price");
+        }
+        level.price = price.value_or(0.0);
+
+        auto size = parse_numeric_field(entry, "s");
+        if (!size) {
+            size = parse_numeric_field(entry, "size");
+        }
+        level.size = size.value_or(0.0);
+
+        if (auto exchange = parse_optional<std::string>(entry, "x")) {
+            level.exchange = std::move(*exchange);
+        } else if (auto exchange = parse_optional<std::string>(entry, "exchange")) {
+            level.exchange = std::move(*exchange);
+        }
         levels.push_back(std::move(level));
     }
     return levels;
@@ -299,6 +389,11 @@ StreamMessage build_order_book_message(Json const& payload) {
     message.asks = parse_order_book_side(payload, "a");
     if (auto tape = parse_optional<std::string>(payload, "z")) {
         message.tape = std::move(tape);
+    }
+    if (payload.contains("r") && payload.at("r").is_boolean()) {
+        message.is_snapshot = payload.at("r").get<bool>();
+    } else if (payload.contains("reset") && payload.at("reset").is_boolean()) {
+        message.is_snapshot = payload.at("reset").get<bool>();
     }
     return message;
 }
@@ -668,6 +763,7 @@ std::future<void> WebSocketClient::disconnect_async() {
 
 void WebSocketClient::subscribe(MarketSubscription const& subscription) {
     MarketSubscription diff;
+    bool is_connected = false;
     {
         std::lock_guard<std::mutex> lock(connection_mutex_);
         for (auto const& symbol : subscription.trades) {
@@ -745,12 +841,17 @@ void WebSocketClient::subscribe(MarketSubscription const& subscription) {
                 diff.news.push_back(symbol);
             }
         }
+        is_connected = connected_.load();
     }
 
     if (diff.trades.empty() && diff.quotes.empty() && diff.bars.empty() && diff.updated_bars.empty() &&
         diff.daily_bars.empty() && diff.statuses.empty() && diff.orderbooks.empty() && diff.lulds.empty() &&
         diff.auctions.empty() && diff.greeks.empty() && diff.underlyings.empty() && diff.trade_cancels.empty() &&
         diff.trade_corrections.empty() && diff.imbalances.empty() && diff.news.empty()) {
+        return;
+    }
+
+    if (!is_connected) {
         return;
     }
 
@@ -812,6 +913,7 @@ std::future<void> WebSocketClient::subscribe_async(MarketSubscription subscripti
 
 void WebSocketClient::unsubscribe(MarketSubscription const& subscription) {
     MarketSubscription diff;
+    bool is_connected = false;
     {
         std::lock_guard<std::mutex> lock(connection_mutex_);
         for (auto const& symbol : subscription.trades) {
@@ -889,12 +991,17 @@ void WebSocketClient::unsubscribe(MarketSubscription const& subscription) {
                 diff.news.push_back(symbol);
             }
         }
+        is_connected = connected_.load();
     }
 
     if (diff.trades.empty() && diff.quotes.empty() && diff.bars.empty() && diff.updated_bars.empty() &&
         diff.daily_bars.empty() && diff.statuses.empty() && diff.orderbooks.empty() && diff.lulds.empty() &&
         diff.auctions.empty() && diff.greeks.empty() && diff.underlyings.empty() && diff.trade_cancels.empty() &&
         diff.trade_corrections.empty() && diff.imbalances.empty() && diff.news.empty()) {
+        return;
+    }
+
+    if (!is_connected) {
         return;
     }
 
@@ -956,6 +1063,7 @@ std::future<void> WebSocketClient::unsubscribe_async(MarketSubscription subscrip
 
 void WebSocketClient::listen(std::vector<std::string> const& streams) {
     std::vector<std::string> newly_added;
+    bool is_connected = false;
     {
         std::lock_guard<std::mutex> lock(connection_mutex_);
         for (auto const& stream : streams) {
@@ -963,9 +1071,14 @@ void WebSocketClient::listen(std::vector<std::string> const& streams) {
                 newly_added.push_back(stream);
             }
         }
+        is_connected = connected_.load();
     }
 
     if (newly_added.empty()) {
+        return;
+    }
+
+    if (!is_connected) {
         return;
     }
 
@@ -1087,6 +1200,7 @@ void WebSocketClient::set_incoming_message_limit(std::size_t limit) {
 void WebSocketClient::set_sequence_gap_policy(SequenceGapPolicy policy) {
     std::lock_guard<std::mutex> lock(sequence_mutex_);
     sequence_policy_ = std::move(policy);
+    refresh_sequence_identifier_metadata_locked();
     last_sequence_ids_.clear();
 }
 
@@ -1094,6 +1208,7 @@ void WebSocketClient::clear_sequence_gap_policy() {
     std::lock_guard<std::mutex> lock(sequence_mutex_);
     sequence_policy_.reset();
     last_sequence_ids_.clear();
+    sequence_identifier_uses_default_ = false;
     backfill_coordinator_.reset();
     backfill_passthrough_replay_ = {};
 }
@@ -1131,6 +1246,7 @@ void WebSocketClient::enable_automatic_backfill(std::shared_ptr<BackfillCoordina
         policy.sequence_extractor = default_sequence_extractor;
         sequence_policy_ = std::move(policy);
         last_sequence_ids_.clear();
+        sequence_identifier_uses_default_ = true;
     } else {
         bool updated_identifier = false;
         if (!sequence_policy_->stream_identifier) {
@@ -1144,6 +1260,7 @@ void WebSocketClient::enable_automatic_backfill(std::shared_ptr<BackfillCoordina
         if (updated_identifier) {
             last_sequence_ids_.clear();
         }
+        refresh_sequence_identifier_metadata_locked();
     }
 
     backfill_passthrough_replay_ = sequence_policy_->replay_request;
@@ -1167,6 +1284,14 @@ void WebSocketClient::disable_automatic_backfill() {
     }
     backfill_coordinator_.reset();
     backfill_passthrough_replay_ = {};
+}
+
+void WebSocketClient::refresh_sequence_identifier_metadata_locked() {
+    if (!sequence_policy_ || !sequence_policy_->stream_identifier) {
+        sequence_identifier_uses_default_ = false;
+        return;
+    }
+    sequence_identifier_uses_default_ = is_default_stream_identifier(sequence_policy_->stream_identifier);
 }
 
 bool WebSocketClient::is_connected() const {
@@ -1676,6 +1801,7 @@ void WebSocketClient::evaluate_sequence_gap(Json const& payload) {
     std::function<void(std::string const&, std::uint64_t, std::uint64_t, Json const&)> gap_handler;
     std::function<void(std::string const&, std::uint64_t, std::uint64_t, Json const&)> replay_handler;
     std::string stream_id;
+    std::string tracking_id;
     std::uint64_t expected = 0;
     std::uint64_t observed = 0;
     bool gap_detected = false;
@@ -1693,8 +1819,20 @@ void WebSocketClient::evaluate_sequence_gap(Json const& payload) {
             return;
         }
 
+        tracking_id = stream_id;
+        if (sequence_identifier_uses_default_) {
+            auto channel = extract_message_channel(payload);
+            if (!channel.empty()) {
+                if (!tracking_id.empty()) {
+                    tracking_id = channel + "|" + tracking_id;
+                } else {
+                    tracking_id = channel;
+                }
+            }
+        }
+
         if (backfill_coordinator_) {
-            backfill_coordinator_->record_payload(stream_id, payload);
+            backfill_coordinator_->record_payload(tracking_id, payload);
         }
 
         if (!sequence_policy_->sequence_extractor) {
@@ -1706,9 +1844,9 @@ void WebSocketClient::evaluate_sequence_gap(Json const& payload) {
         }
 
         auto const current = *seq;
-        auto const it = last_sequence_ids_.find(stream_id);
+        auto const it = last_sequence_ids_.find(tracking_id);
         if (it == last_sequence_ids_.end()) {
-            last_sequence_ids_.emplace(stream_id, current);
+            last_sequence_ids_.emplace(tracking_id, current);
             return;
         }
 

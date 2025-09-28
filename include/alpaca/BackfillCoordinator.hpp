@@ -6,6 +6,7 @@
 #include <optional>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "alpaca/Json.hpp"
@@ -64,6 +65,7 @@ class BackfillCoordinator {
     struct StreamState {
         std::optional<Timestamp> previous_timestamp{};
         std::optional<Timestamp> last_timestamp{};
+        std::optional<std::pair<std::uint64_t, std::uint64_t>> last_requested_range{};
     };
 
     [[nodiscard]] std::optional<Timestamp> extract_timestamp(Json const& payload) const;

@@ -18,6 +18,63 @@ std::string to_lower_copy(std::string value) {
     return value;
 }
 
+std::string extract_symbol_from_stream_id(std::string const& stream_id) {
+    auto const pos = stream_id.find('|');
+    if (pos == std::string::npos) {
+        return stream_id;
+    }
+    return stream_id.substr(pos + 1);
+}
+
+std::string make_state_key(std::string const& stream_id, std::string const& suffix) {
+    std::string key = extract_symbol_from_stream_id(stream_id);
+    key.push_back('|');
+    key.append(suffix);
+    return key;
+}
+
+std::optional<std::uint64_t> parse_sequence_value(Json const& payload, char const *key) {
+    if (!payload.contains(key) || payload.at(key).is_null()) {
+        return std::nullopt;
+    }
+    auto const& field = payload.at(key);
+    if (field.is_number_unsigned()) {
+        return field.get<std::uint64_t>();
+    }
+    if (field.is_number_integer()) {
+        auto value = field.get<std::int64_t>();
+        if (value < 0) {
+            return std::nullopt;
+        }
+        return static_cast<std::uint64_t>(value);
+    }
+    if (field.is_string()) {
+        auto const text = field.get<std::string>();
+        if (text.empty()) {
+            return std::nullopt;
+        }
+        try {
+            return static_cast<std::uint64_t>(std::stoull(text));
+        } catch (...) {
+            return std::nullopt;
+        }
+    }
+    return std::nullopt;
+}
+
+std::optional<std::uint64_t> extract_sequence(Json const& payload) {
+    if (auto seq = parse_sequence_value(payload, "i")) {
+        return seq;
+    }
+    if (auto seq = parse_sequence_value(payload, "sequence")) {
+        return seq;
+    }
+    if (auto seq = parse_sequence_value(payload, "seq")) {
+        return seq;
+    }
+    return std::nullopt;
+}
+
 std::optional<Timestamp> extract_timestamp_from_payload(Json const& payload) {
     if (auto ts = parse_timestamp_field(payload, "t")) {
         return ts;
@@ -66,10 +123,22 @@ void BackfillCoordinator::record_payload(std::string const& stream_id, Json cons
         return;
     }
 
+    auto const payload_kind = classify_payload(payload);
+    if (!payload_kind.has_value()) {
+        return;
+    }
+
     std::lock_guard<std::mutex> lock(mutex_);
-    auto& state = states_[stream_id];
+    auto const kind_suffix = *payload_kind == PayloadKind::Trade ? std::string{"trade"} : std::string{"bar"};
+    auto& state = states_[make_state_key(stream_id, kind_suffix)];
     state.previous_timestamp = state.last_timestamp;
     state.last_timestamp = *timestamp;
+
+    if (auto sequence = extract_sequence(payload)) {
+        if (state.last_requested_range && *sequence >= state.last_requested_range->second) {
+            state.last_requested_range.reset();
+        }
+    }
 }
 
 void BackfillCoordinator::request_backfill(std::string const& stream_id, std::uint64_t from_sequence,
@@ -88,17 +157,35 @@ void BackfillCoordinator::request_backfill(std::string const& stream_id, std::ui
         return;
     }
 
+    auto const kind_suffix = *payload_kind == PayloadKind::Trade ? std::string{"trade"} : std::string{"bar"};
+    auto const state_key = make_state_key(stream_id, kind_suffix);
+    auto const symbol = extract_symbol_from_stream_id(stream_id);
+
     StreamState state_copy{};
     TradeReplayHandler trade_handler_copy{};
     BarReplayHandler bar_handler_copy{};
+    bool skip_request = false;
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        auto const it = states_.find(stream_id);
-        if (it != states_.end()) {
-            state_copy = it->second;
+        auto& state = states_[state_key];
+        if (state.last_requested_range.has_value() && from_sequence >= state.last_requested_range->first &&
+            to_sequence <= state.last_requested_range->second) {
+            skip_request = true;
+        } else {
+            auto range = std::make_pair(from_sequence, to_sequence);
+            if (state.last_requested_range.has_value()) {
+                range.first = std::min(range.first, state.last_requested_range->first);
+                range.second = std::max(range.second, state.last_requested_range->second);
+            }
+            state.last_requested_range = range;
         }
+        state_copy = state;
         trade_handler_copy = trade_handler_;
         bar_handler_copy = bar_handler_;
+    }
+
+    if (skip_request) {
+        return;
     }
 
     std::optional<Timestamp> start_timestamp = state_copy.previous_timestamp;
@@ -122,12 +209,12 @@ void BackfillCoordinator::request_backfill(std::string const& stream_id, std::ui
     switch (*payload_kind) {
     case PayloadKind::Trade:
         if (options_.request_trades) {
-            replay_trades(stream_id, start, end, limit, trade_handler_copy);
+            replay_trades(symbol, start, end, limit, trade_handler_copy);
         }
         break;
     case PayloadKind::Bar:
         if (options_.request_bars) {
-            replay_bars(stream_id, start, end, limit, bar_handler_copy);
+            replay_bars(symbol, start, end, limit, bar_handler_copy);
         }
         break;
     }
@@ -159,7 +246,7 @@ std::optional<BackfillCoordinator::PayloadKind> BackfillCoordinator::classify_pa
     return std::nullopt;
 }
 
-void BackfillCoordinator::replay_trades(std::string const& stream_id, Timestamp start, Timestamp end, int limit,
+void BackfillCoordinator::replay_trades(std::string const& symbol, Timestamp start, Timestamp end, int limit,
                                         TradeReplayHandler const& handler) {
     if (!market_data_client_) {
         return;
@@ -168,45 +255,45 @@ void BackfillCoordinator::replay_trades(std::string const& stream_id, Timestamp 
     switch (feed_) {
     case StreamFeed::MarketData: {
         MultiStockTradesRequest request;
-        request.symbols = {stream_id};
+        request.symbols = {symbol};
         request.start = start;
         request.end = end;
         request.sort = SortDirection::ASC;
         append_optional_limit(request.limit, limit);
         auto const response = market_data_client_->get_stock_trades(request);
         if (handler) {
-            auto it = response.trades.find(stream_id);
+            auto it = response.trades.find(symbol);
             if (it != response.trades.end()) {
-                handler(stream_id, it->second);
+                handler(symbol, it->second);
             } else {
                 static std::vector<StockTrade> const empty_trades;
-                handler(stream_id, empty_trades);
+                handler(symbol, empty_trades);
             }
         }
         break;
     }
     case StreamFeed::Options: {
         MultiOptionTradesRequest request;
-        request.symbols = {stream_id};
+        request.symbols = {symbol};
         request.start = start;
         request.end = end;
         request.sort = SortDirection::ASC;
         append_optional_limit(request.limit, limit);
         auto const response = market_data_client_->get_option_trades(request);
         if (handler) {
-            auto it = response.trades.find(stream_id);
+            auto it = response.trades.find(symbol);
             if (it != response.trades.end()) {
-                handler(stream_id, it->second);
+                handler(symbol, it->second);
             } else {
                 static std::vector<OptionTrade> const empty_trades;
-                handler(stream_id, empty_trades);
+                handler(symbol, empty_trades);
             }
         }
         break;
     }
     case StreamFeed::Crypto: {
         MultiCryptoTradesRequest request;
-        request.symbols = {stream_id};
+        request.symbols = {symbol};
         request.start = start;
         request.end = end;
         request.sort = SortDirection::ASC;
@@ -214,12 +301,12 @@ void BackfillCoordinator::replay_trades(std::string const& stream_id, Timestamp 
         request.feed = options_.crypto_feed;
         auto const response = market_data_client_->get_crypto_trades(request);
         if (handler) {
-            auto it = response.trades.find(stream_id);
+            auto it = response.trades.find(symbol);
             if (it != response.trades.end()) {
-                handler(stream_id, it->second);
+                handler(symbol, it->second);
             } else {
                 static std::vector<CryptoTrade> const empty_trades;
-                handler(stream_id, empty_trades);
+                handler(symbol, empty_trades);
             }
         }
         break;
@@ -229,7 +316,7 @@ void BackfillCoordinator::replay_trades(std::string const& stream_id, Timestamp 
     }
 }
 
-void BackfillCoordinator::replay_bars(std::string const& stream_id, Timestamp start, Timestamp end, int limit,
+void BackfillCoordinator::replay_bars(std::string const& symbol, Timestamp start, Timestamp end, int limit,
                                       BarReplayHandler const& handler) {
     if (!market_data_client_) {
         return;
@@ -238,7 +325,7 @@ void BackfillCoordinator::replay_bars(std::string const& stream_id, Timestamp st
     switch (feed_) {
     case StreamFeed::MarketData: {
         MultiStockBarsRequest request;
-        request.symbols = {stream_id};
+        request.symbols = {symbol};
         request.start = start;
         request.end = end;
         request.sort = SortDirection::ASC;
@@ -246,19 +333,19 @@ void BackfillCoordinator::replay_bars(std::string const& stream_id, Timestamp st
         request.timeframe = options_.bar_timeframe;
         auto const response = market_data_client_->get_stock_aggregates(request);
         if (handler) {
-            auto it = response.bars.find(stream_id);
+            auto it = response.bars.find(symbol);
             if (it != response.bars.end()) {
-                handler(stream_id, it->second);
+                handler(symbol, it->second);
             } else {
                 static std::vector<StockBar> const empty_bars;
-                handler(stream_id, empty_bars);
+                handler(symbol, empty_bars);
             }
         }
         break;
     }
     case StreamFeed::Options: {
         MultiOptionBarsRequest request;
-        request.symbols = {stream_id};
+        request.symbols = {symbol};
         request.start = start;
         request.end = end;
         request.sort = SortDirection::ASC;
@@ -266,19 +353,19 @@ void BackfillCoordinator::replay_bars(std::string const& stream_id, Timestamp st
         request.timeframe = options_.bar_timeframe;
         auto const response = market_data_client_->get_option_aggregates(request);
         if (handler) {
-            auto it = response.bars.find(stream_id);
+            auto it = response.bars.find(symbol);
             if (it != response.bars.end()) {
-                handler(stream_id, it->second);
+                handler(symbol, it->second);
             } else {
                 static std::vector<OptionBar> const empty_bars;
-                handler(stream_id, empty_bars);
+                handler(symbol, empty_bars);
             }
         }
         break;
     }
     case StreamFeed::Crypto: {
         MultiCryptoBarsRequest request;
-        request.symbols = {stream_id};
+        request.symbols = {symbol};
         request.start = start;
         request.end = end;
         request.sort = SortDirection::ASC;
@@ -287,12 +374,12 @@ void BackfillCoordinator::replay_bars(std::string const& stream_id, Timestamp st
         request.feed = options_.crypto_feed;
         auto const response = market_data_client_->get_crypto_aggregates(request);
         if (handler) {
-            auto it = response.bars.find(stream_id);
+            auto it = response.bars.find(symbol);
             if (it != response.bars.end()) {
-                handler(stream_id, it->second);
+                handler(symbol, it->second);
             } else {
                 static std::vector<CryptoBar> const empty_bars;
-                handler(stream_id, empty_bars);
+                handler(symbol, empty_bars);
             }
         }
         break;
