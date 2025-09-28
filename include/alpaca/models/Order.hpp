@@ -7,6 +7,7 @@
 #include "alpaca/Json.hpp"
 #include "alpaca/RestClient.hpp"
 #include "alpaca/models/Common.hpp"
+#include "alpaca/models/OrderStatus.hpp"
 
 namespace alpaca {
 
@@ -94,7 +95,7 @@ struct Order {
     OrderType type{OrderType::MARKET};
     TimeInForce time_in_force{TimeInForce::DAY};
     std::optional<OrderClass> order_class;
-    std::string status;
+    OrderStatus status{OrderStatus::UNKNOWN};
     std::optional<std::string> qty;
     std::optional<std::string> notional;
     std::optional<std::string> filled_qty;

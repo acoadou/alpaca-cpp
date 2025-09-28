@@ -120,6 +120,7 @@ TEST(ModelSerializationTest, OrderDeserializesTrailingFields) {
     };
 
     auto const order = json.get<alpaca::Order>();
+    EXPECT_EQ(order.status, alpaca::OrderStatus::ACCEPTED);
     ASSERT_TRUE(order.trail_price.has_value());
     EXPECT_EQ(*order.trail_price, "1.50");
     ASSERT_TRUE(order.trail_percent.has_value());

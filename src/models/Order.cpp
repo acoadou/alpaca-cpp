@@ -1,5 +1,7 @@
 #include "alpaca/models/Order.hpp"
 
+#include <algorithm>
+#include <cctype>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -7,6 +9,13 @@
 #include "alpaca/Exceptions.hpp"
 namespace alpaca {
 namespace {
+
+std::string to_lower_copy(std::string value) {
+    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char ch) {
+        return static_cast<char>(std::tolower(ch));
+    });
+    return value;
+}
 
 template <typename Request> Json build_new_order_payload(Request const& request) {
     Json j{
@@ -190,6 +199,104 @@ void append_symbols(QueryParams& params, std::vector<std::string> const& symbols
 
 } // namespace
 
+std::string to_string(OrderStatus status) {
+    switch (status) {
+    case OrderStatus::NEW:
+        return "new";
+    case OrderStatus::PARTIALLY_FILLED:
+        return "partially_filled";
+    case OrderStatus::FILLED:
+        return "filled";
+    case OrderStatus::DONE_FOR_DAY:
+        return "done_for_day";
+    case OrderStatus::CANCELED:
+        return "canceled";
+    case OrderStatus::EXPIRED:
+        return "expired";
+    case OrderStatus::REPLACED:
+        return "replaced";
+    case OrderStatus::PENDING_CANCEL:
+        return "pending_cancel";
+    case OrderStatus::PENDING_REPLACE:
+        return "pending_replace";
+    case OrderStatus::ACCEPTED:
+        return "accepted";
+    case OrderStatus::PENDING_NEW:
+        return "pending_new";
+    case OrderStatus::ACCEPTED_FOR_BIDDING:
+        return "accepted_for_bidding";
+    case OrderStatus::STOPPED:
+        return "stopped";
+    case OrderStatus::REJECTED:
+        return "rejected";
+    case OrderStatus::SUSPENDED:
+        return "suspended";
+    case OrderStatus::CALCULATED:
+        return "calculated";
+    case OrderStatus::HELD:
+        return "held";
+    case OrderStatus::UNKNOWN:
+        return "unknown";
+    }
+    throw std::invalid_argument("Unknown OrderStatus");
+}
+
+OrderStatus order_status_from_string(std::string const& value) {
+    std::string const lower = to_lower_copy(value);
+    if (lower == "new") {
+        return OrderStatus::NEW;
+    }
+    if (lower == "partially_filled") {
+        return OrderStatus::PARTIALLY_FILLED;
+    }
+    if (lower == "filled") {
+        return OrderStatus::FILLED;
+    }
+    if (lower == "done_for_day") {
+        return OrderStatus::DONE_FOR_DAY;
+    }
+    if (lower == "canceled" || lower == "cancelled") {
+        return OrderStatus::CANCELED;
+    }
+    if (lower == "expired") {
+        return OrderStatus::EXPIRED;
+    }
+    if (lower == "replaced") {
+        return OrderStatus::REPLACED;
+    }
+    if (lower == "pending_cancel") {
+        return OrderStatus::PENDING_CANCEL;
+    }
+    if (lower == "pending_replace") {
+        return OrderStatus::PENDING_REPLACE;
+    }
+    if (lower == "accepted") {
+        return OrderStatus::ACCEPTED;
+    }
+    if (lower == "pending_new") {
+        return OrderStatus::PENDING_NEW;
+    }
+    if (lower == "accepted_for_bidding") {
+        return OrderStatus::ACCEPTED_FOR_BIDDING;
+    }
+    if (lower == "stopped") {
+        return OrderStatus::STOPPED;
+    }
+    if (lower == "rejected") {
+        return OrderStatus::REJECTED;
+    }
+    if (lower == "suspended") {
+        return OrderStatus::SUSPENDED;
+    }
+    if (lower == "calculated") {
+        return OrderStatus::CALCULATED;
+    }
+    if (lower == "held") {
+        return OrderStatus::HELD;
+    }
+    return OrderStatus::UNKNOWN;
+}
+
 std::string to_string(OrderStatusFilter status) {
     switch (status) {
     case OrderStatusFilter::OPEN:
@@ -203,7 +310,7 @@ std::string to_string(OrderStatusFilter status) {
                                    {
                                        {"context", "to_string"                             },
                                        {"value",   std::to_string(static_cast<int>(status))}
-    });
+                                   });
 }
 
 std::string to_string(PositionIntent intent) {
@@ -219,7 +326,7 @@ std::string to_string(PositionIntent intent) {
                                    {
                                        {"context", "to_string"                             },
                                        {"value",   std::to_string(static_cast<int>(intent))}
-    });
+                                   });
 }
 
 void to_json(Json& j, NewOrderRequest const& request) {
@@ -265,7 +372,11 @@ void from_json(Json const& j, Order& order) {
     } else {
         order.order_class.reset();
     }
-    order.status = j.value("status", std::string{});
+    if (j.contains("status") && !j.at("status").is_null()) {
+        order.status = order_status_from_string(j.at("status").get<std::string>());
+    } else {
+        order.status = OrderStatus::UNKNOWN;
+    }
     if (j.contains("qty") && !j.at("qty").is_null()) {
         order.qty = j.at("qty").get<std::string>();
     } else {

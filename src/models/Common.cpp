@@ -422,7 +422,7 @@ void to_json(Json& j, StopLossParams const& params) {
 
 void from_json(Json const& j, CancelledOrderId& id) {
     j.at("id").get_to(id.id);
-    j.at("status").get_to(id.status);
+    id.status = order_status_from_string(j.at("status").get<std::string>());
 }
 
 Timestamp parse_timestamp(std::string_view value) {

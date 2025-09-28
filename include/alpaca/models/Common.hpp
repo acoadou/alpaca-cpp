@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "alpaca/Json.hpp"
+#include "alpaca/models/OrderStatus.hpp"
 
 namespace alpaca {
 
@@ -114,7 +115,7 @@ void to_json(Json& j, StopLossParams const& params);
 /// Request payload sent when cancelling all orders.
 struct CancelledOrderId {
     std::string id;
-    std::string status;
+    OrderStatus status{OrderStatus::UNKNOWN};
 };
 
 void from_json(Json const& j, CancelledOrderId& id);
